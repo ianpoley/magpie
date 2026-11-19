@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 
 import { refresh } from "next/cache";
 
+import { MAX_QUERY_CHARS } from "@/lib/ask";
 import { engineConfig, engineEdits, engineStore } from "@/lib/engine";
 import type { ActionResult, UndoStep } from "@/lib/types";
 
@@ -11,7 +12,6 @@ type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
 
 const MAX_NAME_CHARS = 200;
-const MAX_QUERY_CHARS = 500;
 const MAX_POST_ID_CHARS = 64;
 const MAX_PIN_SCORES = 50_000;
 

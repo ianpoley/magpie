@@ -35,7 +35,6 @@ const resultEvent = (structured: unknown) => ({
   structured_output: structured,
 });
 
-/** A stand-in executable that records its arguments and stdin, then replays `stdout`. */
 function stubCli(t: TestContext, behavior: { stdout?: string; exitCode?: number; sleepSeconds?: number }) {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);

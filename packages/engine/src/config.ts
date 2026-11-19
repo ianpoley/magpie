@@ -2,11 +2,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/**
- * Every threshold and limit the engine, web app and skill share. Values the
- * product decisions fixed are plain; ones marked "chosen" had no number given
- * and are safe to tune.
- */
+/** Every threshold and limit the engine, web app and skill share. */
 
 /** Jev probability bands, applied when membership is read, not when scored. */
 export const BANDS = {
@@ -38,9 +34,9 @@ export const DISCOVERY = {
   maxAreas: 9,
   minTopics: 30,
   maxTopics: 50,
-  /** chosen: characters of each post sent to Claude. */
+  /** Characters of each post sent to Claude. */
   postCharLimit: 400,
-  /** chosen: caps applied to names and definitions before they are stored. */
+  /** Caps applied to names and definitions before they are stored. */
   nameMaxChars: 60,
   definitionMaxChars: 300,
 } as const;
@@ -50,9 +46,8 @@ export const LINKS = {
   concurrency: 8,
   maxAttempts: 4,
   htmlCapBytes: 256 * 1024,
-  /** chosen */
   maxRedirects: 10,
-  /** chosen: gap before retry n is retryBaseGapMs × 2^(n-1), so 6 h, 12 h, 24 h. */
+  /** Gap before retry n is retryBaseGapMs × 2^(n-1), so 6 h, 12 h, 24 h. */
   retryBaseGapMs: 6 * 60 * 60 * 1000,
   /** Links ending on these hosts are posts, not resources, and are not fetched. */
   notResourceHosts: ['x.com', 'twitter.com', 'twimg.com'] as readonly string[],
@@ -65,15 +60,17 @@ export const LINKS = {
 export const ASK = {
   /** Questions (one per post) per Jev request. */
   chunkSize: 40,
-  /** chosen: requests in flight. */
+  /** Requests in flight. */
   concurrency: 6,
-  /** chosen: characters of post content per question; the tagger uses the same limit. */
+  /** Characters of post content per question; the tagger uses the same limit. */
   contentCharLimit: 1_500,
 } as const;
 
 export const TAGGING = {
-  /** chosen: Jev requests in flight. */
+  /** Jev requests in flight. */
   concurrency: 6,
+  /** Posts failing one after another, with none scored between, before a tagging pass gives up. */
+  maxConsecutiveFailures: 10,
 } as const;
 
 export const CLAUDE = {

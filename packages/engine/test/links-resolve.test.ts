@@ -44,7 +44,6 @@ const registry = (fields: Record<string, unknown>): HttpResponse => ({
   body: JSON.stringify(fields),
 });
 
-/** Runs the link stage once per allowed attempt, waiting out each retry gap. */
 async function exhaust(run: () => Promise<unknown>, advance: (ms: number) => void) {
   await run();
   for (const gap of [6, 12, 24]) {
@@ -68,11 +67,16 @@ function setup(t: TestContext, posts: SeedPost[], routes: Record<string, Route> 
   });
 
   const table = new Map<string, Route>();
+  const addresses = new Map<string, string[] | Error>();
   const calls: string[] = [];
   const web = {
     calls,
     set(url: string, route: Route) {
       table.set(href(url), route);
+    },
+    /** Every host resolves to a public address unless one is set here. */
+    resolveTo(host: string, result: string[] | Error) {
+      addresses.set(host, result);
     },
   };
   for (const [url, route] of Object.entries(routes)) web.set(url, route);
@@ -88,7 +92,12 @@ function setup(t: TestContext, posts: SeedPost[], routes: Record<string, Route> 
   const advance = (ms: number) => {
     clock.now = new Date(clock.now.getTime() + ms);
   };
-  const run = () => resolveLinks(db, { http, now: () => clock.now });
+  const lookup = async (host: string): Promise<string[]> => {
+    const result = addresses.get(host) ?? ['93.184.216.34'];
+    if (result instanceof Error) throw result;
+    return result;
+  };
+  const run = () => resolveLinks(db, { http, lookup, now: () => clock.now });
 
   const add = (more: SeedPost[]) => {
     posts = [...posts, ...more];
@@ -108,7 +117,6 @@ function link(db: DatabaseSync, url: string) {
   return row;
 }
 
-/** Each resource's key with the ids of the posts that link to it. */
 function groups(db: DatabaseSync): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const row of db.prepare('SELECT id, canonical_key FROM resources ORDER BY canonical_key').all()) {
@@ -459,6 +467,104 @@ test('a link to a local or private address is never requested', async (t) => {
   assert.deepEqual(web.calls, []);
   assert.equal(link(db, 'http://localhost:8080/admin').status, 'failed');
   assert.deepEqual(groups(db), {});
+});
+
+test('a local name written with a trailing dot is never requested', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: ['http://localhost./x'] }]);
+
+  await run();
+
+  assert.deepEqual(web.calls, []);
+  assert.equal(link(db, 'http://localhost./x').status, 'failed');
+  assert.match(String(link(db, 'http://localhost./x').last_error), /not on the public web/);
+});
+
+for (const address of ['127.0.0.1', '192.168.1.5', '::1', '::ffff:10.0.0.1', '169.254.169.254', '100.64.0.1', 'fd00::1', 'fe80::1', '0.0.0.0']) {
+  test(`a public-looking name that resolves to ${address} is never requested`, async (t) => {
+    const { db, web, run } = setup(t, [{ id: '1', urls: ['https://rebind.example/admin'] }], {
+      'https://rebind.example/admin': page('Router admin'),
+    });
+    web.resolveTo('rebind.example', ['93.184.216.34', address]);
+
+    await run();
+
+    assert.deepEqual(web.calls, []);
+    const row = link(db, 'https://rebind.example/admin');
+    assert.equal(row.status, 'failed');
+    assert.match(String(row.last_error), /not on the public web/);
+    assert.deepEqual(groups(db), {});
+  });
+}
+
+test('a redirect to a name that resolves to a private address is not followed', async (t) => {
+  const { db, web, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://rebind.example/admin'),
+    'https://rebind.example/admin': page('Router admin'),
+  });
+  web.resolveTo('rebind.example', ['192.168.1.5']);
+
+  await exhaust(run, advance);
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'unresolved');
+  assert.equal(row.final_url, null);
+  assert.deepEqual(groups(db), {});
+  assert.ok(web.calls.every((url) => url === 'https://t.co/a'));
+});
+
+test('a name that resolves to a public address is requested', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: ['https://docs.example/guide'] }], {
+    'https://docs.example/guide': page('The guide'),
+  });
+  web.resolveTo('docs.example', ['93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946']);
+
+  await run();
+
+  assert.deepEqual(web.calls, ['https://docs.example/guide']);
+  assert.equal(link(db, 'https://docs.example/guide').title, 'The guide');
+});
+
+test('a name that cannot be looked up is a failed attempt that is tried again', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: ['https://gone.example/x'] }], {
+    'https://gone.example/x': page('Gone'),
+  });
+  web.resolveTo('gone.example', new Error('getaddrinfo ENOTFOUND gone.example'));
+
+  await run();
+
+  assert.deepEqual(web.calls, []);
+  const row = link(db, 'https://gone.example/x');
+  assert.equal(row.status, 'failed');
+  assert.match(String(row.last_error), /ENOTFOUND/);
+});
+
+test('a page that is one enormous meta tag is read quickly, and an ordinary page still gives its title and description', async (t) => {
+  const giant = `<html><head><meta ${'a'.repeat(256 * 1024)}></head></html>`;
+  const unclosed = `<html><head>${'<meta '.repeat((256 * 1024) / 6)}`;
+  const html = (body: string): HttpResponse => ({ status: 200, headers: { 'content-type': 'text/html' }, body });
+  const { db, run } = setup(
+    t,
+    [{ id: '1', urls: ['https://slow.example/', 'https://open.example/', 'https://fine.example/post'] }],
+    {
+      'https://slow.example/': html(giant),
+      'https://open.example/': html(unclosed),
+      'https://fine.example/post': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><head><title>Tab title</title><meta property="og:title" content="Shared title"><meta property="og:description" content="Shared description"></head></html>',
+      },
+    },
+  );
+
+  const started = performance.now();
+  await run();
+  const elapsed = performance.now() - started;
+
+  assert.ok(elapsed < 1500, `resolving took ${Math.round(elapsed)} ms`);
+  assert.equal(link(db, 'https://slow.example/').status, 'resolved');
+  const fine = link(db, 'https://fine.example/post');
+  assert.equal(fine.title, 'Shared title');
+  assert.equal(fine.description, 'Shared description');
 });
 
 test('a GitHub rate-limit response leaves the alias pending without failing, and a later run fills it in', async (t) => {

@@ -11,6 +11,7 @@ import {
   askPosts,
   cleanQuery,
   createAskRunner,
+  isSameOriginJson,
   rankAsk,
   readAskPosts,
   type AskDeps,
@@ -277,7 +278,6 @@ test("results ignore the category selection and the keyword, which belong to bro
 const encoder = new TextEncoder();
 const line = (record: AskRecord): Uint8Array => encoder.encode(`${JSON.stringify(record)}\n`);
 
-/** A response whose body the test feeds by hand. */
 function handFed(signal?: AbortSignal) {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   const body = new ReadableStream<Uint8Array>({ start: (c) => void (controller = c) });
@@ -429,4 +429,41 @@ test("asking again keeps the earlier answers until new ones replace them; cleari
   runner.clear();
   assert.equal(runner.getState(), null);
   assert.equal(signals[1].aborted, true);
+});
+
+const HOST = "127.0.0.1:3000";
+const requestHeaders = (headers: Record<string, string>) => new Headers({ host: HOST, ...headers });
+
+test("a JSON request from the app's own page is accepted", () => {
+  assert.equal(
+    isSameOriginJson(
+      requestHeaders({ "content-type": "application/json", origin: `http://${HOST}`, "sec-fetch-site": "same-origin" }),
+    ),
+    true,
+  );
+  assert.equal(isSameOriginJson(requestHeaders({ "content-type": "Application/JSON; charset=utf-8", origin: `http://${HOST}` })), true);
+});
+
+test("a JSON request with no origin, as a local script sends, is accepted", () => {
+  assert.equal(isSameOriginJson(requestHeaders({ "content-type": "application/json" })), true);
+  assert.equal(isSameOriginJson(requestHeaders({ "content-type": "application/json", "sec-fetch-site": "none" })), true);
+});
+
+test("a request that is not JSON is refused, since another site can send it without asking", () => {
+  assert.equal(isSameOriginJson(requestHeaders({ "content-type": "text/plain", origin: `http://${HOST}` })), false);
+  assert.equal(isSameOriginJson(requestHeaders({ origin: `http://${HOST}` })), false);
+});
+
+test("a request from another origin is refused", () => {
+  const json = { "content-type": "application/json" };
+  assert.equal(isSameOriginJson(requestHeaders({ ...json, origin: "https://elsewhere.example" })), false);
+  assert.equal(isSameOriginJson(requestHeaders({ ...json, origin: "http://127.0.0.1:4000" })), false);
+  assert.equal(isSameOriginJson(requestHeaders({ ...json, origin: "null" })), false);
+  assert.equal(isSameOriginJson(new Headers({ ...json, origin: `http://${HOST}` })), false);
+});
+
+test("a request the browser marks as cross-site is refused", () => {
+  const json = { "content-type": "application/json" };
+  assert.equal(isSameOriginJson(requestHeaders({ ...json, "sec-fetch-site": "cross-site" })), false);
+  assert.equal(isSameOriginJson(requestHeaders({ ...json, "sec-fetch-site": "same-site", origin: `http://${HOST}` })), false);
 });

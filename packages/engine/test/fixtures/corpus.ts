@@ -8,7 +8,6 @@ import { tempDir } from './export.ts';
 
 const AT = '2026-01-01T00:00:00.000Z';
 
-/** A fresh store in a temp dir, closed and removed when the test ends. */
 export function tempStore(t: TestContext): { db: Store; path: string } {
   const { dir, cleanup } = tempDir();
   const path = join(dir, 'corpus.sqlite');
@@ -128,10 +127,6 @@ export function seedLink(
 
 export type FakeJev = JevClient & { requests: JevRequest[] };
 
-/**
- * A Jev stand-in that records every request. `answer` gives the probability
- * for one question of one request, or throws to fail that whole request.
- */
 export function fakeJev(answer: (questionId: string, request: JevRequest) => number = () => 0.1): FakeJev {
   const requests: JevRequest[] = [];
   return {

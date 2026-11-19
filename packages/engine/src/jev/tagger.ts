@@ -2,6 +2,7 @@ import { TAGGING } from '../config.ts';
 import { transaction } from '../store/db.ts';
 import type { Store } from '../store/db.ts';
 import { syncBands } from '../store/membership.ts';
+import { errorText } from '../util.ts';
 import type { JevClient } from './client.ts';
 import { hasSomethingToJudge, readPostContent, taggingRequest, topicQuestionId } from './questions.ts';
 import type { TopicDefinition } from './questions.ts';
@@ -22,11 +23,14 @@ export type TagResult = {
   scored: number;
   /** Posts with nothing to judge, stored as matching no topic without a request. */
   withoutContent: number;
-  /** Posts whose request failed; they keep whatever scores they had and are tried again next run. */
+  /**
+   * Posts whose request failed, and posts left untried after too many failed in
+   * a row; they keep whatever scores they had and are tried again next run.
+   */
   failed: number;
   /** Score rows written. */
   scores: number;
-  /** Up to five distinct failure messages. */
+  /** Up to five distinct failure messages, after the notice that the run stopped early if it did. */
   errors: string[];
 };
 
@@ -83,6 +87,9 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
     result.scores += probabilities.size;
   };
 
+  let failuresInARow = 0;
+  let lastFailure = '';
+
   const scorePost = async (postId: string, topicIds: number[]): Promise<void> => {
     const scoredAt = now().toISOString();
     const content = readPostContent(db, [postId]).get(postId);
@@ -111,17 +118,35 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
       }
       store(postId, probabilities, scoredAt);
       result.scored += 1;
+      failuresInARow = 0;
     } catch (error) {
       result.failed += 1;
-      const message = error instanceof Error ? error.message : String(error);
+      failuresInARow += 1;
+      const message = errorText(error);
+      lastFailure = message;
       if (result.errors.length < MAX_ERRORS && !result.errors.includes(message)) result.errors.push(message);
     }
   };
 
+  // During an outage every request runs to its timeout, so a long queue is
+  // given up on rather than drained one timeout at a time.
+  const givenUp = (): boolean => failuresInARow >= TAGGING.maxConsecutiveFailures;
   const queue = [...topicIdsByPost];
   const workers = Array.from({ length: Math.max(1, deps.concurrency ?? TAGGING.concurrency) }, async () => {
-    for (let next = queue.shift(); next; next = queue.shift()) await scorePost(next[0], next[1]);
+    while (!givenUp()) {
+      const next = queue.shift();
+      if (!next) return;
+      await scorePost(next[0], next[1]);
+    }
   });
   await Promise.all(workers);
+  if (queue.length > 0) {
+    result.posts += queue.length;
+    result.failed += queue.length;
+    result.errors.unshift(
+      `Stopped after ${TAGGING.maxConsecutiveFailures} posts in a row failed (${lastFailure}); ` +
+        `${queue.length} posts were not tried and will be tried again next run.`,
+    );
+  }
   return result;
 }

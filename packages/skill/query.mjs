@@ -81,8 +81,6 @@ const STORE = process.env.X_CORPUS_STORE
   || (process.env.X_CORPUS_DIR
     ? join(process.env.X_CORPUS_DIR, '..', 'state', 'corpus.sqlite')
     : join(homedir(), 'x-corpus/state/corpus.sqlite'));
-// The newest store layout this script understands. Version 2 added the
-// category views it reads; version 3 added removing a post.
 const KNOWN_SCHEMA_VERSION = 3;
 const CATEGORIES_SCHEMA_VERSION = 2;
 const REMOVAL_SCHEMA_VERSION = 3;
@@ -145,6 +143,8 @@ function removedPostIds({ db, version }) {
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const fold = s => String(s).trim().replace(/\s+/g, ' ').toLowerCase();
+const clip = text => (opts.full ? text : (text.length > 400 ? text.slice(0, 400) + '…' : text));
+const indent = text => text.split('\n').map(l => '   ' + l).join('\n');
 
 function editDistance(a, b) {
   let row = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -286,10 +286,9 @@ function runTopic(db, name) {
   console.log(`${plural(ranked.length, 'post')} in "${label}" (${sure} confident, ${ranked.length - sure} unsure); showing top ${top.length}:\n`);
   for (const [i, r] of top.entries()) {
     const date = String(r.created || '').slice(0, 10);
-    const text = opts.full ? r.text : (r.text.length > 400 ? r.text.slice(0, 400) + '…' : r.text);
     console.log(`${i + 1}. @${r.handle} · ${date} · [${r.type}]${r.band === 'unsure' ? ' · unsure match' : ''}`);
     console.log(`   ${r.url}`);
-    console.log(text.split('\n').map(l => '   ' + l).join('\n'));
+    console.log(indent(clip(r.text)));
     console.log('');
   }
 }
@@ -389,7 +388,7 @@ const STOP = new Set(['the','a','an','and','or','to','of','in','on','for','with'
   'my','me','i','how','what','about','any','from','that','this','it']);
 const qterms = terms.map(t => t.toLowerCase()).filter(Boolean);
 const scoreTerms = qterms.filter(t => t.length >= 3 && !STOP.has(t));
-const usable = scoreTerms.length ? scoreTerms : qterms; // fall back if user only gave short/stop words
+const usable = scoreTerms.length ? scoreTerms : qterms;
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function score(r) {
@@ -407,7 +406,7 @@ function score(r) {
 
 let scored;
 if (!usable.length) {
-  scored = records.map(r => ({ r, s: 0 }));            // no query -> most recent
+  scored = records.map(r => ({ r, s: 0 }));
 } else {
   scored = records.map(r => ({ r, s: score(r) })).filter(x => x.s > 0);
 }
@@ -421,10 +420,9 @@ if (opts.json) {
   console.log(`Found ${scored.length} match(es) for ${label} in ${opts.source}; showing top ${top.length}:\n`);
   for (const [i, r] of top.entries()) {
     const date = String(r.created || '').slice(0, 10);
-    const text = opts.full ? r.text : (r.text.length > 400 ? r.text.slice(0, 400) + '…' : r.text);
     console.log(`${i + 1}. @${r.handle} · ${date} · [${r.type}]`);
     console.log(`   ${r.url}`);
-    console.log(text.split('\n').map(l => '   ' + l).join('\n'));
+    console.log(indent(clip(r.text)));
     console.log('');
   }
   if (!top.length) console.log('No matches. Try broader/different terms, or --source all.');

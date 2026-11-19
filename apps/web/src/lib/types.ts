@@ -180,8 +180,6 @@ export type FilterResult = {
   unsureStart: number | null;
 };
 
-export type Stats = { posts: number; bookmarks: number; likes: number; authors: number };
-
 export type AuthorCount = {
   handle: string;
   name: string;
@@ -216,4 +214,12 @@ export type ActionErrorCode =
 
 export type ActionResult<T> = ({ ok: true } & T) | { ok: false; code: ActionErrorCode; message: string };
 
-export type UndoStep = { id: number; kind: string; summary: string; postCount: number; createdAt: string };
+export type UndoStep = {
+  id: number;
+  kind: string;
+  summary: string;
+  postCount: number;
+  createdAt: string;
+  /** Names of topics the user merged into a topic this change created; undoing it brings them back. */
+  restores: string[];
+};

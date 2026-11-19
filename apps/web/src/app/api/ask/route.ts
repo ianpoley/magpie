@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 
-import { askPosts, cleanQuery, readAskPosts, type AskPost, type AskRecord } from "@/lib/ask";
+import { askPosts, cleanQuery, isSameOriginJson, readAskPosts, type AskPost, type AskRecord } from "@/lib/ask";
 import { engineConfig, engineJev, engineQuestions, engineStore } from "@/lib/engine";
 
 const refuse = (status: number, message: string): Response => Response.json({ message }, { status });
@@ -11,6 +11,7 @@ const refuse = (status: number, message: string): Response => Response.json({ me
  * this process: nothing from a Jev failure is sent on or logged in full.
  */
 export async function POST(request: Request): Promise<Response> {
+  if (!isSameOriginJson(request.headers)) return refuse(403, "This search did not come from the app.");
   let body: unknown;
   try {
     body = await request.json();

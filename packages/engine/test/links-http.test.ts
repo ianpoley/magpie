@@ -7,7 +7,6 @@ import type { TestContext } from 'node:test';
 
 import { fetchHttp } from '../src/links/http.ts';
 
-/** A server on the loopback interface, so these tests stay off the network. */
 async function serve(t: TestContext, handler: (req: IncomingMessage, res: ServerResponse) => void): Promise<string> {
   const server = createServer(handler);
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));

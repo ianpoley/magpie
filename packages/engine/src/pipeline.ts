@@ -9,10 +9,12 @@ import { scorePairs, tagPosts } from './jev/tagger.ts';
 import type { TagResult } from './jev/tagger.ts';
 import type { HttpFetch } from './links/http.ts';
 import { resolveLinks } from './links/resolve.ts';
+import type { HostLookup } from './links/resolve.ts';
 import { acquireLock } from './lock.ts';
 import { openStore } from './store/db.ts';
 import type { Store } from './store/db.ts';
 import { syncBands } from './store/membership.ts';
+import { MESSAGE_MAX_CHARS, errorText, isRecord } from './util.ts';
 
 /** Every file a run touches. None has a default, so a caller always says which corpus it means. */
 export type PipelineFiles = {
@@ -25,6 +27,8 @@ export type PipelineFiles = {
 
 export type PipelineDeps = {
   http: HttpFetch;
+  /** How link hosts are resolved before they are requested. Defaults to the system resolver. */
+  lookup?: HostLookup;
   jev: JevClient;
   claude: ClaudeAdapter;
   now?: () => Date;
@@ -67,13 +71,6 @@ export type PipelineResult =
   | { status: 'complete'; runId: number; upstreamSync: UpstreamSync; stages: StageReport[] };
 
 type StageBody = Omit<StageReport, 'stage' | 'message'> & { message?: string | null };
-
-const MESSAGE_MAX_CHARS = 500;
-
-const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * How the X sync that ran before this went. The sync script writes one entry
@@ -192,7 +189,7 @@ async function runStages(
 
   await stage('links', async () => {
     if (options.skipLinks) return skipped('Skipped on request.');
-    const counts = await resolveLinks(db, { http: deps.http, now });
+    const counts = await resolveLinks(db, { http: deps.http, lookup: deps.lookup, now });
     return { outcome: 'ok', counts };
   });
 

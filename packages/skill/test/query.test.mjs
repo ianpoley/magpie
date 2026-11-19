@@ -27,7 +27,6 @@ const INSTALL = join(SKILL_DIR, 'install.sh');
 const CORPUS = join(HERE, 'fixtures', 'corpus');
 const GOLDEN = join(HERE, 'fixtures', 'golden');
 
-// Recorded from the keyword-only script before categories existed.
 const KEYWORD_SEARCHES = [
   { golden: 'terms.txt', args: ['animation', 'react', '--limit', '8'] },
   { golden: 'terms-json.txt', args: ['animation', 'react', '--json'] },

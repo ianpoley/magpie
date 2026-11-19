@@ -1,5 +1,5 @@
 import type { Store } from '../store/db.ts';
-import { confidentPostIds, suppressProposal } from './tombstones.ts';
+import { suppressProposal } from './tombstones.ts';
 
 export const CHANGE_KIND = { newTopic: 'new_topic', split: 'split', undo: 'undo' } as const;
 
@@ -13,7 +13,26 @@ export type LoggedChange = {
   summary: string;
   postCount: number;
   createdAt: string;
+  /** Names of topics the user merged into a topic this change created; undoing it brings them back. */
+  restores: string[];
 };
+
+type ChangeRow = Record<string, unknown>;
+
+function createdTopicIds(change: ChangeRow): number[] {
+  const snapshot = JSON.parse(String(change.snapshot_json));
+  if (change.kind === CHANGE_KIND.newTopic) return [(snapshot as NewTopicSnapshot).topicId];
+  if (change.kind === CHANGE_KIND.split) return (snapshot as SplitSnapshot).subtopicIds;
+  return [];
+}
+
+/** Topics merged into `topicId`, which stop counting for anything once it goes out of use. */
+function mergedInto(db: Store, topicId: number): { id: number; name: string }[] {
+  return db
+    .prepare(`SELECT id, name FROM topics WHERE merged_into = ? AND state = 'merged' ORDER BY id`)
+    .all(topicId)
+    .map((row) => ({ id: Number(row.id), name: String(row.name) }));
+}
 
 /**
  * Every change that undoing `changeId` reverses, newest first: the change
@@ -21,7 +40,7 @@ export type LoggedChange = {
  * topic one of them touched. Empty when the change does not exist.
  */
 export function undoChain(db: Store, changeId: number): LoggedChange[] {
-  const read = db.prepare(`SELECT id, kind, summary, post_count, created_at FROM changes WHERE id = ?`);
+  const read = db.prepare(`SELECT id, kind, summary, post_count, created_at, snapshot_json FROM changes WHERE id = ?`);
   const target = read.get(changeId);
   if (!target) return [];
   const topicsOf = db.prepare(`SELECT topic_id FROM change_topics WHERE change_id = ?`);
@@ -29,7 +48,7 @@ export function undoChain(db: Store, changeId: number): LoggedChange[] {
   const chain = [target];
   const later = db
     .prepare(
-      `SELECT id, kind, summary, post_count, created_at FROM changes
+      `SELECT id, kind, summary, post_count, created_at, snapshot_json FROM changes
        WHERE id > ? AND source = 'auto' AND undoable = 1 AND undone_at IS NULL
        ORDER BY id`,
     )
@@ -40,20 +59,44 @@ export function undoChain(db: Store, changeId: number): LoggedChange[] {
     chain.push(change);
     for (const id of topics) touched.add(id);
   }
+  const state = db.prepare(`SELECT state FROM topics WHERE id = ?`);
   return chain.reverse().map((row) => ({
     id: Number(row.id),
     kind: String(row.kind),
     summary: String(row.summary),
     postCount: Number(row.post_count),
     createdAt: String(row.created_at),
+    restores: createdTopicIds(row)
+      .filter((topicId) => state.get(topicId)?.state === 'active')
+      .flatMap((topicId) => mergedInto(db, topicId).map((topic) => topic.name)),
   }));
 }
 
-/** Takes topics an automatic change created out of use and keeps them from being proposed again. */
+/**
+ * Takes topics an automatic change created out of use and keeps them from
+ * being proposed again. A topic the user merged into one of them is the
+ * user's own, so it comes back as it was rather than going out of use too.
+ */
 function removeCreatedTopics(db: Store, topicIds: number[], changeId: number, now: string): void {
   const read = db.prepare(`SELECT name, definition, state FROM topics WHERE id = ?`);
   const remove = db.prepare(`UPDATE topics SET state = 'removed', locked = 1, updated_at = ? WHERE id = ?`);
-  const matches = confidentPostIds(db, topicIds);
+  // The posts the proposal itself matched: what was merged in is not part of it.
+  const ownMatches = db.prepare(
+    `SELECT s.post_id FROM scores s
+     WHERE s.topic_id = ? AND s.post_id IN (SELECT id FROM visible_posts)
+       AND s.probability >= (SELECT CAST(value AS REAL) FROM meta WHERE key = 'band_confident')
+     ORDER BY s.post_id`,
+  );
+  // The merge moved the merged topic's per-post fixes here without recording
+  // which were its own, so each restored topic gets them all: a fix kept in
+  // one place too many can be taken off, a lost one cannot be found again.
+  const copyFixes = db.prepare(
+    `INSERT OR IGNORE INTO overrides (post_id, topic_id, action, created_at)
+     SELECT post_id, ?, action, created_at FROM overrides WHERE topic_id = ? AND action IN ('add', 'remove')`,
+  );
+  const restore = db.prepare(
+    `UPDATE topics SET state = 'active', merged_into = NULL, locked = 1, updated_at = ? WHERE id = ?`,
+  );
   for (const topicId of topicIds) {
     const topic = read.get(topicId);
     if (!topic || topic.state !== 'active') continue;
@@ -62,12 +105,16 @@ function removeCreatedTopics(db: Store, topicIds: number[], changeId: number, no
       {
         name: String(topic.name),
         definition: String(topic.definition),
-        matches: matches.get(topicId) ?? [],
+        matches: ownMatches.all(topicId).map((row) => String(row.post_id)),
         topicId,
         changeId,
       },
       now,
     );
+    for (const merged of mergedInto(db, topicId)) {
+      copyFixes.run(merged.id, topicId);
+      restore.run(now, merged.id);
+    }
     remove.run(now, topicId);
   }
 }

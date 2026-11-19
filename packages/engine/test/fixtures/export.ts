@@ -14,7 +14,6 @@ type PostOptions = {
   quoted?: ExportPost | null;
 };
 
-/** A synthetic record in the shape the birdclaw export writes. */
 export function exportPost(id: string, options: PostOptions = {}): ExportPost {
   const handle = options.handle ?? `author${id}`;
   return {

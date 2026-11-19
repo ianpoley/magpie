@@ -4,6 +4,7 @@ import type { Store } from '../store/db.ts';
 import { newTopicRound, splitRound } from './apply.ts';
 import type { RoundDeps, RoundOutcome } from './apply.ts';
 import { proposeNewTopic, proposeSplit } from './propose.ts';
+import { confidentPostIds } from './tombstones.ts';
 import { newTopicTrigger, tooBroadTopics } from './triggers.ts';
 
 export type EvolveDeps = { claude: ClaudeAdapter; jev: JevClient; runId?: number; now?: () => Date };
@@ -64,10 +65,7 @@ export async function evolve(db: Store, deps: EvolveDeps): Promise<EvolveResult>
   }
 
   for (const parent of tooBroadTopics(db)) {
-    const posts = db
-      .prepare(`SELECT post_id FROM topic_membership WHERE topic_id = ? AND band = 'confident' ORDER BY post_id`)
-      .all(parent.id)
-      .map((row) => String(row.post_id));
+    const posts = confidentPostIds(db, [parent.id]).get(parent.id) ?? [];
     const proposal = await proposeSplit(db, deps.claude, parent, posts);
     if (!proposal.ok) return claudeFailed(proposal);
     if (!tally(await splitRound(db, round, parent, proposal.value), 'splits')) return result;

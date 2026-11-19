@@ -166,9 +166,6 @@ export const MEMBERSHIP_VIEWS_V1 = `
 `;
 
 /**
- * Adds removal: a post the user removed from the corpus keeps its row, scores
- * and fixes, and is visible nowhere until it is restored.
- *
  *   visible_posts    (id)  Posts that are bookmarked or liked and not removed.
  *     The one definition of a visible post. Every reader of posts goes through
  *     it, and so do the views above, which this recreates on top of it.

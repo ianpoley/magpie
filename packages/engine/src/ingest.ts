@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { INGEST } from './config.ts';
 import { transaction } from './store/db.ts';
 import type { Store } from './store/db.ts';
+import { isRecord } from './util.ts';
 
 type Json = Record<string, unknown>;
 
@@ -66,11 +67,8 @@ const POST_COLUMNS = [
   'liked',
 ] as const;
 
-const isObject = (value: unknown): value is Json =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 function pick(source: unknown, keys: string[]): unknown {
-  if (!isObject(source)) return undefined;
+  if (!isRecord(source)) return undefined;
   for (const key of keys) {
     const value = source[key];
     if (value != null && value !== '') return value;
@@ -98,7 +96,7 @@ const HANDLE_KEYS = ['handle', 'screen_name', 'username'];
 const NAME_KEYS = ['displayName', 'name', 'display_name'];
 
 const looksLikePost = (value: unknown): boolean =>
-  isObject(value) && pick(value, [...TEXT_KEYS, ...ID_KEYS]) !== undefined;
+  isRecord(value) && pick(value, [...TEXT_KEYS, ...ID_KEYS]) !== undefined;
 
 /** The largest array of post-like records anywhere in the export envelope. */
 function findPostArray(node: unknown): unknown[] | null {
@@ -114,12 +112,12 @@ function findPostArray(node: unknown): unknown[] | null {
 
 function parsePost(record: unknown): ParsedPost | null {
   const id = text(pick(record, ID_KEYS));
-  if (!isObject(record) || id === null) return null;
-  const author = [record.author, record.user, record.core, record.account].find(isObject) ?? {};
+  if (!isRecord(record) || id === null) return null;
+  const author = [record.author, record.user, record.core, record.account].find(isRecord) ?? {};
   const handle = String(pick(record, HANDLE_KEYS) ?? pick(author, HANDLE_KEYS) ?? 'unknown');
   const hue = Number(pick(author, ['avatarHue']));
   const likes = Number(pick(record, ['likeCount', 'like_count', 'favorite_count']));
-  const entities = isObject(record.entities) ? record.entities : {};
+  const entities = isRecord(record.entities) ? record.entities : {};
   const urls = Array.isArray(entities.urls) ? entities.urls : [];
   const quoted = record.quotedTweet ?? record.quoted_tweet;
 
@@ -145,7 +143,7 @@ function parsePost(record: unknown): ParsedPost | null {
     author_avatar_hue: Number.isFinite(hue) ? hue : null,
     like_count: Number.isFinite(likes) ? likes : 0,
     reply_to_id: text(pick(record, ['replyToId', 'reply_to_id', 'in_reply_to_status_id_str'])),
-    quoted_json: isObject(quoted) ? JSON.stringify(decodeQuoted(quoted)) : null,
+    quoted_json: isRecord(quoted) ? JSON.stringify(decodeQuoted(quoted)) : null,
     media_json: JSON.stringify(Array.isArray(record.media) ? record.media : []),
     entities_json: JSON.stringify(entities),
     links,

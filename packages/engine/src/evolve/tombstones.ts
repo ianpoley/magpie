@@ -7,7 +7,7 @@ import type { Store } from '../store/db.ts';
  * a later proposal is recognised by its name or by the posts it would claim.
  */
 
-const key = (name: string): string => name.trim().toLowerCase();
+export const key = (name: string): string => name.trim().toLowerCase();
 
 /**
  * The posts each given active topic holds as confident matches, in id order,
