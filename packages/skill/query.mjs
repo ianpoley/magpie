@@ -16,7 +16,8 @@
  *   $X_CORPUS_STORE, else $X_CORPUS_DIR/../state/corpus.sqlite,
  *   else ~/x-corpus/state/corpus.sqlite.
  * Posts in areas or topics the user hides by default are left out of every
- * command unless --include-hidden is given.
+ * command unless --include-hidden is given. Posts the user removed from the
+ * corpus are left out of every command, and no flag brings them back.
  *
  * This file is run from ~/.claude/skills/x-corpus under whatever node the
  * calling session has, so it imports nothing outside node itself.
@@ -65,7 +66,7 @@ Usage:
 categories lists the areas and topics the posts are sorted into, with counts.
 topic and resources take an area or topic name from that list.
 Hidden areas and topics, and the posts in them, are left out unless
---include-hidden is given.
+--include-hidden is given. Posts removed from the corpus are never returned.
 
 Examples:
   node query.mjs animation react --limit 8
@@ -80,9 +81,11 @@ const STORE = process.env.X_CORPUS_STORE
   || (process.env.X_CORPUS_DIR
     ? join(process.env.X_CORPUS_DIR, '..', 'state', 'corpus.sqlite')
     : join(homedir(), 'x-corpus/state/corpus.sqlite'));
-// The newest store layout this script understands, and the one that added the
-// category views it reads.
-const KNOWN_SCHEMA_VERSION = 2;
+// The newest store layout this script understands. Version 2 added the
+// category views it reads; version 3 added removing a post.
+const KNOWN_SCHEMA_VERSION = 3;
+const CATEGORIES_SCHEMA_VERSION = 2;
+const REMOVAL_SCHEMA_VERSION = 3;
 
 function fail(message) {
   console.error(message);
@@ -107,7 +110,8 @@ async function loadSqlite() {
   }
 }
 
-// Returns a read-only handle, or null when there are no categories to read yet.
+// Returns a read-only handle and the store's schema version, or null when
+// there are no categories to read yet.
 async function openStore() {
   if (!existsSync(STORE)) return null;
   const { DatabaseSync } = await loadSqlite();
@@ -119,17 +123,24 @@ async function openStore() {
   if (version > KNOWN_SCHEMA_VERSION) {
     db.close();
     return fail(`The store at ${STORE} has schema version ${version}; this script knows version ${KNOWN_SCHEMA_VERSION}. `
-      + `Update the x-corpus skill. Keyword search still works without the store when given --include-hidden.`);
+      + `Update the x-corpus skill.`);
   }
-  if (version < KNOWN_SCHEMA_VERSION) {
+  if (version < CATEGORIES_SCHEMA_VERSION) {
     db.close();
     return null;
   }
-  return db;
+  return { db, version };
 }
 
 function hiddenPostIds(db) {
   return new Set(db.prepare('SELECT post_id FROM post_hidden').all().map(r => String(r.post_id)));
+}
+
+// Posts the user removed from the corpus. The category views already leave
+// them out; keyword search reads the export files, which still carry them.
+function removedPostIds({ db, version }) {
+  if (version < REMOVAL_SCHEMA_VERSION) return new Set();
+  return new Set(db.prepare('SELECT id FROM posts WHERE removed_at IS NOT NULL').all().map(r => String(r.id)));
 }
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -318,8 +329,9 @@ function runResources(db, name) {
 }
 
 if (command) {
-  const db = await openStore();
-  if (!db) fail(`No category store at ${STORE}. The sync job creates it; keyword search (node query.mjs <terms...>) works without it. Override the path with X_CORPUS_STORE.`);
+  const store = await openStore();
+  if (!store) fail(`No category store at ${STORE}. The sync job creates it; keyword search (node query.mjs <terms...>) works without it. Override the path with X_CORPUS_STORE.`);
+  const { db } = store;
   if (command === 'categories') runCategories(db);
   else if (command === 'topic') runTopic(db, terms.join(' '));
   else runResources(db, terms.join(' '));
@@ -360,13 +372,12 @@ for (const r of records) {
 }
 records = [...byKey.values()];
 
-if (!opts.includeHidden) {
-  const db = await openStore();
-  if (db) {
-    const hidden = hiddenPostIds(db);
-    db.close();
-    records = records.filter(r => !hidden.has(String(r.id)));
-  }
+const store = await openStore();
+if (store) {
+  const dropped = removedPostIds(store);
+  if (!opts.includeHidden) for (const id of hiddenPostIds(store.db)) dropped.add(id);
+  store.db.close();
+  records = records.filter(r => !dropped.has(String(r.id)));
 }
 if (opts.author) records = records.filter(r => String(r.handle || '').toLowerCase() === opts.author);
 if (opts.since) {

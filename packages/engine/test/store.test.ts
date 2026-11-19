@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
@@ -168,4 +169,40 @@ test('a transaction started inside another joins it', (t) => {
     }),
   );
   assert.equal(db.prepare('SELECT count(*) AS n FROM areas').get()?.n, 0);
+});
+
+test('a store at schema version 2 migrates, keeps its data, and can mark a post removed', (t) => {
+  const path = storePath(t);
+  mkdirSync(dirname(path), { recursive: true });
+  const old = new DatabaseSync(path);
+  old.exec(readFileSync(join(import.meta.dirname, 'fixtures', 'store-v2.sql'), 'utf8'));
+  old.exec(`
+    INSERT INTO posts (id, text, url, author_handle, author_name, bookmarked, liked, first_seen_at)
+    VALUES ('1', 'kept text', 'https://x.com/a/status/1', 'a', 'A', 1, 0, '2026-01-01'),
+           ('2', 'other text', 'https://x.com/a/status/2', 'a', 'A', 0, 1, '2026-01-01');
+    INSERT INTO areas (name, created_at) VALUES ('AI', '2026-01-01');
+    INSERT INTO topics (area_id, name, definition, created_at) VALUES (1, 'Evals', 'Posts about evals.', '2026-01-01');
+    INSERT INTO scores (post_id, topic_id, probability, scored_at) VALUES ('1', 1, 0.9, '2026-01-01');
+    INSERT INTO overrides (post_id, topic_id, action, created_at) VALUES ('2', 1, 'add', '2026-01-01');
+  `);
+  old.close();
+
+  const db = openStore(path);
+  t.after(() => db.close());
+  const members = () => db.prepare(`SELECT post_id FROM topic_membership ORDER BY post_id`).all().map((row) => row.post_id);
+
+  assert.equal(Number(db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()?.value), SCHEMA_VERSION);
+  assert.deepEqual(
+    db.prepare(`SELECT id, text, bookmarked, liked, removed_at FROM posts ORDER BY id`).all().map((row) => ({ ...row })),
+    [
+      { id: '1', text: 'kept text', bookmarked: 1, liked: 0, removed_at: null },
+      { id: '2', text: 'other text', bookmarked: 0, liked: 1, removed_at: null },
+    ],
+  );
+  assert.equal(db.prepare(`SELECT probability FROM scores WHERE post_id = '1'`).get()?.probability, 0.9);
+  assert.equal(db.prepare(`SELECT action FROM overrides WHERE post_id = '2'`).get()?.action, 'add');
+  assert.deepEqual(members(), ['1', '2']);
+
+  db.prepare(`UPDATE posts SET removed_at = '2026-02-01' WHERE id = '1'`).run();
+  assert.deepEqual(members(), ['2']);
 });

@@ -47,6 +47,10 @@ node ~/.claude/skills/x-corpus/query.mjs topic politics --include-hidden
 node ~/.claude/skills/x-corpus/query.mjs categories --include-hidden
 ```
 
+### Removed posts
+
+The user can remove a post from the corpus in the web app. A removed post is left out of **every** command, and no flag brings it back, `--include-hidden` included. It stays out after later syncs until the user restores it in the web app.
+
 ### Keyword search
 
 Run the bundled, dependency-free search script:
@@ -83,9 +87,9 @@ Ranking: posts hitting more of your **distinct** query terms rank first, then by
 ## Where the data lives
 - **Search-ready:** `~/x-corpus/data/{bookmarks,likes}.normalized.jsonl` — one `{type,id,handle,name,created,url,text}` record per line. This is what `query.mjs` reads.
 - **Browsable:** `~/x-corpus/markdown/{bookmarks,likes}/` — one `.md` per post (YAML frontmatter + quoted text) plus `index.md`.
-- **Categories:** `~/x-corpus/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before.
+- **Categories:** `~/x-corpus/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts.
 - Set `X_CORPUS_DIR` to override the base data dir if the corpus ever moves. The store is then looked for at `<X_CORPUS_DIR>/../state/corpus.sqlite`; set `X_CORPUS_STORE` to point at it directly.
-- The category commands need node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store: tell the user to update it.
+- The category commands need node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store and no command runs, keyword search included: tell the user to update it.
 - This skill's source is `packages/skill/` in the x-corpus repo, installed as a symlink by `packages/skill/install.sh`.
 
 Notes:

@@ -3,8 +3,8 @@
 import { Button } from "@ui-sdk/react/button";
 import { Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
-import { ExternalLink, Heart, Link2, Tags, X } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, Heart, Link2, Tags, Trash2, X } from "lucide-react";
+import { useState, useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
 import type { Area, Chip, Post, Topic } from "@/lib/types";
@@ -14,7 +14,7 @@ import { compactCount, formatDate } from "./format";
 import { MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, type PostDialogController } from "./post-card";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
-import { iconButton } from "./styles";
+import { dangerButton, iconButton } from "./styles";
 import { TopicChip } from "./topic-chip";
 
 const CONTENT =
@@ -32,6 +32,7 @@ export function PostDialog({
   keyword,
   onSelectTopic,
   onCopyLink,
+  onRemove,
 }: {
   controller: PostDialogController;
   postsById: Map<string, Post>;
@@ -43,8 +44,10 @@ export function PostDialog({
   keyword: string;
   onSelectTopic: (topicId: number) => void;
   onCopyLink: (post: Post) => void;
+  onRemove: (post: Post) => Promise<void>;
 }) {
   const [topicsEditor] = useState(createPostTopicsController);
+  const [removing, startRemoving] = useTransition();
   return (
     <Dialog controller={controller}>
       <DialogBackdrop />
@@ -121,7 +124,7 @@ export function PostDialog({
                 </ul>
               </div>
 
-              <footer className="flex items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">
+              <footer className="flex flex-wrap items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">
                 {post.likeCount > 0 ? (
                   <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-muted tabular-nums">
                     <Heart className="size-4" aria-hidden="true" />
@@ -130,6 +133,10 @@ export function PostDialog({
                   </span>
                 ) : null}
                 <div className="ml-auto flex items-center gap-2">
+                  <Button aria-label="Remove from corpus" disabled={removing} onClick={() => startRemoving(() => onRemove(post))} className={`${dangerButton} max-sm:px-2.5`}>
+                    <Trash2 className="size-4" aria-hidden="true" />
+                    <span className="max-sm:hidden">Remove from corpus</span>
+                  </Button>
                   <Button onClick={() => onCopyLink(post)} className="pressable focus-ring h-9 gap-1.5 border-0 px-3.5 shadow-card">
                     <Link2 className="size-4 text-ink-muted" aria-hidden="true" />
                     Copy link

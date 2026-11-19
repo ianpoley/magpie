@@ -266,7 +266,7 @@ export function ingest(db: Store, files: { bookmarksPath: string; likesPath: str
     }
 
     const counts = db
-      .prepare(`SELECT count(*) AS total, coalesce(sum(bookmarked = 1 OR liked = 1), 0) AS visible FROM posts`)
+      .prepare(`SELECT (SELECT count(*) FROM posts) AS total, (SELECT count(*) FROM visible_posts) AS visible`)
       .get();
     result.posts.total = Number(counts?.total);
     result.posts.visible = Number(counts?.visible);

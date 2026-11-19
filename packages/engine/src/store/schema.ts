@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-import { MEMBERSHIP_VIEWS_V1 } from './membership.ts';
+import { MEMBERSHIP_VIEWS_V1, MEMBERSHIP_VIEWS_V2 } from './membership.ts';
 
 /**
  * The store schema is a contract shared by the sync job, the web app and the
@@ -240,6 +240,7 @@ const MIGRATIONS: string[] = [
   );
   `,
   MEMBERSHIP_VIEWS_V1,
+  MEMBERSHIP_VIEWS_V2,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -33,7 +33,7 @@ export type AskPost = { id: string; content: PostContent };
 /** Every post currently saved, newest first, with the content Jev judges it by. */
 export function readAskPosts(db: DatabaseSync, readPostContent: (db: DatabaseSync, postIds: string[]) => Map<string, PostContent>): AskPost[] {
   const postIds = db
-    .prepare(`SELECT id FROM posts WHERE bookmarked = 1 OR liked = 1 ORDER BY created_at DESC, id`)
+    .prepare(`SELECT id FROM posts WHERE id IN (SELECT id FROM visible_posts) ORDER BY created_at DESC, id`)
     .all()
     .map((row) => String(row.id));
   const contents = readPostContent(db, postIds);

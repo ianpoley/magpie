@@ -1,8 +1,11 @@
 /** Class recipes shared by hand-rolled controls. */
 
-export const iconButton =
+const ICON_BUTTON =
   "focus-ring pressable inline-flex size-8 shrink-0 cursor-pointer no-underline items-center justify-center rounded-full border-0 bg-transparent p-0 text-ink-muted " +
-  "[&>svg]:size-4 hover:bg-sunken hover:text-ink";
+  "[&>svg]:size-4";
+
+export const iconButton = `${ICON_BUTTON} hover:bg-sunken hover:text-ink`;
+export const dangerIconButton = `${ICON_BUTTON} hover:bg-like-soft hover:text-like-text disabled:cursor-progress disabled:opacity-60`;
 
 export const pillControl =
   "focus-ring pressable inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-surface px-3.5 text-[13px] font-medium text-ink shadow-card " +
@@ -38,8 +41,10 @@ const ANSWER = "focus-ring pressable h-9 cursor-pointer rounded-full px-4 text-[
 
 export const quietAnswer = `${ANSWER} border-0 bg-surface text-ink shadow-card hover:bg-surface hover:shadow-card-hover`;
 export const primaryAnswer = `${ANSWER} bg-primary-fill border-0 text-on-primary shadow-primary disabled:cursor-default disabled:opacity-50`;
-export const dangerAnswer =
-  `${ANSWER} border-0 bg-like-soft text-like-text hover:bg-[color-mix(in_oklch,var(--color-like-soft)_88%,var(--color-like))]`;
+const DANGER = "border-0 bg-like-soft text-like-text hover:bg-[color-mix(in_oklch,var(--color-like-soft)_88%,var(--color-like))]";
+export const dangerAnswer = `${ANSWER} ${DANGER}`;
+/** A destructive action offered beside other actions, not as the answer to a question. */
+export const dangerButton = `pressable focus-ring h-9 gap-1.5 px-3.5 ${DANGER} disabled:cursor-progress disabled:opacity-60`;
 
 export const popupList =
   `${menuContent} max-h-[min(18rem,var(--available-height))] w-(--anchor-width) overflow-y-auto overscroll-contain`;

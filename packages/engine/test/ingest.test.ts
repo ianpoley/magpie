@@ -253,3 +253,21 @@ test('the HTML entities X escapes in post text are stored decoded, in the post a
   assert.equal(row.text, 'if (a < b && c > d) &amp;');
   assert.equal(JSON.parse(String(row.quoted_json)).text, 'a <dialog> & more');
 });
+
+test('a removed post stays removed when a later export carries it again, and its other fields keep updating', (t) => {
+  const { db, dir } = setup(t);
+  ingest(db, writeExports(dir, { bookmarks: posts(['1', '2']), likes: posts(['1']) }));
+  db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = '1'`).run();
+
+  const result = ingest(
+    db,
+    writeExports(dir, { bookmarks: [exportPost('1', { text: 'edited text' }), exportPost('2')], likes: [exportPost('1', { text: 'edited text' })] }),
+  );
+
+  assert.deepEqual(
+    { ...db.prepare(`SELECT text, bookmarked, liked, removed_at FROM posts WHERE id = '1'`).get() },
+    { text: 'edited text', bookmarked: 1, liked: 1, removed_at: '2026-02-01T00:00:00.000Z' },
+  );
+  assert.equal(result.posts.total, 2);
+  assert.equal(result.posts.visible, 1);
+});

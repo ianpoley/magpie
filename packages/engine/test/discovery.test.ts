@@ -250,3 +250,14 @@ test('posts that left both collections are not sent', async (t) => {
   assert.match(claude.prompts[0], /still saved/);
   assert.ok(!claude.prompts[0].includes('GONE_POST'));
 });
+
+test('posts removed from the corpus are not sent', async (t) => {
+  const db = setup(t, [exportPost('1', { text: 'still saved' }), exportPost('2', { text: 'REMOVED_POST' })]);
+  db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = '2'`).run();
+  const claude = fakeClaude([candidates('Evals'), merged]);
+
+  await runDiscovery(db, { claude });
+
+  assert.match(claude.prompts[0], /still saved/);
+  assert.ok(!claude.prompts[0].includes('REMOVED_POST'));
+});

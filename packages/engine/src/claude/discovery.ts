@@ -52,7 +52,7 @@ function readPosts(db: Store): DiscoveryPost[] {
   }
 
   return db
-    .prepare(`SELECT id, text, quoted_json FROM posts WHERE bookmarked = 1 OR liked = 1 ORDER BY id`)
+    .prepare(`SELECT id, text, quoted_json FROM posts WHERE id IN (SELECT id FROM visible_posts) ORDER BY id`)
     .all()
     .map((row) => {
       const post: DiscoveryPost = { text: String(row.text).slice(0, DISCOVERY.postCharLimit) };

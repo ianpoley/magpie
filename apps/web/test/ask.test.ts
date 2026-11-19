@@ -170,6 +170,17 @@ test("posts that are no longer bookmarked or liked are not asked about", async (
   );
 });
 
+test("posts removed from the corpus are not asked about", async (t) => {
+  const { db } = tempStore(t);
+  seedPost(db, "1");
+  seedPost(db, "2");
+  db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = '2'`).run();
+  assert.deepEqual(
+    readAskPosts(db, readPostContent).map((entry) => entry.id),
+    ["1"],
+  );
+});
+
 test("aborting stops new requests, cancels the ones in flight, and reports no error", async (t) => {
   const db = seeded(t, 100);
   const abort = new AbortController();

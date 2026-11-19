@@ -25,6 +25,7 @@ test("an empty store gives an empty snapshot", (t) => {
   assert.deepEqual(readSnapshot(db), {
     storeExists: true,
     posts: [],
+    removed: [],
     areas: [],
     topics: [],
     resources: [],
@@ -298,4 +299,57 @@ test("hidden and Unfiled agree with the store's own views", (t) => {
   assert.deepEqual(derived("hidden"), flagged("post_hidden"));
   assert.deepEqual(derived("unfiled"), flagged("post_unfiled"));
   assert.ok(derived("hidden").length >= 4 && derived("hidden").length < snap.posts.length);
+});
+
+test("a removed post is listed apart and counts toward no post list, topic, area, or resource", (t) => {
+  const { db } = tempStore(t);
+  const ai = seedArea(db, "AI");
+  const evals = seedTopic(db, "Evals", { areaId: ai });
+  const addResource = (key: string) =>
+    Number(
+      db
+        .prepare(`INSERT INTO resources (canonical_key, kind, url, host, title, created_at) VALUES (?, 'repo', ?, 'github.com', ?, ?)`)
+        .run(key, `https://github.com/${key}`, key, AT).lastInsertRowid,
+    );
+  const shared = addResource("acme/shared");
+  const onlyRemoved = addResource("acme/only-removed");
+  const link = (postId: string, url: string, resourceId: number) => {
+    seedLink(db, postId, url, { status: "resolved", title: `Page ${url}` });
+    db.prepare(`UPDATE links SET resource_id = ? WHERE url = ?`).run(resourceId, url);
+  };
+  for (const id of ["kept", "gone", "gone-earlier", "gone-unsaved"]) seedScore(db, seedPost(db, id), evals, 0.9);
+  link("kept", "https://t.co/a", shared);
+  link("gone", "https://t.co/b", shared);
+  link("gone", "https://t.co/c", onlyRemoved);
+  db.prepare(`UPDATE posts SET author_handle = 'ada', author_name = 'Ada', created_at = ?, liked = 1 WHERE id = 'gone'`).run("2026-01-05T00:00:00.000Z");
+  db.prepare(`UPDATE posts SET removed_at = ? WHERE id = 'gone'`).run("2026-02-02T00:00:00.000Z");
+  db.prepare(`UPDATE posts SET removed_at = ? WHERE id = 'gone-earlier'`).run("2026-02-01T00:00:00.000Z");
+  db.prepare(`UPDATE posts SET removed_at = ?, bookmarked = 0 WHERE id = 'gone-unsaved'`).run("2026-02-03T00:00:00.000Z");
+
+  const snap = readSnapshot(db);
+
+  assert.deepEqual(snap.posts.map((p) => p.id), ["kept"]);
+  assert.deepEqual(shown(snap), ["kept"]);
+  assert.deepEqual(snap.removed.map((p) => p.id), ["gone", "gone-earlier"]);
+  assert.deepEqual(snap.removed[0], {
+    id: "gone",
+    text: "post gone text",
+    createdAt: "2026-01-05T00:00:00.000Z",
+    url: "https://x.com/someone/status/gone",
+    authorHandle: "ada",
+    authorName: "Ada",
+    authorAvatarUrl: null,
+    bookmarked: true,
+    liked: true,
+    removedAt: "2026-02-02T00:00:00.000Z",
+  });
+  assert.deepEqual(
+    snap.topics.map((topic) => [topic.name, topic.postCount, topic.confidentCount]),
+    [["Evals", 1, 1]],
+  );
+  assert.deepEqual(snap.areas.map((area) => [area.name, area.postCount]), [["AI", 1]]);
+  assert.deepEqual(
+    snap.resources.map((resource) => [resource.id, resource.postIds]),
+    [[shared, ["kept"]]],
+  );
 });

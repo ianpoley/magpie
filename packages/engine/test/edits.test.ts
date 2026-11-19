@@ -13,9 +13,11 @@ import {
   listUndo,
   mergeTopics,
   pinQuery,
+  removePost,
   removePostTopic,
   renameArea,
   renameTopic,
+  restorePost,
   setAreaHidden,
   setTopicHidden,
   undoChange,
@@ -304,4 +306,62 @@ test('the first discovery pass writes one log entry that offers no undo', async 
   throwsCode(() => listUndo(db, changeId), 'not_undoable');
   throwsCode(() => undoChange(db, changeId), 'not_undoable');
   assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM topics WHERE state = 'active'`).get()?.n, 1);
+});
+
+test('removing a post takes it out of every topic and restoring it returns it with its topics and fixes, with no model call', (t) => {
+  const { db } = tempStore(t);
+  const evals = seedTopic(db, 'Evals');
+  const agents = seedTopic(db, 'Agents');
+  const tooling = seedTopic(db, 'Tooling');
+  seedScore(db, seedPost(db, '1'), evals, 0.9);
+  seedScore(db, '1', agents, 0.9);
+  seedScore(db, '1', tooling, 0.1);
+  addPostTopic(db, '1', tooling);
+  removePostTopic(db, '1', agents);
+  seedScore(db, seedPost(db, 'other'), evals, 0.9);
+  for (const topic of [agents, tooling]) seedScore(db, 'other', topic, 0.1);
+  const kept = () => [
+    db.prepare(`SELECT topic_id, probability, scored_at FROM scores WHERE post_id = '1' ORDER BY topic_id`).all(),
+    db.prepare(`SELECT topic_id, action, created_at FROM overrides WHERE post_id = '1' ORDER BY topic_id`).all(),
+  ];
+  const before = kept();
+
+  assert.deepEqual(removePost(db, '1'), { postId: '1' });
+
+  assert.deepEqual(members(db, evals), ['other']);
+  assert.deepEqual(members(db, tooling), []);
+  assert.deepEqual(unfiled(db), []);
+  assert.deepEqual(kept(), before);
+
+  assert.deepEqual(restorePost(db, '1'), { postId: '1' });
+
+  assert.deepEqual(members(db, evals, 'confident'), ['1', 'other']);
+  assert.deepEqual(members(db, tooling, 'confident'), ['1']);
+  assert.deepEqual(members(db, agents), []);
+  assert.deepEqual(kept(), before);
+  assert.deepEqual(
+    db.prepare(`SELECT post_id FROM pairs_to_score`).all(),
+    [],
+    'a restored post needs nothing scored again',
+  );
+});
+
+test('removing a post twice keeps the first removal time, and an unknown post is a typed error', (t) => {
+  const { db } = tempStore(t);
+  seedPost(db, '1');
+  const removedAt = () => db.prepare(`SELECT removed_at FROM posts WHERE id = '1'`).get()?.removed_at;
+
+  removePost(db, '1');
+  const first = removedAt();
+  assert.equal(typeof first, 'string');
+  db.prepare(`UPDATE posts SET removed_at = '2026-01-01T00:00:00.000Z' WHERE id = '1'`).run();
+  removePost(db, '1');
+  assert.equal(removedAt(), '2026-01-01T00:00:00.000Z');
+
+  restorePost(db, '1');
+  restorePost(db, '1');
+  assert.equal(removedAt(), null);
+
+  throwsCode(() => removePost(db, 'nope'), 'unknown_post');
+  throwsCode(() => restorePost(db, 'nope'), 'unknown_post');
 });

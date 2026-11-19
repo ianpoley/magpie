@@ -37,6 +37,7 @@ export function PostList({
   topicsEditor,
   onSelectTopic,
   onCopyLink,
+  onRemove,
 }: {
   posts: Post[];
   unsureStart: number | null;
@@ -46,6 +47,7 @@ export function PostList({
   topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
   onCopyLink: (post: Post) => void;
+  onRemove: (post: Post) => Promise<void>;
 }) {
   const [shown, setShown] = useState(PAGE);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -82,6 +84,7 @@ export function PostList({
               topicsEditor={topicsEditor}
               onSelectTopic={onSelectTopic}
               onCopyLink={onCopyLink}
+              onRemove={onRemove}
             />
           </FragmentRow>
         ))}

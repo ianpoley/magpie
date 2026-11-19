@@ -5,7 +5,8 @@ import { transaction } from './db.ts';
 import type { Store } from './db.ts';
 
 /**
- * Every edit the user can make to categories and to a post's topics. Nothing
+ * Every edit the user can make to categories, to a post's topics, and to
+ * which posts are in the corpus. Nothing
  * else writes user state. Each function is one synchronous transaction, calls
  * no model, and throws an EditError for input it cannot apply.
  *
@@ -203,6 +204,28 @@ export function addPostTopic(db: Store, postId: string, topicId: number): { post
 export function removePostTopic(db: Store, postId: string, topicId: number): { postId: string; topicId: number } {
   setPostFix(db, postId, topicId, 'remove');
   return { postId, topicId };
+}
+
+/**
+ * Takes a post out of the local corpus: no view, count, resource or search
+ * shows it, and a later sync does not bring it back. Its scores and fixes are
+ * kept for a restore. Nothing changes on X.
+ */
+export function removePost(db: Store, postId: string): { postId: string } {
+  return transaction(db, () => {
+    knownPost(db, postId);
+    db.prepare(`UPDATE posts SET removed_at = ? WHERE id = ? AND removed_at IS NULL`).run(timestamp(), postId);
+    return { postId };
+  });
+}
+
+/** Puts a removed post back, in the topics and with the fixes it had. */
+export function restorePost(db: Store, postId: string): { postId: string } {
+  return transaction(db, () => {
+    knownPost(db, postId);
+    db.prepare(`UPDATE posts SET removed_at = NULL WHERE id = ?`).run(postId);
+    return { postId };
+  });
 }
 
 /**
