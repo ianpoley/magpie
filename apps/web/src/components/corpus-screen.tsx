@@ -32,7 +32,7 @@ import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { formatCount, plural } from "./format";
-import { POST_CARD_OPEN } from "./post-card";
+import { postCardOpen } from "./post-card";
 import { PostDialog } from "./post-dialog";
 import { PostList } from "./post-list";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
@@ -247,7 +247,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
       // Only from the page itself or a card, so a focused menu, tree row, or control keeps its own keys.
       const onCard = target?.closest("article") ?? null;
       if (target !== document.body && onCard === null) return;
-      const cards = [...document.querySelectorAll<HTMLElement>(POST_CARD_OPEN)];
+      const cards = [...document.querySelectorAll<HTMLElement>(postCardOpen())];
       if (cards.length === 0) return;
       const at = cards.findIndex((card) => card.closest("article") === onCard);
       const firstInView = Math.max(0, cards.findIndex((card) => card.getBoundingClientRect().top >= 0));

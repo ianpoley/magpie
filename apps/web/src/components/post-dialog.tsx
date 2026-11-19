@@ -12,7 +12,7 @@ import type { Area, Chip, Post, Topic } from "@/lib/types";
 import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
 import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
-import { CollectionMarks, type PostDialogController } from "./post-card";
+import { CollectionMarks, postCardOpen, type PostDialogController } from "./post-card";
 import { PostRow } from "./resources-view";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { dangerButton, dialogContent, iconButton } from "./styles";
@@ -59,6 +59,13 @@ export function PostDialog({
       <DialogBackdrop />
       <DialogContent<string>
         initialFocus="content"
+        // After stepping to other posts, closing lands on the card of the post last shown, when it is listed.
+        finalFocus={() => {
+          const id = controller.getPayload();
+          const card = id === undefined ? null : document.querySelector<HTMLElement>(postCardOpen(id));
+          card?.scrollIntoView({ block: "nearest" });
+          return card ?? undefined;
+        }}
         className={CONTENT}
         onKeyDown={(event) => {
           if ((event.key !== "j" && event.key !== "k") || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
