@@ -36,6 +36,7 @@ export function PostList({
   dialog,
   topicsEditor,
   onSelectTopic,
+  onSelectAuthor,
   onCopyLink,
   onRemove,
 }: {
@@ -46,6 +47,7 @@ export function PostList({
   dialog: PostDialogController;
   topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
+  onSelectAuthor: (handle: string) => void;
   onCopyLink: (post: Post) => void;
   onRemove: (post: Post) => Promise<void>;
 }) {
@@ -83,6 +85,7 @@ export function PostList({
               dialog={dialog}
               topicsEditor={topicsEditor}
               onSelectTopic={onSelectTopic}
+              onSelectAuthor={onSelectAuthor}
               onCopyLink={onCopyLink}
               onRemove={onRemove}
             />

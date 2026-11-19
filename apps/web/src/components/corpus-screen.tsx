@@ -269,6 +269,10 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
     setFilter((current) => selectTopicOnly(current, topicId));
     setView("posts");
   };
+  const selectAuthor = (author: string) => {
+    setFilter((current) => ({ ...current, author }));
+    setView("posts");
+  };
   const clearCategories = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false }));
   const clearPills = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false, author: null, keyword: "" }));
   const clearAll = () => setFilter((current) => ({ ...DEFAULT_FILTER, sort: current.sort, revealHidden: current.revealHidden }));
@@ -434,6 +438,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
                   dialog={postDialog}
                   topicsEditor={topicsEditor}
                   onSelectTopic={selectTopic}
+                  onSelectAuthor={selectAuthor}
                   onCopyLink={copyLink}
                   onRemove={remove}
                 />
@@ -488,6 +493,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
         activeTopicIds={applied.topicIds}
         keyword={applied.keyword === "" ? "" : keyword}
         onSelectTopic={selectTopic}
+        onSelectAuthor={selectAuthor}
         onCopyLink={copyLink}
         onRemove={remove}
       />
