@@ -21,7 +21,7 @@ import {
   toggleTopic,
   toggleUnfiled,
 } from "@/lib/filter";
-import { parseSelection, selectionQuery, type CategorySelection } from "@/lib/filter-url";
+import { linkedQuery, parseLinked, type LinkedFilter } from "@/lib/filter-url";
 import { resourcesFor } from "@/lib/resources";
 import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
 
@@ -172,17 +172,18 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
 
 // Reads each key the way the server does (first value wins), so a URL with a
 // repeated key seeds and re-reads to the same selection.
-const selectionInAddress = (): CategorySelection => {
+const selectionInAddress = (): LinkedFilter => {
   const params = new URLSearchParams(window.location.search);
-  return parseSelection({
+  return parseLinked({
     topics: params.get("topics") ?? undefined,
     areas: params.get("areas") ?? undefined,
     unfiled: params.get("unfiled") ?? undefined,
+    author: params.get("author") ?? undefined,
   });
 };
 
 /** `linked` is the selection the page was opened with; later changes are read from the address bar. */
-export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; now: number; linked: CategorySelection }) {
+export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; now: number; linked: LinkedFilter }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
   const [view, setView] = useState<View>("posts");
@@ -222,13 +223,13 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
 
-  const shownQuery = selectionQuery(browsed.state);
-  const heldQuery = selectionQuery(filter);
+  const shownQuery = linkedQuery(browsed.state);
+  const heldQuery = linkedQuery(filter);
   useEffect(() => {
     const search = shownQuery === "" ? "" : `?${shownQuery}`;
     if (window.location.search === search) return;
     // A selection the address already names is tidied in place, so Back still leaves it.
-    const step = selectionQuery(selectionInAddress()) === heldQuery ? "replaceState" : "pushState";
+    const step = linkedQuery(selectionInAddress()) === heldQuery ? "replaceState" : "pushState";
     window.history[step](null, "", `${window.location.pathname}${search}${window.location.hash}`);
   }, [shownQuery, heldQuery]);
   useEffect(() => {
