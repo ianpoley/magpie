@@ -65,3 +65,14 @@ test("each word is highlighted, and a longer word wins where words overlap", () 
   assert.deepEqual(highlightRanges("Evals for agents", "agents evals"), [[0, 5], [10, 16]]);
   assert.deepEqual(highlightRanges("evals", "eval evals"), [[0, 5]]);
 });
+
+test("a phrase in quotes must occur as written, alongside any other words", () => {
+  const evals = post("5", { text: "Agent skills for evals", authorName: "Ada" });
+  const apart = post("6", { text: "Skills every agent needs" });
+  assert.equal(matchesKeyword(evals, '"agent skills"'), true);
+  assert.equal(matchesKeyword(apart, '"agent skills"'), false);
+  assert.equal(matchesKeyword(apart, "agent skills"), true);
+  assert.equal(matchesKeyword(evals, '“agent skills” ada'), true);
+  assert.equal(matchesKeyword(evals, '"agent skills'), true);
+  assert.deepEqual(highlightRanges("Agent skills for evals", '"agent skills" evals'), [[0, 12], [17, 22]]);
+});

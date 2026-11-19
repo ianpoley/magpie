@@ -2,7 +2,11 @@ import type { Post, Range } from "./types.ts";
 
 const escape = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const words = (query: string): string[] => query.trim().split(/\s+/).filter(Boolean);
+const TERM = /["“”]([^"“”]+)["“”]|(\S+)/g;
+
+/** The query's words, keeping a phrase in quotes together. */
+const words = (query: string): string[] =>
+  Array.from(query.matchAll(TERM), (match) => (match[1] ?? match[2]).trim().replace(/^["“”]+|["“”]+$/g, "")).filter(Boolean);
 
 // Longest first, so where one word contains another the whole of it is marked.
 export function highlightRanges(text: string, query: string): Range[] {
@@ -13,10 +17,10 @@ export function highlightRanges(text: string, query: string): Range[] {
 }
 
 /**
- * Whether every word of the query occurs somewhere in the post: its text, its
- * quoted post's text, the author's name or handle, or the title of a page it
- * links to. The words need not be next to each other or in the same place. A
- * blank query matches every post.
+ * Whether every word of the query, and every phrase in quotes, occurs
+ * somewhere in the post: its text, its quoted post's text, the author's name
+ * or handle, or the title of a page it links to. Separate words need not be
+ * next to each other or in the same place. A blank query matches every post.
  */
 export function matchesKeyword(post: Post, query: string): boolean {
   const fields = [post.text, post.authorName, post.authorHandle, post.quoted?.text ?? "", ...post.linkedPages.map((page) => page.title)];
