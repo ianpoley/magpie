@@ -1,0 +1,31 @@
+Found 7 match(es) for (most recent) in all; showing top 7:
+
+1. @epsilon · 2026-06-01 · [like]
+   https://x.com/epsilon/status/201
+   A sqlite trick for local-first apps
+
+2. @beta_ui · 2026-05-20 · [like]
+   https://x.com/beta_ui/status/202
+   React animation library roundup
+
+3. @delta_pol · 2026-05-05 · [bookmark]
+   https://x.com/delta_pol/status/104
+   Election night animation of the senate map
+
+4. @beta_ui · 2026-04-02 · [bookmark]
+   https://x.com/beta_ui/status/102
+   State machine patterns for a terminal ui
+
+5. @alpha_dev · 2026-03-01 · [bookmark+like]
+   https://x.com/alpha_dev/status/101
+   Spring animation in react made simple
+   with a tiny hook
+
+6. @alpha_dev · 2026-02-10 · [bookmark]
+   https://x.com/alpha_dev/status/105
+   Evals for agents: a react animation benchmark, animation everywhere
+
+7. @gamma · 2026-01-15 · [bookmark]
+   https://x.com/gamma/status/103
+   A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about animation curves. A long synthetic note about anim…
+

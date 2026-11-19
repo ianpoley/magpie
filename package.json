@@ -12,7 +12,7 @@
     "lint": "bun --filter @x-corpus/web lint",
     "sync": "bun --filter @x-corpus/engine sync",
     "build:markdown": "bun --filter @x-corpus/engine build:markdown",
-    "test": "node --test 'packages/engine/test/**/*.test.ts'",
+    "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs'",
     "typecheck": "bun --filter @x-corpus/engine typecheck"
   },
   "devDependencies": {
