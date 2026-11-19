@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-/** What a list shows instead of nothing: what happened, and the way out when there is one. */
 export function EmptyState({
   icon: Icon,
   title,

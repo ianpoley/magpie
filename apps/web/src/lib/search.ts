@@ -6,7 +6,6 @@ function matcher(query: string, flags: string): RegExp | null {
   return new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), flags);
 }
 
-/** Where `query` occurs in `text`, ignoring case, as ranges into `text` itself. */
 export function highlightRanges(text: string, query: string): Range[] {
   const pattern = matcher(query, "gi");
   if (!pattern) return [];

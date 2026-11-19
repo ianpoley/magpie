@@ -28,7 +28,6 @@ export type CategoryTarget = { kind: "topic" | "area"; id: number };
 export const createCategoryMenu = () => createMenuController<CategoryTarget>();
 export type CategoryMenuController = ReturnType<typeof createCategoryMenu>;
 
-/** The dialogs a category menu opens: one of each for the whole screen. */
 export function createCategoryEdits() {
   return {
     rename: createDialogController<CategoryTarget>(),
@@ -77,7 +76,6 @@ export function CategoryMenuTrigger({ menu, target, name }: { menu: CategoryMenu
   );
 }
 
-/** What can be done to the area or topic whose row opened the menu. */
 export function CategoryMenu({ menu, edits, topicsById, areasById }: { menu: CategoryMenuController; edits: CategoryEdits } & Lookup) {
   return (
     <Menu controller={menu}>
@@ -191,7 +189,6 @@ function RenameForm({ target, name, onDone }: { target: CategoryTarget; name: st
   );
 }
 
-/** The rename, merge and delete dialogs, opened from a category menu. */
 export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }: { edits: CategoryEdits; topics: Topic[]; areas: Area[] } & Lookup) {
   const named = (target: CategoryTarget | undefined): Topic | Area | undefined =>
     target === undefined ? undefined : target.kind === "topic" ? topicsById.get(target.id) : areasById.get(target.id);

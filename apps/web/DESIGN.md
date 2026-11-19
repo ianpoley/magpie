@@ -8,7 +8,7 @@ Tokens live in `src/app/globals.css` (`@theme`); the author hue family lives in 
 Cohesive, bright, lively, still professional. A multi-hue system where **color carries meaning**:
 
 - **Emerald primary** (H 160), used for actions, the selected state and focus of attention.
-- **Collections get their own hues:** bookmarks are **indigo** (H 275) and likes are **coral** (H 25). They show up in chips, stat tiles and counts.
+- **Collections get their own hues:** bookmarks are **indigo** (H 275) and likes are **coral** (H 25). They show up in chips and counts.
 - **Every author gets one of 8 matched hues** (`authorHue(handle)`). It tints their avatar background and ring and colors their name, so you learn to spot repeat authors.
 - **Neutrals are tinted toward the brand hue** (H 165), so they never look like flat grey.
 
@@ -19,7 +19,7 @@ Cohesive, bright, lively, still professional. A multi-hue system where **color c
 - **Top of main:** a faint double radial wash (`bg-wash`) behind the page title. It's a background, never an overlay on content.
 - **Primary fills:** a vertical gradient `primary-top` → `primary` with a tinted glow (`shadow-primary`). Solid UI SDK buttons and the segmented-control indicator get this automatically. Hover darkens via `color-mix(… 90%, black)`.
 - **Cards:** white `surface` on the tinted `canvas`, using `rounded-card` (16px) and `shadow-card`. On hover, `shadow-card-hover` adds a primary-tinted lift. Nothing is bordered for depth.
-- **Stat tiles:** washed with their role's soft color (`linear-gradient(135deg, role-soft, surface 78%)`), with a solid gradient icon chip.
+- **Tinted tiles** (empty states): washed with their role's soft color (`linear-gradient(135deg, role-soft, surface 78%)`), with a solid gradient icon chip. The stat-tile row from the prototype was removed once the screen was built.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces such as quotes and images use `rounded-inner` (10px); avatars use `rounded-avatar` (12px).
 - **Type:** Hanken Grotesk only.
   - Display headings: 800 weight, −0.035em tracking, `text-wrap: balance`.

@@ -68,11 +68,6 @@ function Choice<T extends string>({
   );
 }
 
-/**
- * The search field with its two modes, time range, sort, and the media-only
- * switch. Search narrows the list on every keystroke; Ask waits for Enter and
- * then has every saved post judged against what was typed.
- */
 export function Toolbar({
   mode,
   keyword,

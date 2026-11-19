@@ -21,7 +21,6 @@ function Pill({ icon: Icon, label, kind, onRemove }: { icon: LucideIcon; label: 
   );
 }
 
-/** Each active topic, area, author and keyword as a pill that removes it, with one action to clear them all. */
 export function ActiveFilters({
   filter,
   topicsById,

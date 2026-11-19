@@ -10,7 +10,6 @@ const SIZES = {
   lg: "size-12 rounded-avatar text-[15px]",
 };
 
-/** An author's picture on their hue, with their initials until it loads or when there is none. */
 export function AuthorAvatar({
   handle,
   name,

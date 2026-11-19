@@ -1,6 +1,5 @@
 const BAR = "animate-pulse rounded-full bg-sunken motion-reduce:animate-none";
 
-/** The screen's outline while the corpus loads. */
 export function CorpusSkeleton() {
   return (
     <div className="flex min-h-dvh" aria-busy="true" aria-label="Loading your saved posts">
@@ -10,11 +9,6 @@ export function CorpusSkeleton() {
           <div className="flex flex-col gap-3">
             <div className={`${BAR} h-3 w-28`} />
             <div className={`${BAR} h-9 w-56`} />
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[0, 1, 2, 3].map((tile) => (
-              <div key={tile} className="h-[64px] animate-pulse rounded-card bg-surface shadow-card motion-reduce:animate-none" />
-            ))}
           </div>
           <div className="h-10 rounded-full bg-surface shadow-card" />
           {[0, 1, 2].map((card) => (

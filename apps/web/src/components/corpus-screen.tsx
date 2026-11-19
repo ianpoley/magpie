@@ -16,12 +16,12 @@ import {
   mostSavedAuthors,
   postChips,
   selectTopicOnly,
-  stats,
   toggleArea,
   toggleAuthor,
   toggleTopic,
   toggleUnfiled,
 } from "@/lib/filter";
+import { parseSelection, selectionQuery, type CategorySelection } from "@/lib/filter-url";
 import { resourcesFor } from "@/lib/resources";
 import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
 
@@ -38,7 +38,6 @@ import { createRemovedPostsController, RemovedPosts } from "./removed-posts";
 import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
-import { StatTiles } from "./stat-tiles";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
 import { Toolbar, type SearchMode } from "./toolbar";
@@ -79,14 +78,15 @@ function heading(snapshot: Snapshot, filter: FilterState): { eyebrow: string; ti
   return { eyebrow: "Your saved posts", title: collection, detail: null };
 }
 
+const solidButton = (label: string, action: () => void) => (
+  <Button data-variant="solid" onClick={action} className="pressable focus-ring h-9 px-4">
+    {label}
+  </Button>
+);
+
 /** Why the list is empty, in the user's terms, and the way out. */
 function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void) {
   const filter = result.state;
-  const clearButton = (label: string, action: () => void) => (
-    <Button data-variant="solid" onClick={action} className="pressable focus-ring h-9 px-4">
-      {label}
-    </Button>
-  );
   if (!snapshot.storeExists) {
     return (
       <EmptyState icon={CloudOff} title="Nothing has synced yet">
@@ -104,7 +104,7 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   const selected = filter.topicIds.length + filter.areaIds.length;
   if (narrowing(filter)) {
     return (
-      <EmptyState icon={SearchX} title="No posts match" action={clearButton("Clear filters", clear)}>
+      <EmptyState icon={SearchX} title="No posts match" action={solidButton("Clear filters", clear)}>
         {filter.keyword.trim() !== ""
           ? `Nothing you saved mentions “${filter.keyword.trim()}” under these filters. Try a shorter word, or widen the filters.`
           : "No saved post fits every filter that is on. Widen the time range or remove a filter."}
@@ -120,7 +120,7 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   }
   if (selected > 1) {
     return (
-      <EmptyState icon={Tag} title="No post is in all of these" action={clearButton("Clear categories", clearCategories)}>
+      <EmptyState icon={Tag} title="No post is in all of these" action={solidButton("Clear categories", clearCategories)}>
         Selecting several categories shows only posts that are in every one. Remove one to see more.
       </EmptyState>
     );
@@ -148,21 +148,16 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
       </EmptyState>
     );
   }
-  const button = (label: string, action: () => void) => (
-    <Button data-variant="solid" onClick={action} className="pressable focus-ring h-9 px-4">
-      {label}
-    </Button>
-  );
   if (ask.scores.length === 0) {
     return (
-      <EmptyState icon={CloudOff} title="The search could not be run" action={button("Try again", retry)}>
+      <EmptyState icon={CloudOff} title="The search could not be run" action={solidButton("Try again", retry)}>
         No post could be judged. Check that this Mac is online, then try again.
       </EmptyState>
     );
   }
   if (anyMatch) {
     return (
-      <EmptyState icon={SearchX} title="No matches under these filters" action={button("Clear filters", clearFilters)}>
+      <EmptyState icon={SearchX} title="No matches under these filters" action={solidButton("Clear filters", clearFilters)}>
         Posts match “{ask.query}”, but none of them fit the filters that are on.
       </EmptyState>
     );
@@ -174,11 +169,16 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
   );
 }
 
-export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: number }) {
+const selectionInAddress = (): CategorySelection => parseSelection(Object.fromEntries(new URLSearchParams(window.location.search)));
+
+/** `linked` is the selection the page was opened with; later changes are read from the address bar. */
+export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; now: number; linked: CategorySelection }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
+  const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
   const [view, setView] = useState<View>("posts");
-  const [expanded, setExpanded] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState<string[]>(() => [
+    ...new Set(snapshot.topics.flatMap((topic) => (topic.areaId !== null && linked.topicIds.includes(topic.id) ? [areaNode(topic.areaId)] : []))),
+  ]);
   const [postDialog] = useState(() => createDialogController<string>());
   const [whatChanged] = useState(createWhatChangedController);
   const [removedPosts] = useState(createRemovedPostsController);
@@ -211,6 +211,22 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   // While an ask is on screen its ranked matches stand in for the browsed list everywhere below.
   const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
+
+  const shownQuery = selectionQuery(browsed.state);
+  const heldQuery = selectionQuery(filter);
+  useEffect(() => {
+    const search = shownQuery === "" ? "" : `?${shownQuery}`;
+    if (window.location.search === search) return;
+    // A selection the address already names is tidied in place, so Back still leaves it.
+    const step = selectionQuery(selectionInAddress()) === heldQuery ? "replaceState" : "pushState";
+    window.history[step](null, "", `${window.location.pathname}${search}`);
+  }, [shownQuery, heldQuery]);
+  useEffect(() => {
+    const follow = () => setFilter((current) => ({ ...current, ...selectionInAddress() }));
+    window.addEventListener("popstate", follow);
+    return () => window.removeEventListener("popstate", follow);
+  }, []);
+
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
   const postsById = new Map(snapshot.posts.map((post) => [post.id, post]));
@@ -338,8 +354,6 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
               </Button>
             </header>
             {detail ? <p className="-mt-2.5 max-w-[60ch] text-[14px] leading-[1.5] text-pretty text-ink-muted">{detail}</p> : null}
-
-            <StatTiles stats={stats(result.posts)} />
 
             <Toolbar
               mode={mode}

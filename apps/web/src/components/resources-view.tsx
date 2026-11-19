@@ -41,10 +41,6 @@ function PostRow({ post, dialog }: { post: Post; dialog: PostDialogController })
   );
 }
 
-/**
- * The resources the listed posts link to, most-saved first. A row opens to the
- * posts that saved it; the link beside it goes to the resource itself.
- */
 export function ResourcesView({ groups, dialog }: { groups: ResourceGroup[]; dialog: PostDialogController }) {
   return (
     <Accordion multiple className="max-w-none overflow-hidden rounded-card border-0 bg-surface shadow-card">

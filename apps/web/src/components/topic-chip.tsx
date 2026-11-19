@@ -1,9 +1,5 @@
 "use client";
 
-/**
- * A topic on a post. Pressing it makes that topic the category filter. An
- * unsure match shows in the muted "possible" style.
- */
 export function TopicChip({
   name,
   possible = false,

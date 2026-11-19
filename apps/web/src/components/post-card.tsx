@@ -75,10 +75,6 @@ export function PostActions({
   );
 }
 
-/**
- * One saved post. The control that opens the post covers the card; chips and
- * action buttons sit above it as their own focus stops.
- */
 export function PostCard({
   post,
   chips,

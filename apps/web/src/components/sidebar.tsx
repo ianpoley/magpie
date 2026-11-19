@@ -56,7 +56,6 @@ export type SidebarProps = {
   onRevealHidden: (reveal: boolean) => void;
 };
 
-/** Collections, categories and most-saved authors, with sync status pinned to the bottom. */
 export function Sidebar({
   snapshot,
   now,

@@ -55,7 +55,6 @@ function describe(snapshot: Snapshot, now: number): Status {
   };
 }
 
-/** When the corpus last synced, or the stage that went wrong. */
 export function SyncStatus({ snapshot, now }: { snapshot: Snapshot; now: number }) {
   const status = describe(snapshot, now);
   const Icon = status.icon;
