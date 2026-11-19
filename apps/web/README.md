@@ -29,14 +29,18 @@ The page reads the store on every request and again whenever you return to the w
   - Drag the sidebar's right edge to resize it, or focus the edge and use the arrow keys. Double-click resets it. The width is remembered in the browser.
   - Sync status shows when the last full sync finished. If a stage failed or the X export is stale, it names the problem.
 - **Main column:** title, Surprise me, search, time range, sort, the media switch, and the Posts / Resources toggle.
-  - Search matches post text, quoted text, author name and handle, and the titles of linked pages. Matches are highlighted.
+  - Search matches post text, quoted text, author name and handle, and the titles of linked pages. Every word must appear somewhere in the post, in any order; put words in quotes to match them as a phrase. Addresses on X itself are not searched. Matches are highlighted.
+  - Press `/` to jump to search.
+  - Sort by Newest (when the post was written), Recently added (when a sync first found it), Oldest, or Most liked. X's export has no save time, so Recently added groups posts by sync.
   - Ask mode sends a question to the model, which judges every saved post against it. Confident matches come first, then possible ones. Pin keeps the question as a pinned search in the sidebar, and later syncs score new posts against it.
-  - Resources shows the repos, packages, videos, and pages that the listed posts link to, most saved first.
-  - Each card shows its topics as chips. Pressing a chip filters to that topic.
+  - Resources shows the repos, packages, videos, and pages that the listed posts link to, most saved first. A second switch narrows it to one kind.
+  - Each card shows its topics as chips. Pressing a chip filters to that topic. Pressing the author's name filters to that author.
+  - Links read as where they lead (`github.com/owner/repo`), not as `t.co` addresses, and a card shows the title of the first page a post links to. Links to the post's own picture or video, or to the post it quotes, are left out, as on X.
+  - `j` and `k` move between cards; Enter opens the focused one.
   - Under a category filter, confident matches come first and a divider sets the possible matches apart.
-  - A card opens the full post with its quoted post and media. Copy link and Open on X are on the card and in the dialog.
+  - A card opens the full post with its quoted post and media. Copy link and Open on X are on the card and in the dialog. The dialog lists every titled link, suggests up to four similar posts (sharing a linked resource or topics), and steps to the previous or next post in the list with its arrows or `j` and `k`.
   - Remove from corpus, in the post dialog, takes a post out of this corpus only; nothing changes on X. The toast offers Undo, and the Removed list in the sidebar restores it later.
-- **Deep links:** the category selection is in the address, so it can be bookmarked and Back works: `?topics=1,3&areas=2`, or `?unfiled=1`.
+- **Deep links:** the category selection, the author, and the search are in the address, so they can be bookmarked and Back works: `?topics=1,3&areas=2`, `?unfiled=1`, `?author=shuding`, `?q=scroll%20animation`. Typing a search updates the current entry instead of adding one per letter.
 - **Loopback only:** the server answers only requests whose `Host` is `localhost`, `127.0.0.1`, or `[::1]`, on any port. Any other name gets a 403 (`src/proxy.ts`).
 
 ## Layout of the code
