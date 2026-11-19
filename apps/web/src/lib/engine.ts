@@ -7,3 +7,5 @@
 export const engineStore = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/store/db.ts");
 export const engineEdits = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/store/edits.ts");
 export const engineConfig = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/config.ts");
+export const engineJev = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/jev/client.ts");
+export const engineQuestions = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/jev/questions.ts");

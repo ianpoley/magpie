@@ -2,9 +2,11 @@
 
 import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { Menu, MenuContent, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@ui-sdk/react/menu";
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
-import { ArrowDownUp, CalendarDays, ChevronDown, Image as ImageIcon, Search, X, type LucideIcon } from "lucide-react";
+import { ArrowDownUp, CalendarDays, ChevronDown, Image as ImageIcon, Search, Sparkles, X, type LucideIcon } from "lucide-react";
 
+import { MAX_QUERY_CHARS } from "@/lib/ask";
 import type { Sort, TimeRange } from "@/lib/types";
 
 import { menuContent, menuItem, pillControl } from "./styles";
@@ -21,6 +23,10 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: "oldest", label: "Oldest" },
   { value: "most_liked", label: "Most liked" },
 ];
+
+export type SearchMode = "search" | "ask";
+
+const MODE_ITEM = "focus-ring h-7 gap-1.5 px-3 text-[13px] font-semibold [&>svg]:size-3.5";
 
 const CHANGED = "bg-primary-soft text-primary-text shadow-none [&>svg]:text-primary-text hover:bg-primary-soft hover:shadow-none";
 
@@ -62,51 +68,95 @@ function Choice<T extends string>({
   );
 }
 
-/** Keyword search, time range, sort, and the media-only switch. */
+/**
+ * The search field with its two modes, time range, sort, and the media-only
+ * switch. Search narrows the list on every keystroke; Ask waits for Enter and
+ * then has every saved post judged against what was typed.
+ */
 export function Toolbar({
+  mode,
   keyword,
+  askDraft,
   timeRange,
   sort,
   mediaOnly,
+  sortable,
+  onMode,
   onKeyword,
+  onAskDraft,
+  onAsk,
   onTimeRange,
   onSort,
   onMediaOnly,
 }: {
+  mode: SearchMode;
   keyword: string;
+  askDraft: string;
   timeRange: TimeRange;
   sort: Sort;
   mediaOnly: boolean;
+  /** False while the list is ranked by something other than the sort, as ask results are. */
+  sortable: boolean;
+  onMode: (mode: SearchMode) => void;
   onKeyword: (keyword: string) => void;
+  onAskDraft: (draft: string) => void;
+  onAsk: () => void;
   onTimeRange: (timeRange: TimeRange) => void;
   onSort: (sort: Sort) => void;
   onMediaOnly: (mediaOnly: boolean) => void;
 }) {
+  const asking = mode === "ask";
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <InputGroup className="h-10 min-w-56 flex-1 items-center gap-2 rounded-full bg-surface pr-1.5 pl-3.5 shadow-card transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-primary)]">
-        <Search className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-        <Input
-          type="search"
-          aria-label="Search saved posts"
-          placeholder="Search posts, authors, and linked pages"
-          autoComplete="off"
-          spellCheck={false}
-          value={keyword}
-          onValueChange={onKeyword}
-          className="min-w-0 text-[16px] placeholder:text-ink-muted sm:text-[14px] [&::-webkit-search-cancel-button]:hidden"
-        />
-        <InputClear
-          aria-label="Clear search"
-          className="focus-ring pressable flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-ink-muted hover:bg-sunken hover:text-ink"
-        >
-          <X className="size-4" aria-hidden="true" />
-        </InputClear>
-      </InputGroup>
+      <form
+        role="search"
+        className="min-w-56 flex-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (asking) onAsk();
+        }}
+      >
+        <InputGroup className="h-10 items-center gap-2 rounded-full bg-surface pr-1.5 pl-1.5 shadow-card transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-primary)]">
+          <SegmentedControl
+            aria-label="Search mode"
+            value={mode}
+            onValueChange={(next) => next && onMode(next as SearchMode)}
+            className="shrink-0 border-0 bg-sunken p-[2px]"
+          >
+            <SegmentedControlIndicator />
+            <SegmentedControlItem value="search" className={MODE_ITEM}>
+              <Search aria-hidden="true" />
+              Search
+            </SegmentedControlItem>
+            <SegmentedControlItem value="ask" className={MODE_ITEM}>
+              <Sparkles aria-hidden="true" />
+              Ask
+            </SegmentedControlItem>
+          </SegmentedControl>
+          <Input
+            type="search"
+            enterKeyHint="search"
+            aria-label={asking ? "Ask about your saved posts" : "Search saved posts"}
+            placeholder={asking ? "Describe a topic, then press Enter" : "Search posts, authors, and linked pages"}
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={asking ? MAX_QUERY_CHARS : undefined}
+            value={asking ? askDraft : keyword}
+            onValueChange={asking ? onAskDraft : onKeyword}
+            className="min-w-0 text-[16px] placeholder:text-ink-muted sm:text-[14px] [&::-webkit-search-cancel-button]:hidden"
+          />
+          <InputClear
+            aria-label={asking ? "Clear question" : "Clear search"}
+            className="focus-ring pressable flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-ink-muted hover:bg-sunken hover:text-ink"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </InputClear>
+        </InputGroup>
+      </form>
 
       <div className="flex flex-wrap items-center gap-2">
         <Choice label="Time range" icon={CalendarDays} options={TIME_RANGES} value={timeRange} fallback="all" onChange={onTimeRange} />
-        <Choice label="Sort" icon={ArrowDownUp} options={SORTS} value={sort} fallback="newest" onChange={onSort} />
+        {sortable ? <Choice label="Sort" icon={ArrowDownUp} options={SORTS} value={sort} fallback="newest" onChange={onSort} /> : null}
         <Toggle pressed={mediaOnly} onPressedChange={onMediaOnly} className={`${pillControl} data-pressed:bg-primary-soft data-pressed:text-primary-text data-pressed:shadow-none data-pressed:[&_svg]:text-primary-text`}>
           <ToggleIcon>
             <ImageIcon className="size-3.5 text-ink-muted" />

@@ -108,6 +108,11 @@ export function readPostContent(db: Store, postIds: string[]): Map<string, PostC
 
 export type TopicDefinition = { id: number; name: string; definition: string };
 
+const ABOUT_TOPIC = {
+  true: 'The post, the post it quotes, or a page it links to is about this topic or shares a resource for it.',
+  false: 'The post is about something else, or mentions this topic only in passing.',
+};
+
 export const topicQuestionId = (topicId: number): string => `topic_${topicId}`;
 
 /**
@@ -120,10 +125,7 @@ export function topicQuestion(topic: Pick<TopicDefinition, 'name' | 'definition'
       topic: { name: topic.name, definition: topic.definition },
       question: 'Is `post` about this topic?',
     },
-    criteria: {
-      true: 'The post, the post it quotes, or a page it links to is about this topic or shares a resource for it.',
-      false: 'The post is about something else, or mentions this topic only in passing.',
-    },
+    criteria: ABOUT_TOPIC,
   };
 }
 
@@ -132,4 +134,22 @@ export function taggingRequest(content: PostContent, topics: TopicDefinition[]):
   const questions: JevRequest['questions'] = {};
   for (const topic of topics) questions[topicQuestionId(topic.id)] = topicQuestion(topic);
   return { state: { post: content }, questions };
+}
+
+export const askQuestionId = (postId: string): string => `post_${postId}`;
+
+/**
+ * One request for one typed search: the user's words are the state, and each
+ * post is one question carrying its own content. Yes and no mean what they
+ * mean for a topic, so a search kept as a topic judges later posts the same way.
+ */
+export function askRequest(query: string, posts: { id: string; content: PostContent }[]): JevRequest {
+  const questions: JevRequest['questions'] = {};
+  for (const { id, content } of posts) {
+    questions[askQuestionId(id)] = {
+      instructions: { post: content, question: 'Is this post about `topic`?' },
+      criteria: ABOUT_TOPIC,
+    };
+  }
+  return { state: { topic: query }, questions };
 }
