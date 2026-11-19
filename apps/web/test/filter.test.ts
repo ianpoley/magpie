@@ -278,3 +278,17 @@ test("a category's count is the number of posts selecting it alone lists, with a
   assert.equal(off.topics.get(ELECTIONS), listed({ topicIds: [ELECTIONS] }));
   assert.equal(off.areas.get(POLITICS), listed({ areaIds: [POLITICS] }));
 });
+
+test("recently added puts the posts a later sync found first, then newest within a sync", () => {
+  const first = Date.parse("2026-06-01T00:00:00.000Z");
+  const later = Date.parse("2026-06-10T00:00:00.000Z");
+  const snap = snapshot({
+    posts: [
+      post("new-in-first", { createdAt: "2026-05-30T00:00:00.000Z", addedAtMs: first }),
+      post("old-in-first", { createdAt: "2025-01-01T00:00:00.000Z", addedAtMs: first }),
+      post("old-saved-later", { createdAt: "2024-01-01T00:00:00.000Z", addedAtMs: later }),
+    ],
+  });
+  assert.deepEqual(ids(run({ sort: "added" }, snap).posts), ["old-saved-later", "new-in-first", "old-in-first"]);
+  assert.deepEqual(ids(run({ sort: "newest" }, snap).posts), ["new-in-first", "old-in-first", "old-saved-later"]);
+});

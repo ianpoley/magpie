@@ -26,6 +26,8 @@ const newestFirst = (a: Post, b: Post): number =>
 
 const ORDER: Record<FilterState["sort"], (a: Post, b: Post) => number> = {
   newest: newestFirst,
+  // A sync sees many posts at once (the first one saw them all), so posts added together fall back to newest.
+  added: (a, b) => (b.addedAtMs ?? -Infinity) - (a.addedAtMs ?? -Infinity) || newestFirst(a, b),
   oldest: (a, b) => (a.createdAtMs ?? Infinity) - (b.createdAtMs ?? Infinity) || newestFirst(a, b),
   most_liked: (a, b) => b.likeCount - a.likeCount || newestFirst(a, b),
 };

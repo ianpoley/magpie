@@ -24,6 +24,8 @@ export type Post = {
   createdAt: string | null;
   /** `createdAt` as epoch milliseconds; null when missing or unreadable. */
   createdAtMs: number | null;
+  /** When a sync first saw the post, as epoch milliseconds: the closest the store has to when it was saved. */
+  addedAtMs: number | null;
   url: string;
   authorHandle: string;
   authorName: string;
@@ -152,7 +154,7 @@ export type Snapshot = {
 
 export type Collection = "everything" | "bookmarks" | "likes";
 export type TimeRange = "all" | "week" | "month" | "year";
-export type Sort = "newest" | "oldest" | "most_liked";
+export type Sort = "newest" | "added" | "oldest" | "most_liked";
 
 export type FilterState = {
   collection: Collection;

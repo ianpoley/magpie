@@ -28,6 +28,7 @@ export function post(id: string, options: Partial<Post> & { in?: Record<number, 
     ...rest,
     createdAt,
     createdAtMs: createdAt === null ? null : Date.parse(createdAt),
+    addedAtMs: rest.addedAtMs ?? null,
   };
 }
 
