@@ -46,6 +46,13 @@ import { createWhatChangedController, WhatChanged } from "./what-changed";
 
 type View = "posts" | "resources";
 
+const RESOURCE_KINDS = [
+  { value: "repo", label: "Repos", none: "No repos here" },
+  { value: "package", label: "Packages", none: "No packages here" },
+  { value: "video", label: "Videos", none: "No videos here" },
+  { value: "page", label: "Pages", none: "No pages here" },
+];
+
 const COLLECTION_TITLES = { everything: "Everything", bookmarks: "Bookmarks", likes: "Likes" } as const;
 const RESOURCE_ROWS = 100;
 const REFRESH_GAP_MS = 2000;
@@ -189,6 +196,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
   const [view, setView] = useState<View>("posts");
+  const [resourceKind, setResourceKind] = useState("all");
   const [expanded, setExpanded] = useState<string[]>(() => [
     ...new Set(snapshot.topics.flatMap((topic) => (topic.areaId !== null && linked.topicIds.includes(topic.id) ? [areaNode(topic.areaId)] : []))),
   ]);
@@ -354,7 +362,10 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   };
 
   const { eyebrow, title, detail } = heading(snapshot, applied, authorName);
-  const groups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];
+  const allGroups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];
+  const groups = resourceKind === "all" ? allGroups : allGroups.filter((group) => group.resource.kind === resourceKind);
+  const kinds = RESOURCE_KINDS.filter((kind) => kind.value === resourceKind || allGroups.some((group) => group.resource.kind === kind.value));
+  const shownKind = RESOURCE_KINDS.find((kind) => kind.value === resourceKind);
   const listKey = JSON.stringify([ask?.query, applied.collection, applied.topicIds, applied.areaIds, applied.unfiled, applied.author, keyword, applied.timeRange, applied.sort, applied.mediaOnly, applied.revealHidden]);
 
   return (
@@ -428,6 +439,25 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
               </p>
             </div>
 
+            {view === "resources" && kinds.length > 1 ? (
+              <SegmentedControl
+                aria-label="Resource kind"
+                value={resourceKind}
+                onValueChange={(next) => next && setResourceKind(next)}
+                className="-mt-2 self-start border-0 bg-sunken p-[3px]"
+              >
+                <SegmentedControlIndicator />
+                <SegmentedControlItem value="all" className="focus-ring h-7 px-3 text-[12px] font-semibold">
+                  All kinds
+                </SegmentedControlItem>
+                {kinds.map((kind) => (
+                  <SegmentedControlItem key={kind.value} value={kind.value} className="focus-ring h-7 px-3 text-[12px] font-semibold">
+                    {kind.label}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+            ) : null}
+
             <ActiveFilters
               filter={applied}
               topicsById={topicsById}
@@ -464,6 +494,10 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
             ) : groups.length === 0 ? (
               result.posts.length === 0 ? (
                 emptyPosts(snapshot, result, clearAll, clearCategories)
+              ) : shownKind && allGroups.length > 0 ? (
+                <EmptyState icon={Link2Off} title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
+                  These posts link to other kinds of resources.
+                </EmptyState>
               ) : (
                 <EmptyState icon={Link2Off} title="No resources here">
                   None of these posts link to a repo, package, video, or page that could be read. They are still listed under Posts.
