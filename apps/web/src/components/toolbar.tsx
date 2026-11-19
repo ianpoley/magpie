@@ -113,7 +113,7 @@ export function Toolbar({
           if (asking) onAsk();
         }}
       >
-        <InputGroup className="h-10 items-center gap-2 rounded-full bg-surface pr-1.5 pl-1.5 shadow-card transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-primary)]">
+        <InputGroup className="group h-10 items-center gap-2 rounded-full bg-surface pr-1.5 pl-1.5 shadow-card transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-primary)]">
           <SegmentedControl
             aria-label="Search mode"
             value={mode}
@@ -144,6 +144,14 @@ export function Toolbar({
             onValueChange={asking ? onAskDraft : onKeyword}
             className="min-w-0 text-[16px] placeholder:text-ink-muted sm:text-[14px] [&::-webkit-search-cancel-button]:hidden"
           />
+          {(asking ? askDraft : keyword) === "" ? (
+            <kbd
+              aria-hidden="true"
+              className="pointer-events-none hidden h-5 min-w-5 shrink-0 items-center justify-center rounded-[6px] bg-sunken px-1 font-sans text-[11px] font-semibold text-ink-muted group-has-[input:focus]:invisible pointer-fine:flex"
+            >
+              /
+            </kbd>
+          ) : null}
           <InputClear
             aria-label={asking ? "Clear question" : "Clear search"}
             className="focus-ring pressable flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-ink-muted hover:bg-sunken hover:text-ink"
