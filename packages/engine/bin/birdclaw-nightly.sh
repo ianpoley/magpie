@@ -5,7 +5,7 @@
 # exports them into this folder as JSON + browsable Markdown so other
 # Claude Code projects can reference them.
 #
-# Run automatically by launchd at midnight. Safe to run by hand any time:
+# Run automatically by launchd every 3 hours. Safe to run by hand any time:
 #     bash ~/x-corpus/packages/engine/bin/birdclaw-nightly.sh   (or: bun run sync)
 #
 set -uo pipefail
@@ -61,11 +61,19 @@ fi
 #    already have). For the very first full backfill, run SETUP.md's backfill
 #    command instead (uses --all).
 echo "[sync] bookmarks ..."
-birdclaw sync bookmarks --mode bird --limit "$LIMIT" --max-pages "$MAX_PAGES" --early-stop --refresh --json \
-  || echo "WARN: bookmark sync returned nonzero (continuing with cached data)"
+birdclaw sync bookmarks --mode bird --limit "$LIMIT" --max-pages "$MAX_PAGES" --early-stop --refresh --json
+BOOKMARKS_EXIT=$?; BOOKMARKS_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+[ "$BOOKMARKS_EXIT" -eq 0 ] || echo "WARN: bookmark sync returned nonzero (continuing with cached data)"
 echo "[sync] likes ..."
-birdclaw sync likes --mode bird --limit "$LIMIT" --max-pages "$MAX_PAGES" --early-stop --refresh --json \
-  || echo "WARN: likes sync returned nonzero (continuing with cached data)"
+birdclaw sync likes --mode bird --limit "$LIMIT" --max-pages "$MAX_PAGES" --early-stop --refresh --json
+LIKES_EXIT=$?; LIKES_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+[ "$LIKES_EXIT" -eq 0 ] || echo "WARN: likes sync returned nonzero (continuing with cached data)"
+
+# Record how each sync went, so the corpus screen can say when X stopped answering
+# instead of showing stale data as healthy. Read by packages/engine/src/pipeline.ts.
+printf '{"bookmarks":{"exit":%d,"at":"%s"},"likes":{"exit":%d,"at":"%s"}}\n' \
+  "$BOOKMARKS_EXIT" "$BOOKMARKS_AT" "$LIKES_EXIT" "$LIKES_AT" > "$DATA_DIR/sync-status.json.tmp" \
+  && mv "$DATA_DIR/sync-status.json.tmp" "$DATA_DIR/sync-status.json"
 
 # 2) Dump the stored collections to JSON (atomic write via .tmp + mv).
 echo "[export] json ..."
@@ -86,5 +94,11 @@ echo "[markdown] build ..."
   "$DATA_DIR/bookmarks.json" "$MD_DIR/bookmarks" bookmark "$DATA_DIR/bookmarks.normalized.jsonl"
 [ -f "$DATA_DIR/likes.json" ] && node "$ENGINE_DIR/bin/build-markdown.mjs" \
   "$DATA_DIR/likes.json" "$MD_DIR/likes" like "$DATA_DIR/likes.normalized.jsonl"
+
+# 4) Categorize: resolve links, tag new posts, and evolve the category list.
+#    Runs last and never fails the job: the export above is already written.
+echo "[categorize] ..."
+node "$ENGINE_DIR/bin/categorize.mjs" \
+  || echo "WARN: categorize returned nonzero (export and markdown are unaffected)"
 
 echo "[done] $(ts)"

@@ -80,6 +80,21 @@ To stop scheduling later:
 launchctl unload ~/Library/LaunchAgents/com.ianpoley.birdclaw-nightly.plist
 ```
 
+## 5. Categorization (optional but recommended)
+
+The job's last step tags every post and maintains the category list. It needs:
+
+```bash
+mkdir -p ~/.config/x-corpus
+printf 'export TYPESAFE_API_KEY="..."\n' > ~/.config/x-corpus/secrets.env   # Jev key
+claude --version                                                            # Claude Code CLI, logged in
+bash ~/x-corpus/packages/skill/install.sh                                   # link the Claude skill
+```
+
+The first run resolves every link, asks Claude for the starting categories, and
+tags the whole corpus; it takes several minutes. Later runs only handle what is new.
+Without the key or the CLI, the sync and export still work and the step logs a warning.
+
 ### Notes
 - The Mac must be awake at 00:00. If it's asleep, launchd runs the job once on
   the next wake — so you won't silently skip a day, but the timestamp drifts.

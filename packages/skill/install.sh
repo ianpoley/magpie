@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs this directory as the x-corpus skill by symlinking it into
-# ~/.claude/skills. A skill directory already there is moved to a dated backup.
+# ~/.claude/skills. A skill directory already there is moved to a dated backup
+# under ~/.claude/skill-backups.
 # Safe to run again.
 set -euo pipefail
 
@@ -17,7 +18,9 @@ if [ -L "$target" ]; then
   fi
   rm "$target"
 elif [ -e "$target" ]; then
-  backup="$skills/x-corpus.backup-$(date +%Y-%m-%d)"
+  # Outside the skills directory: a backup left there would load as a second skill.
+  mkdir -p "$HOME/.claude/skill-backups"
+  backup="$HOME/.claude/skill-backups/x-corpus-$(date +%Y-%m-%d)"
   if [ -e "$backup" ] || [ -L "$backup" ]; then
     backup="$backup-$(date +%H%M%S)"
   fi

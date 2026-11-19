@@ -409,10 +409,13 @@ test('install moves an existing skill directory to a dated backup and leaves its
   assert.ok(lstatSync(target).isSymbolicLink());
   assert.equal(realpathSync(target), realpathSync(SKILL_DIR));
 
-  const backups = readdirSync(skills).filter((name) => name !== 'x-corpus');
+  // A backup left inside the skills directory would be loaded as a second skill.
+  assert.deepEqual(readdirSync(skills), ['x-corpus']);
+  const backupDir = join(home, '.claude', 'skill-backups');
+  const backups = readdirSync(backupDir);
   assert.equal(backups.length, 1);
-  assert.match(backups[0], /^x-corpus\.backup-\d{4}-\d{2}-\d{2}$/);
-  const backup = join(skills, backups[0]);
+  assert.match(backups[0], /^x-corpus-\d{4}-\d{2}-\d{2}$/);
+  const backup = join(backupDir, backups[0]);
   assert.equal(readFileSync(join(backup, 'SKILL.md'), 'utf8'), 'old skill\n');
   assert.equal(readFileSync(join(backup, 'secrets.env'), 'utf8'), 'export SYNTHETIC_KEY="not-a-real-secret"\n');
   assert.ok(!existsSync(join(SKILL_DIR, 'secrets.env')));
@@ -423,5 +426,6 @@ test('install moves an existing skill directory to a dated backup and leaves its
 
   const second = install(home);
   assert.equal(second.status, 0, second.stderr);
-  assert.deepEqual(readdirSync(skills).sort(), ['x-corpus', backups[0]].sort());
+  assert.deepEqual(readdirSync(skills), ['x-corpus']);
+  assert.deepEqual(readdirSync(backupDir), backups);
 });
