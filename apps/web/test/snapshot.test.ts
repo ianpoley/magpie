@@ -162,7 +162,7 @@ test("posts linking to one resource share it, and link titles are searchable", (
       postIds: ["1", "2", "3", "4"],
     },
   ]);
-  assert.deepEqual(snap.posts.find((p) => p.id === "3")?.linkTitles, ["Motion page 3"]);
+  assert.deepEqual(snap.posts.find((p) => p.id === "3")?.linkedPages, [{ title: "Motion page 3", url: null, host: "motion.example" }]);
   assert.deepEqual(shown(snap, { keyword: "motion page 3" }), ["3"]);
 });
 

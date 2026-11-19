@@ -10,7 +10,7 @@ import type { Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
-import { Marked, MediaGrid, PostText, Quoted } from "./post-body";
+import { LinkedPages, Marked, MediaGrid, PostText, Quoted } from "./post-body";
 import type { PostTopicsController } from "./post-topics-editor";
 import { dangerIconButton, iconButton } from "./styles";
 import { Tip } from "./tip";
@@ -128,6 +128,7 @@ export function PostCard({
         </header>
 
         {post.text ? <PostText text={post.text} keyword={keyword} className="line-clamp-[9]" /> : null}
+        <LinkedPages pages={post.linkedPages.slice(0, 1)} keyword={keyword} />
         {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} /> : null}
         <MediaGrid media={post.media} />
 

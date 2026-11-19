@@ -20,7 +20,7 @@ const p = post("1", {
   quoted,
   authorName: "Ada Lovelace",
   authorHandle: "ada_l",
-  linkTitles: ["Motion Library Docs"],
+  linkedPages: [{ title: "Motion Library Docs", url: null, host: null }],
 });
 
 test("matches text, quoted text, author name, handle and linked page titles, ignoring case", () => {

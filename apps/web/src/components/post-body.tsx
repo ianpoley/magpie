@@ -1,6 +1,8 @@
+import { ExternalLink, Globe } from "lucide-react";
+
 import { displayUrl, trimUrl, URL_PATTERN } from "@/lib/post-links";
 import { highlightRanges } from "@/lib/search";
-import type { Media, QuotedPost } from "@/lib/types";
+import type { LinkedPage, Media, QuotedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 
@@ -59,6 +61,46 @@ export function PostText({
   }
   if (at < text.length) parts.push(<Marked key={`t${at}`} text={text.slice(at)} keyword={keyword} />);
   return <p className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
+}
+
+/** The titles of the pages a post links to. With `links`, each row opens its page. */
+export function LinkedPages({ pages, keyword, links = false }: { pages: LinkedPage[]; keyword: string; links?: boolean }) {
+  if (pages.length === 0) return null;
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {pages.map((page) => {
+        const body = (
+          <>
+            <Globe className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] leading-snug font-semibold text-ink">
+                <Marked text={page.title} keyword={keyword} />
+              </span>
+              {page.host ? <span className="block truncate text-[12px] leading-snug text-ink-muted">{page.host}</span> : null}
+            </span>
+          </>
+        );
+        const row = "flex min-w-0 items-center gap-2.5 rounded-inner bg-sunken px-3 py-2";
+        return (
+          <li key={page.title} className="flex min-w-0">
+            {links && page.url ? (
+              <a
+                href={page.url}
+                target="_blank"
+                rel="noreferrer"
+                className={`${row} focus-ring w-full no-underline transition-colors duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--color-sunken)_92%,var(--color-ink))]`}
+              >
+                {body}
+                <ExternalLink className="size-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+              </a>
+            ) : (
+              <span className={`${row} w-full`}>{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 const GRID: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-2" };

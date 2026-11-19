@@ -19,7 +19,7 @@ export function highlightRanges(text: string, query: string): Range[] {
  * blank query matches every post.
  */
 export function matchesKeyword(post: Post, query: string): boolean {
-  const fields = [post.text, post.authorName, post.authorHandle, post.quoted?.text ?? "", ...post.linkTitles];
+  const fields = [post.text, post.authorName, post.authorHandle, post.quoted?.text ?? "", ...post.linkedPages.map((page) => page.title)];
   return words(query).every((word) => {
     const pattern = new RegExp(escape(word), "i");
     return fields.some((field) => pattern.test(field));

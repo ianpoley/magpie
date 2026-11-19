@@ -117,7 +117,7 @@ function read(db: DatabaseSync): Snapshot {
       media: media(parse(row.media_json)),
       bookmarked: row.bookmarked === 1,
       liked: row.liked === 1,
-      linkTitles: [],
+      linkedPages: [],
       hidden: false,
       unfiled: false,
       pending: false,
@@ -239,7 +239,7 @@ function read(db: DatabaseSync): Snapshot {
   const resourcePosts = new Map<number, string[]>();
   const linkRows = db
     .prepare(
-      `SELECT pl.post_id, l.title, l.resource_id
+      `SELECT pl.post_id, l.title, l.final_url, l.host, l.resource_id
        FROM post_links pl JOIN links l ON l.url = pl.link_url
        WHERE l.status = 'resolved' AND (l.title IS NOT NULL OR l.resource_id IS NOT NULL)
        ORDER BY pl.post_id, pl.position`,
@@ -249,7 +249,10 @@ function read(db: DatabaseSync): Snapshot {
     const post = postsById.get(String(row.post_id));
     if (!post) continue;
     const title = text(row.title);
-    if (title !== null && !post.linkTitles.includes(title)) post.linkTitles.push(title);
+    if (title !== null && !post.linkedPages.some((page) => page.title === title)) {
+      const url = text(row.final_url);
+      post.linkedPages.push({ title, url: usableTarget(url) ? url : null, host: text(row.host) });
+    }
     if (row.resource_id !== null) {
       const resourceId = Number(row.resource_id);
       const postIds = resourcePosts.get(resourceId);

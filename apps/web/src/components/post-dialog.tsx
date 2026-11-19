@@ -11,7 +11,7 @@ import type { Area, Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
-import { MediaGrid, PostText, Quoted } from "./post-body";
+import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, type PostDialogController } from "./post-card";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { dangerButton, dialogContent, iconButton } from "./styles";
@@ -102,6 +102,7 @@ export function PostDialog({
 
               <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5">
                 {post.text ? <PostText text={post.text} keyword={keyword} links className="text-[16px]" /> : null}
+                <LinkedPages pages={post.linkedPages} keyword={keyword} links />
                 {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} full /> : null}
                 <MediaGrid media={post.media} full />
                 <ul className="flex flex-wrap items-center gap-1.5">

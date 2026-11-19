@@ -4,6 +4,9 @@ export type Membership = { topicId: number; band: Band };
 
 export type Media = { type: string; url: string };
 
+/** A page a post links to whose title was read. `url` is where the link leads, when that is a usable address. */
+export type LinkedPage = { url: string | null; title: string; host: string | null };
+
 export type QuotedPost = {
   id: string | null;
   text: string;
@@ -31,8 +34,8 @@ export type Post = {
   media: Media[];
   bookmarked: boolean;
   liked: boolean;
-  /** Titles of the pages this post links to, for keyword search. */
-  linkTitles: string[];
+  /** The titled pages this post links to, in the order the post links them. Keyword search reads their titles. */
+  linkedPages: LinkedPage[];
   /** Best match is in a hidden area or topic and no visible topic matches confidently. */
   hidden: boolean;
   /** No confident match in any topic. */
