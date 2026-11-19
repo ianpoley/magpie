@@ -42,6 +42,11 @@ function saveWidth() {
 
 const widest = (): number => clampSidebarWidth(window.innerWidth - MAIN_MIN);
 
+function subscribeWindow(listener: () => void): () => void {
+  window.addEventListener("resize", listener);
+  return () => window.removeEventListener("resize", listener);
+}
+
 /**
  * The right edge of the desktop sidebar: drag it, or focus it and use the
  * arrow keys, Home and End, to set the sidebar's width; double-click to go
@@ -49,6 +54,9 @@ const widest = (): number => clampSidebarWidth(window.innerWidth - MAIN_MIN);
  */
 export function SidebarResizer({ controls }: { controls: string }) {
   const current = useSyncExternalStore(subscribe, readWidth, () => SIDEBAR_WIDTH.fallback);
+  const limit = useSyncExternalStore(subscribeWindow, widest, () => SIDEBAR_WIDTH.max);
+  // A narrow window can hold the sidebar below its remembered width.
+  const shownWidth = Math.round(Math.min(current, limit));
   const drag = useRef<{ pointerId: number; offset: number } | null>(null);
 
   const set = (next: number) => {
@@ -103,10 +111,10 @@ export function SidebarResizer({ controls }: { controls: string }) {
       aria-label="Resize sidebar"
       aria-orientation="vertical"
       aria-controls={controls}
-      aria-valuenow={current}
+      aria-valuenow={shownWidth}
       aria-valuemin={SIDEBAR_WIDTH.min}
-      aria-valuemax={SIDEBAR_WIDTH.max}
-      aria-valuetext={`${current} pixels wide`}
+      aria-valuemax={limit}
+      aria-valuetext={`${shownWidth} pixels wide`}
       title="Drag to resize. Double-click to reset."
       onPointerDown={start}
       onPointerMove={move}

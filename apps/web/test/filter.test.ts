@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   DEFAULT_FILTER,
   applyFilter,
+  categoryCounts,
   mostSavedAuthors,
   postChips,
   selectTopicOnly,
@@ -243,4 +244,37 @@ test("selection changes", () => {
 
   assert.equal(toggleAuthor(start, "ada").author, "ada");
   assert.equal(toggleAuthor(toggleAuthor(start, "ada"), "Ada").author, null);
+});
+
+test("a category's count is the number of posts selecting it alone lists, with and without hidden posts", () => {
+  const snap = snapshot({
+    areas: AREAS,
+    topics: TOPICS,
+    posts: [
+      post("a", { in: { [EVALS]: "confident" } }),
+      post("b", { in: { [EVALS]: "confident" } }),
+      post("c", { hidden: true, in: { [EVALS]: "confident", [ELECTIONS]: "confident" } }),
+      post("loose", {}),
+      post("loose-hidden", { hidden: true, unfiled: true, in: { [ELECTIONS]: "unsure" } }),
+    ],
+  });
+  const listed = (state: Partial<FilterState>) => applyFilter(snap, filter(state), NOW).posts.length;
+
+  const off = categoryCounts(snap, false);
+  assert.equal(off.topics.get(EVALS), 2);
+  assert.equal(off.topics.get(EVALS), listed({ topicIds: [EVALS] }));
+  assert.equal(off.areas.get(AI), listed({ areaIds: [AI] }));
+  assert.equal(off.unfiled, 1);
+  assert.equal(off.unfiled, listed({ unfiled: true }));
+
+  const on = categoryCounts(snap, true);
+  assert.equal(on.topics.get(EVALS), 3);
+  assert.equal(on.topics.get(EVALS), listed({ topicIds: [EVALS], revealHidden: true }));
+  assert.equal(on.areas.get(AI), listed({ areaIds: [AI], revealHidden: true }));
+  assert.equal(on.unfiled, listed({ unfiled: true, revealHidden: true }));
+
+  // A hidden topic and its hidden area keep their own posts: selecting either shows them.
+  assert.equal(off.topics.get(ELECTIONS), 2);
+  assert.equal(off.topics.get(ELECTIONS), listed({ topicIds: [ELECTIONS] }));
+  assert.equal(off.areas.get(POLITICS), listed({ areaIds: [POLITICS] }));
 });

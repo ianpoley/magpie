@@ -108,6 +108,35 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number)
   };
 }
 
+export type CategoryCounts = { topics: Map<number, number>; areas: Map<number, number>; unfiled: number };
+
+/**
+ * How many posts each topic, each area, and Unfiled would list when it is the
+ * only thing selected, by the same rule as `applyFilter`: unsure matches
+ * count, and a hidden post counts only when everything is revealed or the
+ * topic or area is itself hidden.
+ */
+export function categoryCounts(snapshot: Snapshot, revealHidden: boolean): CategoryCounts {
+  const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
+  const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
+  const counts: CategoryCounts = { topics: new Map(), areas: new Map(), unfiled: 0 };
+  for (const post of snapshot.posts) {
+    const shown = revealHidden || !post.hidden;
+    if (shown && post.unfiled) counts.unfiled++;
+    const inAreas = new Set<number>();
+    for (const { topicId } of post.memberships) {
+      const topic = topicsById.get(topicId);
+      if (!topic) continue;
+      if (shown || topic.hidden) counts.topics.set(topicId, (counts.topics.get(topicId) ?? 0) + 1);
+      if (topic.areaId !== null) inAreas.add(topic.areaId);
+    }
+    for (const areaId of inAreas) {
+      if (shown || areasById.get(areaId)?.hidden) counts.areas.set(areaId, (counts.areas.get(areaId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
 export function mostSavedAuthors(posts: Post[], revealHidden: boolean, limit: number = MOST_SAVED_AUTHORS): AuthorCount[] {
   const byHandle = new Map<string, AuthorCount>();
   for (const post of posts) {

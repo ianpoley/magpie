@@ -11,6 +11,7 @@ import {
   askPosts,
   cleanQuery,
   createAskRunner,
+  isLoopbackHost,
   isSameOriginJson,
   rankAsk,
   readAskPosts,
@@ -476,4 +477,12 @@ test("a request addressed to a name that is not this machine is refused, whateve
   for (const host of ["127.0.0.1:3000", "localhost:3000", "[::1]:3000", "localhost"]) {
     assert.equal(isSameOriginJson(new Headers({ ...rebound, host, origin: `http://${host}` })), true, host);
   }
+});
+
+test("only a Host header naming this machine, on any port, counts as loopback", () => {
+  for (const host of ["localhost", "LOCALHOST:3000", "127.0.0.1:3000", "[::1]:8080"]) assert.equal(isLoopbackHost(host), true, host);
+  for (const host of ["evil.example:3000", "127.0.0.1.evil.example", "localhost.evil.example:3000", "127.0.0.2", "192.168.1.5:3000", ""]) {
+    assert.equal(isLoopbackHost(host), false, host);
+  }
+  assert.equal(isLoopbackHost(null), false);
 });

@@ -136,27 +136,31 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
   };
 
   // During an outage every request runs to its timeout, so a long queue is
-  // given up on rather than drained one timeout at a time. Once any post has
-  // been scored the failures belong to the posts, and the pass goes on.
-  const stalled = (): boolean => failuresInARow >= TAGGING.maxConsecutiveFailures && result.scored === 0;
+  // given up on rather than drained one timeout at a time. Posts that failed
+  // last run are first in the queue again, and a run of them looks the same,
+  // so after each run of failures one post from the far end tells the two
+  // apart: scored, the failures belong to the posts and the pass goes on.
   const queue = [...topicIdsByPost];
-  // Posts that failed last run are first in the queue again, so a run of them
-  // looks like an outage. One post from the far end tells the two apart.
-  let farEnd: Promise<void> | null = null;
+  let stopped = false;
+  let probe: Promise<void> | null = null;
   const tryFarEnd = async (): Promise<void> => {
-    let outcome = 'skipped';
-    while (outcome === 'skipped') {
-      const last = queue.pop();
-      if (!last) return;
-      outcome = await scorePost(last[0], last[1]);
+    try {
+      let outcome = 'skipped';
+      while (outcome === 'skipped') {
+        const last = queue.pop();
+        if (!last) return;
+        outcome = await scorePost(last[0], last[1]);
+      }
+      if (outcome === 'failed' && failuresInARow > TAGGING.maxConsecutiveFailures) stopped = true;
+    } finally {
+      probe = null;
     }
   };
   const workers = Array.from({ length: Math.max(1, deps.concurrency ?? TAGGING.concurrency) }, async () => {
-    for (;;) {
-      if (stalled()) {
-        farEnd ??= tryFarEnd();
-        await farEnd;
-        if (stalled()) return;
+    while (!stopped) {
+      if (probe || (queue.length > 0 && failuresInARow >= TAGGING.maxConsecutiveFailures)) {
+        await (probe ??= tryFarEnd());
+        continue;
       }
       const next = queue.shift();
       if (!next) return;
@@ -168,7 +172,7 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
     result.posts += queue.length;
     result.failed += queue.length;
     result.errors.unshift(
-      `Stopped after ${failuresInARow} posts in a row failed and none was scored (${lastFailure}); ` +
+      `Stopped after ${failuresInARow} posts in a row failed (${lastFailure}); ` +
         `${queue.length} posts were not tried and will be tried again next run.`,
     );
   }

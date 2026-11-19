@@ -4,6 +4,7 @@ import { Tree, TreeGroup, TreeItem, TreeItemIndicator, TreeItemLabel } from "@ui
 import { ChevronDown, EyeOff, Inbox, Pin, SearchX, type LucideIcon } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 
+import { categoryCounts } from "@/lib/filter";
 import { HIDDEN_LABEL, noCategories, searchCategories, UNFILED_LABEL, type CategoryRows } from "@/lib/category-search";
 import type { Area, FilterState, Snapshot, Topic } from "@/lib/types";
 
@@ -100,7 +101,6 @@ export function CategoryTree({
   filter,
   query = "",
   expanded,
-  unfiledCount,
   edits,
   onExpandedChange,
   onToggleTopic,
@@ -111,7 +111,6 @@ export function CategoryTree({
   filter: FilterState;
   query?: string;
   expanded: string[];
-  unfiledCount: number;
   edits: CategoryEdits;
   onExpandedChange: (expanded: string[]) => void;
   onToggleTopic: (topicId: number) => void;
@@ -122,16 +121,21 @@ export function CategoryTree({
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
 
-  const topicsOf = (area: Area, hidden: boolean): Topic[] =>
-    snapshot.topics.filter((topic) => topic.areaId === area.id && (area.hidden || topic.hiddenSelf === hidden)).sort(byCount);
+  // Each row shows what selecting it alone would list, which leaves out hidden posts until they are revealed.
+  const counts = categoryCounts(snapshot, filter.revealHidden);
+  const shownTopics = snapshot.topics.map((topic) => ({ ...topic, postCount: counts.topics.get(topic.id) ?? 0 }));
+  const shownAreas = snapshot.areas.map((area) => ({ ...area, postCount: counts.areas.get(area.id) ?? 0 }));
 
-  const visibleAreas = snapshot.areas.filter((area) => !area.hidden);
+  const topicsOf = (area: Area, hidden: boolean): Topic[] =>
+    shownTopics.filter((topic) => topic.areaId === area.id && (area.hidden || topic.hiddenSelf === hidden)).sort(byCount);
+
+  const visibleAreas = shownAreas.filter((area) => !area.hidden);
   const group = (hidden: boolean) => (area: Area) => ({ area, topics: topicsOf(area, hidden) });
   const all: CategoryRows = {
     pinned: visibleAreas.filter((area) => area.kind === "system").map(group(false)).filter(({ topics }) => topics.length > 0),
     unfiled: true,
     areas: visibleAreas.filter((area) => area.kind !== "system").sort(byCount).map(group(false)),
-    hiddenAreas: snapshot.areas.filter((area) => area.hidden).sort(byCount).map(group(true)),
+    hiddenAreas: shownAreas.filter((area) => area.hidden).sort(byCount).map(group(true)),
     hiddenTopics: visibleAreas.flatMap((area) => topicsOf(area, true).map((topic) => ({ topic, area }))).sort((a, b) => byCount(a.topic, b.topic)),
   };
   const needle = query.trim();
@@ -217,7 +221,7 @@ export function CategoryTree({
               <span className="truncate font-semibold">
                 <Marked text={UNFILED_LABEL} keyword={needle} />
               </span>
-              <Count value={unfiledCount} />
+              <Count value={counts.unfiled} />
               {MENU_GAP}
             </TreeItemLabel>
           </TreeItem>

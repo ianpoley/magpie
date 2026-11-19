@@ -365,3 +365,15 @@ test('removing a post twice keeps the first removal time, and an unknown post is
   throwsCode(() => removePost(db, 'nope'), 'unknown_post');
   throwsCode(() => restorePost(db, 'nope'), 'unknown_post');
 });
+
+test('a topic cannot be merged into a pinned search, and both stay as they were', (t) => {
+  const { db } = tempStore(t);
+  const topic = seedTopic(db, 'Sync engines');
+  const { topicId: pinned } = pinQuery(db, { query: 'local-first sync', scores: [] });
+
+  throwsCode(() => mergeTopics(db, topic, pinned), 'pinned_target');
+
+  assert.equal(topicRow(db, topic)?.state, 'active');
+  assert.equal(topicRow(db, topic)?.merged_into, null);
+  assert.equal(topicRow(db, pinned)?.state, 'active');
+});

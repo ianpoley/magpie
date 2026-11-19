@@ -204,6 +204,7 @@ export type ActionErrorCode =
   | "invalid_name"
   | "invalid_score"
   | "merge_into_self"
+  | "pinned_target"
   | "not_pinned"
   | "system_area"
   | "not_undoable"

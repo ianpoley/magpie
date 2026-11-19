@@ -246,7 +246,6 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
     everything: shownPosts.length,
     bookmarks: shownPosts.filter((post) => post.bookmarked).length,
     likes: shownPosts.filter((post) => post.liked).length,
-    unfiled: shownPosts.filter((post) => post.unfiled).length,
   };
   const authors = mostSavedAuthors(snapshot.posts, applied.revealHidden);
   const authorName =
@@ -504,9 +503,9 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
       <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} />
       <CategoryDialogs edits={categoryEdits} topics={snapshot.topics} areas={snapshot.areas} topicsById={topicsById} areasById={areasById} />
 
-      <ToastRegion side="bottom" align="center" className="mb-6 w-fit [&_[data-slot=toast-list]]:items-center">
+      <ToastRegion side="top" align="center" className="mt-6 w-fit [&_[data-slot=toast-list]]:items-center">
         {(state) => (
-          <Toast className="flex w-fit flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
+          <Toast className="flex w-fit flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
             {state.type === "error" ? (
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-like-soft text-like-text">
                 <CircleAlert className="size-4" aria-hidden="true" />
