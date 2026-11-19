@@ -1,0 +1,21 @@
+{
+  "name": "x-corpus",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter @x-corpus/web dev",
+    "build": "bun --filter @x-corpus/web build",
+    "start": "bun --filter @x-corpus/web start",
+    "lint": "bun --filter @x-corpus/web lint",
+    "sync": "bun --filter @x-corpus/engine sync",
+    "build:markdown": "bun --filter @x-corpus/engine build:markdown"
+  },
+  "packageManager": "bun@1.3.14",
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}

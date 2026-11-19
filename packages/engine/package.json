@@ -1,0 +1,10 @@
+{
+  "name": "@x-corpus/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Birdclaw sync + export pipeline: X bookmarks/likes -> ~/x-corpus/{data,markdown}",
+  "scripts": {
+    "sync": "bash bin/birdclaw-nightly.sh",
+    "build:markdown": "node bin/build-markdown.mjs ../../data/bookmarks.json ../../markdown/bookmarks bookmark ../../data/bookmarks.normalized.jsonl && node bin/build-markdown.mjs ../../data/likes.json ../../markdown/likes like ../../data/likes.normalized.jsonl"
+  }
+}

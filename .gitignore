@@ -1,0 +1,17 @@
+# dependencies / build output
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# generated corpus (personal data, rewritten every sync)
+data/
+markdown/
+logs/
+
+# local tool state
+.claude/settings.local.json
+.impeccable/
+.birdclaw_probe
+.DS_Store
+.env*
