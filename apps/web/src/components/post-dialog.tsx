@@ -118,7 +118,7 @@ export function PostDialog({
                 </div>
                 <CollectionMarks post={post} />
                 {previous !== null || next !== null ? (
-                  <span className="flex items-center">
+                  <span className="flex items-center max-sm:hidden">
                     <button
                       type="button"
                       aria-label="Previous post"
