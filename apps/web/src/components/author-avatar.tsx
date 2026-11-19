@@ -1,0 +1,41 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-sdk/react/avatar";
+
+import { authorHue } from "@/lib/author-hues";
+
+import { initials } from "./format";
+
+const SIZES = {
+  sm: "size-6 rounded-[8px] text-[10px]",
+  md: "size-10 rounded-avatar text-[13px]",
+  lg: "size-12 rounded-avatar text-[15px]",
+};
+
+/** An author's picture on their hue, with their initials until it loads or when there is none. */
+export function AuthorAvatar({
+  handle,
+  name,
+  url,
+  size = "md",
+  ring = true,
+}: {
+  handle: string;
+  name: string;
+  url: string | null;
+  size?: keyof typeof SIZES;
+  ring?: boolean;
+}) {
+  const hue = authorHue(handle);
+  return (
+    <Avatar
+      className={`${SIZES[size]} font-bold`}
+      style={{
+        background: hue.bg,
+        color: hue.fg,
+        boxShadow: ring ? `0 0 0 2px var(--color-surface), 0 0 0 3.5px ${hue.ring}` : undefined,
+      }}
+    >
+      {url ? <AvatarImage src={url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+      <AvatarFallback aria-hidden="true">{initials(name || handle)}</AvatarFallback>
+    </Avatar>
+  );
+}

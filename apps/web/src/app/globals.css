@@ -10,6 +10,15 @@
  * Light only for now; dark mode is to be derived by remapping these roles.
  */
 
+/* Hover styles apply only where a real pointer hovers. */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 @theme {
   /* surfaces + ink (neutrals tinted toward the brand hue, H 165) */
   --color-canvas: oklch(0.978 0.014 165);
@@ -36,6 +45,16 @@
 
   /* search highlight */
   --color-mark: oklch(0.92 0.141 110);
+
+  /* topic chips: one neutral tint for every area; "possible" marks an unsure match */
+  --color-chip: oklch(0.945 0.022 165);
+  --color-chip-text: oklch(0.37 0.035 165);
+  --color-chip-possible: oklch(0.972 0.008 165);
+  --color-chip-possible-text: oklch(0.47 0.018 165);
+
+  /* success: teal-cyan, so "it worked" never reads as the primary action */
+  --color-success: oklch(0.5 0.085 195);
+  --color-success-soft: oklch(0.95 0.035 195);
 
   /* sidebar: forest → teal gradient stops, and the ink that sits on them */
   --color-side-0: oklch(0.28 0.035 172);
@@ -85,6 +104,61 @@
   background-repeat: no-repeat;
 }
 
+@utility bg-tile-* {
+  background-image: linear-gradient(135deg, --value(--color-*), var(--color-surface) 78%);
+}
+@utility bg-side-wash {
+  background-color: color-mix(in oklch, var(--color-side-ink) 16%, transparent);
+}
+@utility bg-side-hover {
+  background-color: color-mix(in oklch, var(--color-side-ink) 6%, transparent);
+}
+
+/* ---- type recipes --------------------------------------------------- */
+@utility text-display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+@utility text-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* ---- interaction recipes -------------------------------------------- */
+@utility focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  &:focus-visible {
+    outline-color: var(--color-primary);
+  }
+}
+@utility focus-ring-side {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  &:focus-visible {
+    outline-color: var(--color-side-ink);
+  }
+}
+@utility pressable {
+  transition:
+    color 150ms ease-out,
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out,
+    scale 150ms ease-out;
+  &:active:not([data-disabled], :disabled) {
+    scale: 0.96;
+  }
+}
+@utility img-outline {
+  outline: 1px solid color-mix(in oklch, black 10%, transparent);
+  outline-offset: -1px;
+}
+
 /* ---- theme tokens → UI SDK tokens ---------------------------------- */
 :root {
   color-scheme: light;
@@ -132,6 +206,52 @@
   }
   [data-slot="segmented-control-item"][data-checked] {
     color: var(--color-on-primary);
+  }
+
+  /* Sidebar: every UI SDK part inside reads its colors from the ink that sits on the gradient. */
+  .side-scope {
+    --ui-background: transparent;
+    --ui-foreground: var(--color-side-ink);
+    --ui-muted: color-mix(in oklch, var(--color-side-ink) 6%, transparent);
+    --ui-muted-foreground: var(--color-side-muted);
+    --ui-border: color-mix(in oklch, var(--color-side-ink) 14%, transparent);
+    --ui-input: color-mix(in oklch, var(--color-side-ink) 32%, transparent);
+    --ui-ring: color-mix(in oklch, var(--color-side-ink) 70%, transparent);
+    color: var(--color-side-ink);
+  }
+
+  [data-slot="tree-item"]:focus-visible > [data-slot="tree-label"] {
+    outline-width: 2px;
+    outline-offset: -2px;
+  }
+  [data-slot="tree-group"] {
+    height: var(--tree-group-height);
+    overflow: hidden;
+    transition: height 150ms ease-out;
+
+    &:is([data-starting-style], [data-ending-style]) {
+      height: 0;
+    }
+  }
+
+  :is([data-slot="dialog-content"], [data-slot="dialog-backdrop"]) {
+    transition:
+      opacity 150ms ease-out,
+      translate 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      scale 200ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    &:is([data-starting-style], [data-ending-style]) {
+      opacity: 0;
+    }
+  }
+  [data-slot="dialog-backdrop"] {
+    background: color-mix(in oklch, var(--color-ink) 45%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :is([data-slot="tree-group"], [data-slot="dialog-content"], [data-slot="dialog-backdrop"]) {
+      transition: none;
+    }
   }
 
   mark {
