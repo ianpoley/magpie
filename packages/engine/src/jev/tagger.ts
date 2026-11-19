@@ -67,7 +67,12 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
   }
 
   const topics = new Map<number, TopicDefinition>();
-  const readTopic = db.prepare(`SELECT id, name, definition FROM topics WHERE id = ?`);
+  // A pinned search is always judged under the words the user searched for, so
+  // renaming it changes its label on screen and nothing about which posts match.
+  const readTopic = db.prepare(
+    `SELECT id, CASE WHEN kind = 'pinned' AND query IS NOT NULL THEN query ELSE name END AS name, definition
+     FROM topics WHERE id = ?`,
+  );
   for (const { topicId } of pairs) {
     if (topics.has(topicId)) continue;
     const row = readTopic.get(topicId);

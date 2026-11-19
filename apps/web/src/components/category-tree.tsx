@@ -1,13 +1,15 @@
 "use client";
 
 import { Tree, TreeGroup, TreeItem, TreeItemIndicator, TreeItemLabel } from "@ui-sdk/react/tree";
-import { ChevronDown, EyeOff, Inbox, Pin, type LucideIcon } from "lucide-react";
+import { ChevronDown, EyeOff, Inbox, Pin, SearchX, type LucideIcon } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 
+import { HIDDEN_LABEL, noCategories, searchCategories, UNFILED_LABEL, type CategoryRows } from "@/lib/category-search";
 import type { Area, FilterState, Snapshot, Topic } from "@/lib/types";
 
 import { CategoryMenu, CategoryMenuTrigger, createCategoryMenu, type CategoryEdits, type CategoryMenuController } from "./category-menu";
 import { formatCount } from "./format";
+import { Marked } from "./post-body";
 
 export const UNFILED_NODE = "unfiled";
 export const HIDDEN_NODE = "hidden";
@@ -21,13 +23,9 @@ const ROW =
   "relative h-8 rounded-[10px] text-[13px] text-side-ink data-selected:bg-side-wash data-selected:font-semibold";
 // On the selected row's wash the muted ink falls under 4.5:1, so the count takes the full ink there.
 const COUNT =
-  "ml-auto shrink-0 pl-2 text-[12px] font-medium text-side-muted tabular-nums [[data-slot=tree-label][data-selected]>&]:text-side-ink " +
-  // With a mouse, the row's menu button takes the count's place while it shows.
-  "[@media(hover:hover)_and_(pointer:fine)]:[[data-slot=tree-label]:hover:has([data-row-menu])>&]:invisible " +
-  "[@media(hover:hover)_and_(pointer:fine)]:[[data-slot=tree-label]:has([data-row-menu][data-open])>&]:invisible " +
-  "[@media(hover:hover)_and_(pointer:fine)]:[[data-slot=tree-item]:focus-visible>[data-slot=tree-label]:has([data-row-menu])>&]:invisible";
-// On touch every menu button has its own space, so rows without one keep the same gap after the count.
-const MENU_GAP = <span className="-mr-1 ml-1 size-6 shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hidden" />;
+  "ml-auto shrink-0 pl-2 text-[12px] font-medium text-side-muted tabular-nums [[data-slot=tree-label][data-selected]>&]:text-side-ink";
+// Every menu button has its own space after the count, so rows without one keep the same gap and the counts line up.
+const MENU_GAP = <span className="-mr-1 ml-1 size-6 shrink-0" />;
 
 function Count({ value }: { value: number }) {
   return <span className={COUNT}>{formatCount(value)}</span>;
@@ -35,14 +33,14 @@ function Count({ value }: { value: number }) {
 
 const ROW_MENU = "[data-row-menu]";
 
-function TopicRow({ topic, prefix, menu }: { topic: Topic; prefix?: string; menu: CategoryMenuController }) {
+function TopicRow({ topic, prefix, menu, query }: { topic: Topic; prefix?: string; menu: CategoryMenuController; query: string }) {
   const node = topicNode(topic.id);
   return (
     <TreeItem value={node} data-node={node} label={topic.name}>
       <TreeItemLabel className={ROW} title={topic.definition || undefined}>
         <span className="min-w-0 truncate">
           {prefix ? <span className="text-side-muted">{prefix} › </span> : null}
-          {topic.name}
+          <Marked text={topic.name} keyword={query} />
         </span>
         <Count value={topic.postCount} />
         <CategoryMenuTrigger menu={menu} target={{ kind: "topic", id: topic.id }} name={topic.name} />
@@ -51,7 +49,19 @@ function TopicRow({ topic, prefix, menu }: { topic: Topic; prefix?: string; menu
   );
 }
 
-function AreaRow({ area, topics, icon: Icon, menu }: { area: Area; topics: Topic[]; icon?: LucideIcon; menu: CategoryMenuController }) {
+function AreaRow({
+  area,
+  topics,
+  icon: Icon,
+  menu,
+  query,
+}: {
+  area: Area;
+  topics: Topic[];
+  icon?: LucideIcon;
+  menu: CategoryMenuController;
+  query: string;
+}) {
   const node = areaNode(area.id);
   return (
     <TreeItem value={node} data-node={node} label={area.name}>
@@ -60,13 +70,15 @@ function AreaRow({ area, topics, icon: Icon, menu }: { area: Area; topics: Topic
           <ChevronDown className="size-4" aria-hidden="true" />
         </TreeItemIndicator>
         {Icon ? <Icon className="size-3.5 shrink-0 text-side-muted" aria-hidden="true" /> : null}
-        <span className="min-w-0 truncate font-semibold">{area.name}</span>
+        <span className="min-w-0 truncate font-semibold">
+          <Marked text={area.name} keyword={query} />
+        </span>
         <Count value={area.postCount} />
         {area.kind === "system" ? MENU_GAP : <CategoryMenuTrigger menu={menu} target={{ kind: "area", id: area.id }} name={area.name} />}
       </TreeItemLabel>
       <TreeGroup>
         {topics.map((topic) => (
-          <TopicRow key={topic.id} topic={topic} menu={menu} />
+          <TopicRow key={topic.id} topic={topic} menu={menu} query={query} />
         ))}
       </TreeGroup>
     </TreeItem>
@@ -78,10 +90,15 @@ function AreaRow({ area, topics, icon: Icon, menu }: { area: Area; topics: Topic
  * it out of the filter, so several can be selected at once. Hidden areas and
  * topics are listed under a collapsed group at the end. Each area and topic
  * row carries a menu of edits; Shift+F10 or the menu key opens the focused row's.
+ *
+ * A `query` narrows the rows to those whose name contains it and opens every
+ * area it leaves. The expansion held by the parent is not touched meanwhile,
+ * so it is back when the query is cleared.
  */
 export function CategoryTree({
   snapshot,
   filter,
+  query = "",
   expanded,
   unfiledCount,
   edits,
@@ -92,6 +109,7 @@ export function CategoryTree({
 }: {
   snapshot: Snapshot;
   filter: FilterState;
+  query?: string;
   expanded: string[];
   unfiledCount: number;
   edits: CategoryEdits;
@@ -108,11 +126,28 @@ export function CategoryTree({
     snapshot.topics.filter((topic) => topic.areaId === area.id && (area.hidden || topic.hiddenSelf === hidden)).sort(byCount);
 
   const visibleAreas = snapshot.areas.filter((area) => !area.hidden);
-  const pinned = visibleAreas.filter((area) => area.kind === "system" && topicsOf(area, false).length > 0);
-  const areas = visibleAreas.filter((area) => area.kind !== "system").sort(byCount);
-  const hiddenAreas = snapshot.areas.filter((area) => area.hidden).sort(byCount);
-  const hiddenTopics = visibleAreas.flatMap((area) => topicsOf(area, true).map((topic) => ({ topic, area }))).sort((a, b) => byCount(a.topic, b.topic));
+  const group = (hidden: boolean) => (area: Area) => ({ area, topics: topicsOf(area, hidden) });
+  const all: CategoryRows = {
+    pinned: visibleAreas.filter((area) => area.kind === "system").map(group(false)).filter(({ topics }) => topics.length > 0),
+    unfiled: true,
+    areas: visibleAreas.filter((area) => area.kind !== "system").sort(byCount).map(group(false)),
+    hiddenAreas: snapshot.areas.filter((area) => area.hidden).sort(byCount).map(group(true)),
+    hiddenTopics: visibleAreas.flatMap((area) => topicsOf(area, true).map((topic) => ({ topic, area }))).sort((a, b) => byCount(a.topic, b.topic)),
+  };
+  const needle = query.trim();
+  const searching = needle !== "";
+  const { pinned, unfiled, areas, hiddenAreas, hiddenTopics } = searchCategories(all, needle);
   const hiddenCount = hiddenAreas.length + hiddenTopics.length;
+
+  // While searching, every area left in the tree is open unless it was closed during this same query.
+  const [closed, setClosed] = useState<{ query: string; nodes: string[] }>({ query: "", nodes: [] });
+  const found = [...pinned, ...areas, ...hiddenAreas].map(({ area }) => areaNode(area.id)).concat(hiddenCount > 0 ? [HIDDEN_NODE] : []);
+  const closedNow = closed.query === needle ? closed.nodes : [];
+  const open = searching ? found.filter((node) => !closedNow.includes(node)) : expanded;
+  const setOpen = (next: string[]) => {
+    if (searching) setClosed({ query: needle, nodes: found.filter((node) => !next.includes(node)) });
+    else onExpandedChange(next);
+  };
 
   const selected = [
     ...filter.topicIds.map(topicNode),
@@ -123,11 +158,11 @@ export function CategoryTree({
   const press = (node: string) => {
     if (node === UNFILED_NODE) return onToggleUnfiled();
     if (node === HIDDEN_NODE) {
-      return onExpandedChange(expanded.includes(node) ? expanded.filter((other) => other !== node) : [...expanded, node]);
+      return setOpen(open.includes(node) ? open.filter((other) => other !== node) : [...open, node]);
     }
     const [kind, id] = node.split(":");
     if (kind === "topic") return onToggleTopic(Number(id));
-    if (!selected.includes(node) && !expanded.includes(node)) onExpandedChange([...expanded, node]);
+    if (!selected.includes(node) && !open.includes(node)) setOpen([...open, node]);
     onToggleArea(Number(id));
   };
 
@@ -140,6 +175,18 @@ export function CategoryTree({
     trigger.click();
   };
 
+  if (noCategories({ pinned, unfiled, areas, hiddenAreas, hiddenTopics })) {
+    return (
+      <div role="status" className="mx-0.5 flex items-start gap-2.5 rounded-[12px] bg-side-hover px-3 py-3">
+        <SearchX className="mt-0.5 size-4 shrink-0 text-side-muted" aria-hidden="true" />
+        <p className="min-w-0 text-[12px] leading-snug text-side-muted">
+          <span className="mb-0.5 block text-[13px] font-semibold text-side-ink">No categories match</span>
+          <span className="break-words">No area or topic is named like “{needle}”.</span>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <Tree
@@ -147,9 +194,9 @@ export function CategoryTree({
         mode="multiple"
         className="max-w-none"
         value={selected}
-        expanded={expanded}
+        expanded={open}
         expandOnPress={false}
-        onExpandedChange={onExpandedChange}
+        onExpandedChange={setOpen}
         onKeyDown={openRowMenu}
         onValueChange={(_next, details) => {
           // A plain press would replace the selection; here every press toggles
@@ -160,37 +207,43 @@ export function CategoryTree({
           if (node) press(node);
         }}
       >
-        {pinned.map((area) => (
-          <AreaRow key={area.id} area={area} topics={topicsOf(area, false)} icon={Pin} menu={menu} />
+        {pinned.map(({ area, topics }) => (
+          <AreaRow key={area.id} area={area} topics={topics} icon={Pin} menu={menu} query={needle} />
         ))}
-        <TreeItem value={UNFILED_NODE} data-node={UNFILED_NODE} label="Unfiled">
-          <TreeItemLabel className={`${ROW} ps-2`}>
-            <Inbox className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
-            <span className="truncate font-semibold">Unfiled</span>
-            <Count value={unfiledCount} />
-            {MENU_GAP}
-          </TreeItemLabel>
-        </TreeItem>
-        {areas.map((area) => (
-          <AreaRow key={area.id} area={area} topics={topicsOf(area, false)} menu={menu} />
+        {unfiled ? (
+          <TreeItem value={UNFILED_NODE} data-node={UNFILED_NODE} label={UNFILED_LABEL}>
+            <TreeItemLabel className={`${ROW} ps-2`}>
+              <Inbox className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
+              <span className="truncate font-semibold">
+                <Marked text={UNFILED_LABEL} keyword={needle} />
+              </span>
+              <Count value={unfiledCount} />
+              {MENU_GAP}
+            </TreeItemLabel>
+          </TreeItem>
+        ) : null}
+        {areas.map(({ area, topics }) => (
+          <AreaRow key={area.id} area={area} topics={topics} menu={menu} query={needle} />
         ))}
         {hiddenCount > 0 ? (
-          <TreeItem value={HIDDEN_NODE} data-node={HIDDEN_NODE} label="Hidden">
+          <TreeItem value={HIDDEN_NODE} data-node={HIDDEN_NODE} label={HIDDEN_LABEL}>
             <TreeItemLabel className={`${ROW} mt-2 text-side-muted`}>
               <TreeItemIndicator className="text-side-muted transition-[rotate] duration-150 ease-out">
                 <ChevronDown className="size-4" aria-hidden="true" />
               </TreeItemIndicator>
               <EyeOff className="size-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate font-semibold">Hidden</span>
+              <span className="truncate font-semibold">
+                <Marked text={HIDDEN_LABEL} keyword={needle} />
+              </span>
               <Count value={hiddenCount} />
               {MENU_GAP}
             </TreeItemLabel>
             <TreeGroup>
-              {hiddenAreas.map((area) => (
-                <AreaRow key={area.id} area={area} topics={topicsOf(area, true)} menu={menu} />
+              {hiddenAreas.map(({ area, topics }) => (
+                <AreaRow key={area.id} area={area} topics={topics} menu={menu} query={needle} />
               ))}
               {hiddenTopics.map(({ topic, area }) => (
-                <TopicRow key={topic.id} topic={topic} prefix={area.name} menu={menu} />
+                <TopicRow key={topic.id} topic={topic} prefix={area.name} menu={menu} query={needle} />
               ))}
             </TreeGroup>
           </TreeItem>

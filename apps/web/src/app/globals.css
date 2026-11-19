@@ -114,6 +114,14 @@
   background-color: color-mix(in oklch, var(--color-side-ink) 6%, transparent);
 }
 
+/*
+ * The desktop sidebar's width: the remembered one (set on <html> before first paint, see
+ * components/sidebar-width.ts for the same 220–440 limits), held so the post column keeps 600px.
+ */
+@utility w-sidebar {
+  width: clamp(220px, var(--sidebar-width, 272px), max(220px, min(440px, 100vw - 600px)));
+}
+
 /* ---- type recipes --------------------------------------------------- */
 @utility text-display {
   font-weight: 800;
@@ -259,6 +267,10 @@
     color: inherit;
     border-radius: 2px;
     padding-inline: 1px;
+  }
+  /* The sidebar's light ink would vanish on the highlight. */
+  .side-scope mark {
+    color: var(--color-ink);
   }
 }
 
