@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-import { expandLinks, usableTarget } from "./post-links.ts";
+import { expandLinks, usableTarget, withoutTracking } from "./post-links.ts";
 import type { Area, Band, Change, Media, Post, QuotedPost, RemovedPost, Resource, Run, RunStage, Snapshot, Topic } from "./types.ts";
 
 export function emptySnapshot(storeExists: boolean): Snapshot {
@@ -79,7 +79,7 @@ function linkTargets(db: DatabaseSync): Map<string, Map<string, string>> {
     const postId = String(row.post_id);
     let targets = byPost.get(postId);
     if (!targets) byPost.set(postId, (targets = new Map()));
-    targets.set(String(row.url), target);
+    targets.set(String(row.url), withoutTracking(target));
   }
   return byPost;
 }
@@ -88,7 +88,8 @@ const NO_TARGETS: ReadonlyMap<string, string> = new Map();
 
 function read(db: DatabaseSync): Snapshot {
   const targets = linkTargets(db);
-  const readable = (postId: string, value: unknown): string => expandLinks(String(value), postId, targets.get(postId) ?? NO_TARGETS);
+  const readable = (postId: string, value: unknown, quotedId: string | null = null): string =>
+    expandLinks(String(value), postId, targets.get(postId) ?? NO_TARGETS, quotedId);
   const posts: Post[] = [];
   const postsById = new Map<string, Post>();
   const postRows = db
@@ -102,9 +103,10 @@ function read(db: DatabaseSync): Snapshot {
     .all();
   for (const row of postRows) {
     const createdAt = text(row.created_at);
+    const quotedPost = quoted(parse(row.quoted_json));
     const post: Post = {
       id: String(row.id),
-      text: readable(String(row.id), row.text),
+      text: readable(String(row.id), row.text, quotedPost?.id ?? null),
       createdAt,
       createdAtMs: epochMs(createdAt),
       url: String(row.url),
@@ -113,7 +115,7 @@ function read(db: DatabaseSync): Snapshot {
       authorAvatarUrl: text(row.author_avatar_url),
       authorAvatarHue: finite(row.author_avatar_hue),
       likeCount: Number(row.like_count),
-      quoted: quoted(parse(row.quoted_json)),
+      quoted: quotedPost,
       media: media(parse(row.media_json)),
       bookmarked: row.bookmarked === 1,
       liked: row.liked === 1,
@@ -251,7 +253,7 @@ function read(db: DatabaseSync): Snapshot {
     const title = text(row.title);
     if (title !== null && !post.linkedPages.some((page) => page.title === title)) {
       const url = text(row.final_url);
-      post.linkedPages.push({ title, url: usableTarget(url) ? url : null, host: text(row.host) });
+      post.linkedPages.push({ title, url: usableTarget(url) ? withoutTracking(url) : null, host: text(row.host) });
     }
     if (row.resource_id !== null) {
       const resourceId = Number(row.resource_id);

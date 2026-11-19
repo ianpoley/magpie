@@ -76,3 +76,10 @@ test("a phrase in quotes must occur as written, alongside any other words", () =
   assert.equal(matchesKeyword(evals, '"agent skills'), true);
   assert.deepEqual(highlightRanges("Agent skills for evals", '"agent skills" evals'), [[0, 12], [17, 22]]);
 });
+
+test("addresses on X itself are not searched, other addresses are", () => {
+  const linking = post("7", { text: "Thread: https://x.com/otherperson/status/123 and https://github.com/acme/status-page" });
+  assert.equal(matchesKeyword(linking, "otherperson"), false);
+  assert.equal(matchesKeyword(linking, "acme"), true);
+  assert.equal(matchesKeyword(linking, "status-page"), true);
+});

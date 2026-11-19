@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { displayUrl, expandLinks, shortenUrls, usableTarget, withoutTrailingUrl } from "../src/lib/post-links.ts";
+import { displayUrl, expandLinks, shortenUrls, usableTarget, withoutTracking, withoutTrailingUrl } from "../src/lib/post-links.ts";
 
 const targets = new Map([
   ["https://t.co/repo", "https://github.com/firecrawl/firecrawl"],
@@ -50,4 +50,20 @@ test("a card drops the address its title row already shows, only when the text e
   assert.equal(withoutTrailingUrl(`${url} is great`, url), `${url} is great`);
   assert.equal(withoutTrailingUrl("no link", null), "no link");
   assert.equal(withoutTrailingUrl(url, url), "");
+});
+
+test("a link to the post it quotes is dropped, like X does, but a link to another post stays", () => {
+  const quoting = new Map([
+    ["https://t.co/q", "https://x.com/someone/status/77"],
+    ["https://t.co/o", "https://x.com/someone/status/88"],
+  ]);
+  assert.equal(expandLinks("so true https://t.co/q", "42", quoting, "77"), "so true");
+  assert.equal(expandLinks("see https://t.co/o", "42", quoting, "77"), "see https://x.com/someone/status/88");
+});
+
+test("tracking parameters are taken off an address, and nothing else is", () => {
+  assert.equal(withoutTracking("https://blog.example.com/post/?utm_source=twitter&utm_medium=social"), "https://blog.example.com/post/");
+  assert.equal(withoutTracking("https://example.com/a?id=4&utm_campaign=x"), "https://example.com/a?id=4");
+  assert.equal(withoutTracking("https://example.com/a?id=4"), "https://example.com/a?id=4");
+  assert.equal(withoutTracking("not a url"), "not a url");
 });
