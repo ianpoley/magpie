@@ -1,0 +1,3 @@
+Found 0 match(es) for "zzzznothing" in all; showing top 0:
+
+No matches. Try broader/different terms, or --source all.

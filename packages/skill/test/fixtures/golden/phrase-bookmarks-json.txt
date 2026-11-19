@@ -1,0 +1,12 @@
+[
+  {
+    "type": "bookmark",
+    "id": "102",
+    "handle": "beta_ui",
+    "name": "Beta UI",
+    "created": "2026-04-02T09:30:00.000Z",
+    "url": "https://x.com/beta_ui/status/102",
+    "text": "State machine patterns for a terminal ui",
+    "score": 1001
+  }
+]
