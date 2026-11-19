@@ -1,11 +1,12 @@
 import type { DatabaseSync } from "node:sqlite";
 
-import type { Area, Band, Change, Media, Post, QuotedPost, Resource, Run, RunStage, Snapshot, Topic } from "./types.ts";
+import type { Area, Band, Change, Media, Post, QuotedPost, RemovedPost, Resource, Run, RunStage, Snapshot, Topic } from "./types.ts";
 
 export function emptySnapshot(storeExists: boolean): Snapshot {
   return {
     storeExists,
     posts: [],
+    removed: [],
     areas: [],
     topics: [],
     resources: [],
@@ -73,7 +74,7 @@ function read(db: DatabaseSync): Snapshot {
       `SELECT id, text, created_at, url, author_handle, author_name, author_avatar_url, author_avatar_hue,
               like_count, quoted_json, media_json, bookmarked, liked
        FROM posts
-       WHERE bookmarked = 1 OR liked = 1
+       WHERE id IN (SELECT id FROM visible_posts)
        ORDER BY created_at DESC, id`,
     )
     .all();
@@ -103,6 +104,27 @@ function read(db: DatabaseSync): Snapshot {
     posts.push(post);
     postsById.set(post.id, post);
   }
+
+  const removed: RemovedPost[] = db
+    .prepare(
+      `SELECT id, text, created_at, url, author_handle, author_name, author_avatar_url, bookmarked, liked, removed_at
+       FROM posts
+       WHERE removed_at IS NOT NULL AND (bookmarked = 1 OR liked = 1)
+       ORDER BY removed_at DESC, id`,
+    )
+    .all()
+    .map((row) => ({
+      id: String(row.id),
+      text: String(row.text),
+      createdAt: text(row.created_at),
+      url: String(row.url),
+      authorHandle: String(row.author_handle),
+      authorName: String(row.author_name),
+      authorAvatarUrl: text(row.author_avatar_url),
+      bookmarked: row.bookmarked === 1,
+      liked: row.liked === 1,
+      removedAt: String(row.removed_at),
+    }));
 
   const areas: Area[] = db
     .prepare(`SELECT id, name, kind, hidden, locked FROM areas WHERE state = 'active' ORDER BY position, id`)
@@ -264,6 +286,7 @@ function read(db: DatabaseSync): Snapshot {
   return {
     storeExists: true,
     posts,
+    removed,
     areas,
     topics,
     resources,

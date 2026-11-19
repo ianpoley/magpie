@@ -59,6 +59,7 @@ export function snapshot(parts: Partial<Snapshot>): Snapshot {
   return {
     storeExists: true,
     posts: [],
+    removed: [],
     areas: [],
     topics: [],
     resources: [],

@@ -4,7 +4,7 @@ import { DialogTrigger } from "@ui-sdk/react/dialog";
 import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from "@ui-sdk/react/scroll-area";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
-import { Bookmark, Eye, Heart, History, Layers, Sprout, Tags, type LucideIcon } from "lucide-react";
+import { Bookmark, Eye, Heart, History, Layers, Sprout, Tags, Trash2, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { AuthorCount, Collection, FilterState, Snapshot } from "@/lib/types";
@@ -13,6 +13,7 @@ import { AuthorAvatar } from "./author-avatar";
 import type { CategoryEdits } from "./category-menu";
 import { CategoryTree } from "./category-tree";
 import { formatCount } from "./format";
+import type { RemovedPostsController } from "./removed-posts";
 import { SyncStatus } from "./sync-status";
 import type { WhatChangedController } from "./what-changed";
 
@@ -42,6 +43,7 @@ export type SidebarProps = {
   authors: AuthorCount[];
   expanded: string[];
   whatChanged: WhatChangedController;
+  removedPosts: RemovedPostsController;
   categoryEdits: CategoryEdits;
   /** A control shown beside the name, such as the close button of the narrow-screen panel. */
   headerAction?: ReactNode;
@@ -63,6 +65,7 @@ export function Sidebar({
   authors,
   expanded,
   whatChanged,
+  removedPosts,
   categoryEdits,
   headerAction,
   onCollection,
@@ -76,6 +79,7 @@ export function Sidebar({
   const hasCategories = snapshot.topics.length > 0;
   const hasHidden = snapshot.areas.some((area) => area.hidden) || snapshot.topics.some((topic) => topic.hiddenSelf);
   const changeCount = snapshot.changes.length;
+  const removedCount = snapshot.removed.length;
 
   return (
     <div className="side-scope bg-side flex h-full min-h-0 flex-col">
@@ -155,6 +159,16 @@ export function Sidebar({
                   </p>
                 </div>
               )}
+              {removedCount > 0 ? (
+                <DialogTrigger
+                  controller={removedPosts}
+                  className={`${SIDE_ROW} mt-2 h-8 justify-start bg-transparent pr-2 font-semibold text-side-muted hover:bg-side-hover`}
+                >
+                  <Trash2 className="size-3.5 shrink-0" aria-hidden="true" />
+                  Removed
+                  <span className="ml-auto text-[12px] font-medium tabular-nums">{formatCount(removedCount)}</span>
+                </DialogTrigger>
+              ) : null}
             </section>
 
             {authors.length > 0 ? (

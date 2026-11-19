@@ -56,7 +56,7 @@ export type BroadTopic = { id: number; name: string; definition: string; areaId:
  * grown by a quarter since then.
  */
 export function tooBroadTopics(db: Store): BroadTopic[] {
-  const visible = Number(db.prepare(`SELECT COUNT(*) AS n FROM posts WHERE bookmarked = 1 OR liked = 1`).get()?.n);
+  const visible = Number(db.prepare(`SELECT COUNT(*) AS n FROM visible_posts`).get()?.n);
   const limit = Math.max(EVOLUTION.tooBroadMinPosts, EVOLUTION.tooBroadCorpusFraction * visible);
   const lastAttempt = db.prepare(
     `SELECT outcome, proposal_json FROM proposal_attempts WHERE kind = ? AND topic_id = ? ORDER BY id DESC LIMIT 1`,

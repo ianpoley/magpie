@@ -2,7 +2,8 @@
 
 import { DialogTrigger, type createDialogController } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
-import { Bookmark, ExternalLink, Heart, Link2, Tags } from "lucide-react";
+import { Bookmark, ExternalLink, Heart, Link2, Tags, Trash2 } from "lucide-react";
+import { useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
 import type { Chip, Post, Topic } from "@/lib/types";
@@ -11,7 +12,7 @@ import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
 import { Marked, MediaGrid, PostText, Quoted } from "./post-body";
 import type { PostTopicsController } from "./post-topics-editor";
-import { iconButton } from "./styles";
+import { dangerIconButton, iconButton } from "./styles";
 import { Tip } from "./tip";
 import { TopicChip } from "./topic-chip";
 
@@ -36,13 +37,29 @@ export function CollectionMarks({ post }: { post: Post }) {
   );
 }
 
-export function PostActions({ post, topicsEditor, onCopyLink }: { post: Post; topicsEditor: PostTopicsController; onCopyLink: (post: Post) => void }) {
+export function PostActions({
+  post,
+  topicsEditor,
+  onCopyLink,
+  onRemove,
+}: {
+  post: Post;
+  topicsEditor: PostTopicsController;
+  onCopyLink: (post: Post) => void;
+  onRemove: (post: Post) => Promise<void>;
+}) {
+  const [removing, startRemoving] = useTransition();
   return (
     <>
       <Tip label="Edit topics">
         <PopoverTrigger controller={topicsEditor} payload={post.id} aria-label="Edit topics" className={`${iconButton} data-open:bg-sunken data-open:text-ink`}>
           <Tags aria-hidden="true" />
         </PopoverTrigger>
+      </Tip>
+      <Tip label="Remove from corpus">
+        <button type="button" aria-label="Remove from corpus" disabled={removing} onClick={() => startRemoving(() => onRemove(post))} className={dangerIconButton}>
+          <Trash2 aria-hidden="true" />
+        </button>
       </Tip>
       <Tip label="Copy link">
         <button type="button" aria-label="Copy link" onClick={() => onCopyLink(post)} className={iconButton}>
@@ -72,6 +89,7 @@ export function PostCard({
   topicsEditor,
   onSelectTopic,
   onCopyLink,
+  onRemove,
 }: {
   post: Post;
   chips: Chip[];
@@ -82,6 +100,7 @@ export function PostCard({
   topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
   onCopyLink: (post: Post) => void;
+  onRemove: (post: Post) => Promise<void>;
 }) {
   const hue = authorHue(post.authorHandle);
   const date = formatDate(post.createdAt);
@@ -137,7 +156,7 @@ export function PostCard({
                 <span className="sr-only"> likes on X</span>
               </span>
             ) : null}
-            <PostActions post={post} topicsEditor={topicsEditor} onCopyLink={onCopyLink} />
+            <PostActions post={post} topicsEditor={topicsEditor} onCopyLink={onCopyLink} onRemove={onRemove} />
           </div>
         </footer>
       </div>

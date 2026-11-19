@@ -289,3 +289,39 @@ test('a remove recorded on a merged-away topic discards only that definition', (
 
   assert.deepEqual(membersOf(db, tooling), [{ post_id: 'also-direct', band: 'unsure' }]);
 });
+
+test('a post removed from the corpus is in no topic and is not Unfiled, hidden, or pending', (t) => {
+  const { db } = tempStore(t);
+  const evals = seedTopic(db, 'Evals');
+  const politics = seedArea(db, 'Politics', { hidden: true });
+  const elections = seedTopic(db, 'Elections', { areaId: politics });
+  const remove = (post: string) => db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = ?`).run(post);
+
+  for (const post of ['kept', 'filed']) {
+    seedScore(db, seedPost(db, post), evals, 0.9);
+    seedScore(db, post, elections, 0.1);
+  }
+  seedOverride(db, seedPost(db, 'fixed'), evals, 'add');
+  seedScore(db, 'fixed', elections, 0.1);
+  seedScore(db, 'fixed', evals, 0.1);
+  seedScore(db, seedPost(db, 'in-hidden'), elections, 0.9);
+  seedScore(db, 'in-hidden', evals, 0.1);
+  seedPost(db, 'unscored');
+  seedScore(db, seedPost(db, 'link-due'), evals, 0.1);
+  seedScore(db, 'link-due', elections, 0.1);
+  seedLink(db, 'link-due', 'https://t.co/new', { status: 'new' });
+
+  assert.deepEqual(membersOf(db, evals).map((m) => m.post_id).sort(), ['filed', 'fixed', 'kept']);
+  assert.deepEqual(ids(db, 'post_unfiled'), ['link-due', 'unscored']);
+  assert.deepEqual(ids(db, 'post_hidden'), ['in-hidden']);
+  assert.deepEqual(ids(db, 'post_pending'), ['link-due', 'unscored']);
+  assert.deepEqual(ids(db, 'pairs_to_score'), ['unscored', 'unscored']);
+
+  for (const post of ['filed', 'fixed', 'in-hidden', 'unscored', 'link-due']) remove(post);
+
+  assert.deepEqual(membersOf(db, evals), [{ post_id: 'kept', band: 'confident' }]);
+  assert.deepEqual(membersOf(db, elections), []);
+  for (const view of ['post_unfiled', 'post_hidden', 'post_pending', 'pairs_to_score']) {
+    assert.deepEqual(ids(db, view), [], view);
+  }
+});

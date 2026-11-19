@@ -3,12 +3,12 @@
 import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
-import { Toast, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
+import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
 import { CircleAlert, CircleCheck, CloudOff, Inbox, Layers, Link2Off, Menu as MenuIcon, SearchX, Shuffle, Sparkles, Tag, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useState, useSyncExternalStore } from "react";
 
-import { pinQuery } from "@/app/actions";
+import { pinQuery, removePost, restorePost } from "@/app/actions";
 import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
@@ -34,6 +34,7 @@ import { formatCount, plural } from "./format";
 import { PostDialog } from "./post-dialog";
 import { PostList } from "./post-list";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
+import { createRemovedPostsController, RemovedPosts } from "./removed-posts";
 import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
@@ -180,6 +181,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   const [expanded, setExpanded] = useState<string[]>([]);
   const [postDialog] = useState(() => createDialogController<string>());
   const [whatChanged] = useState(createWhatChangedController);
+  const [removedPosts] = useState(createRemovedPostsController);
   const [sidebarPanel] = useState(() => createDialogController());
   const [categoryEdits] = useState(createCategoryEdits);
   const [topicsEditor] = useState(createPostTopicsController);
@@ -263,6 +265,14 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
       () => toast.error("The link could not be copied"),
     );
   };
+  const restore = async (postId: string) => {
+    await runAction(restorePost(postId));
+  };
+  const remove = async (post: Post) => {
+    if (!(await runAction(removePost(post.id)))) return;
+    postDialog.close();
+    toast.success("Removed from corpus", { action: { label: "Undo", onAction: () => restore(post.id) } });
+  };
   const surprise = () => {
     if (result.posts.length === 0) return;
     void postDialog.open({ payload: randomItem(result.posts).id });
@@ -276,6 +286,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
     authors,
     expanded,
     whatChanged,
+    removedPosts,
     categoryEdits,
     onCollection: (collection) => setFilter((current) => ({ ...current, collection })),
     onExpandedChange: setExpanded,
@@ -400,6 +411,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
                   topicsEditor={topicsEditor}
                   onSelectTopic={selectTopic}
                   onCopyLink={copyLink}
+                  onRemove={remove}
                 />
               )
             ) : groups.length === 0 ? (
@@ -453,6 +465,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
         keyword={applied.keyword === "" ? "" : keyword}
         onSelectTopic={selectTopic}
         onCopyLink={copyLink}
+        onRemove={remove}
       />
       <PostTopicsEditor
         controller={topicsEditor}
@@ -463,11 +476,12 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
         listed={new Set(result.posts.map((post) => post.id))}
       />
       <WhatChanged controller={whatChanged} changes={snapshot.changes} />
+      <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} />
       <CategoryDialogs edits={categoryEdits} topics={snapshot.topics} areas={snapshot.areas} topicsById={topicsById} areasById={areasById} />
 
       <ToastRegion side="bottom" align="center" className="mb-6 w-fit [&_[data-slot=toast-list]]:items-center">
         {(state) => (
-          <Toast className="flex w-fit flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
+          <Toast className="flex w-fit flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
             {state.type === "error" ? (
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-like-soft text-like-text">
                 <CircleAlert className="size-4" aria-hidden="true" />
@@ -478,6 +492,9 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
               </span>
             )}
             <ToastTitle className="flex-none text-[13px] font-semibold whitespace-nowrap" />
+            {state.action ? (
+              <ToastAction className="focus-ring pressable ml-1 h-7 flex-none cursor-pointer rounded-full border-0 bg-sunken px-3 text-[13px] font-semibold text-ink hover:bg-primary-soft hover:text-primary-text data-pending:cursor-progress data-pending:opacity-60" />
+            ) : null}
           </Toast>
         )}
       </ToastRegion>

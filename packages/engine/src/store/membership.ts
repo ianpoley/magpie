@@ -7,7 +7,8 @@ import { BANDS } from '../config.ts';
  * pending. Each is defined once, here, as a view in the store, so the sync
  * job, the web app and the skill read the same answer with plain SQL.
  *
- * All five views cover visible posts only (bookmarked or liked).
+ * All five views cover visible posts only: bookmarked or liked, and not
+ * removed by the user (see `visible_posts` below).
  *
  *   scoring_topics   (topic_id, target_id)
  *     Every definition posts are scored against, with the active topic its
@@ -162,6 +163,104 @@ export const MEMBERSHIP_VIEWS_V1 = `
   JOIN posts p ON p.id = pl.post_id
   WHERE (p.bookmarked = 1 OR p.liked = 1)
     AND l.status IN ('new', 'failed');
+`;
+
+/**
+ * Adds removal: a post the user removed from the corpus keeps its row, scores
+ * and fixes, and is visible nowhere until it is restored.
+ *
+ *   visible_posts    (id)  Posts that are bookmarked or liked and not removed.
+ *     The one definition of a visible post. Every reader of posts goes through
+ *     it, and so do the views above, which this recreates on top of it.
+ *     `post_hidden` and `scoring_topics` are unchanged: the first reads only
+ *     `topic_membership`, the second reads no posts.
+ */
+export const MEMBERSHIP_VIEWS_V2 = `
+  ALTER TABLE posts ADD COLUMN removed_at TEXT;
+
+  DROP VIEW IF EXISTS visible_posts;
+  CREATE VIEW visible_posts AS
+  SELECT id FROM posts WHERE (bookmarked = 1 OR liked = 1) AND removed_at IS NULL;
+
+  DROP VIEW IF EXISTS pairs_to_score;
+  CREATE VIEW pairs_to_score AS
+  WITH page_resolved AS (
+    SELECT pl.post_id, MAX(l.resolved_at) AS at
+    FROM post_links pl JOIN links l ON l.url = pl.link_url
+    WHERE l.status = 'resolved' AND (l.title IS NOT NULL OR l.description IS NOT NULL)
+    GROUP BY pl.post_id
+  )
+  SELECT p.id AS post_id, st.topic_id
+  FROM visible_posts p
+  CROSS JOIN scoring_topics st
+  LEFT JOIN scores s ON s.post_id = p.id AND s.topic_id = st.topic_id
+  LEFT JOIN page_resolved pr ON pr.post_id = p.id
+  WHERE s.post_id IS NULL OR pr.at > s.scored_at;
+
+  DROP VIEW IF EXISTS topic_membership;
+  CREATE VIEW topic_membership AS
+  WITH thresholds AS (
+    SELECT
+      (SELECT CAST(value AS REAL) FROM meta WHERE key = 'band_confident') AS confident,
+      (SELECT CAST(value AS REAL) FROM meta WHERE key = 'band_unsure') AS unsure
+  ),
+  claims AS (
+    SELECT s.post_id, st.target_id AS topic_id, s.probability, 0 AS added, 0 AS carried
+    FROM scores s
+    JOIN scoring_topics st ON st.topic_id = s.topic_id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM overrides o
+      WHERE o.post_id = s.post_id AND o.topic_id = s.topic_id AND o.action = 'remove'
+    )
+    UNION ALL
+    SELECT o.post_id, st.target_id, NULL, o.action = 'add', o.action = 'unsure'
+    FROM overrides o
+    JOIN scoring_topics st ON st.topic_id = o.topic_id
+    WHERE o.action IN ('add', 'unsure')
+  ),
+  best AS (
+    SELECT post_id, topic_id,
+      MAX(probability) AS probability,
+      MAX(added) AS added,
+      MAX(carried) AS carried
+    FROM claims
+    GROUP BY post_id, topic_id
+  )
+  SELECT
+    b.post_id,
+    b.topic_id,
+    t.area_id,
+    CASE WHEN b.added = 1 OR b.probability >= th.confident THEN 'confident' ELSE 'unsure' END AS band,
+    b.probability,
+    CASE WHEN b.added = 1 THEN 1.0 ELSE COALESCE(b.probability, 0.0) END AS strength,
+    CASE WHEN t.hidden = 1 OR a.hidden = 1 THEN 1 ELSE 0 END AS hidden,
+    CASE WHEN t.kind = 'pinned' THEN 1 ELSE 0 END AS pinned
+  FROM best b
+  JOIN visible_posts p ON p.id = b.post_id
+  JOIN topics t ON t.id = b.topic_id
+  LEFT JOIN areas a ON a.id = t.area_id
+  CROSS JOIN thresholds th
+  WHERE (b.added = 1 OR b.carried = 1 OR b.probability >= th.unsure)
+    AND NOT EXISTS (
+      SELECT 1 FROM overrides o
+      WHERE o.post_id = b.post_id AND o.topic_id = b.topic_id AND o.action = 'remove'
+    );
+
+  DROP VIEW IF EXISTS post_unfiled;
+  CREATE VIEW post_unfiled AS
+  SELECT p.id AS post_id
+  FROM visible_posts p
+  WHERE p.id NOT IN (SELECT post_id FROM topic_membership WHERE band = 'confident');
+
+  DROP VIEW IF EXISTS post_pending;
+  CREATE VIEW post_pending AS
+  SELECT post_id FROM pairs_to_score
+  UNION
+  SELECT pl.post_id
+  FROM post_links pl
+  JOIN links l ON l.url = pl.link_url
+  JOIN visible_posts p ON p.id = pl.post_id
+  WHERE l.status IN ('new', 'failed');
 `;
 
 /**

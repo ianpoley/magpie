@@ -43,6 +43,20 @@ export type Post = {
   memberships: Membership[];
 };
 
+/** A post the user removed from the corpus: enough to recognise it and put it back. */
+export type RemovedPost = {
+  id: string;
+  text: string;
+  createdAt: string | null;
+  url: string;
+  authorHandle: string;
+  authorName: string;
+  authorAvatarUrl: string | null;
+  bookmarked: boolean;
+  liked: boolean;
+  removedAt: string;
+};
+
 export type Area = {
   id: number;
   name: string;
@@ -119,8 +133,10 @@ export type Run = {
 export type Snapshot = {
   /** False when no store file exists yet, so nothing has ever synced. */
   storeExists: boolean;
-  /** Every post currently bookmarked or liked. */
+  /** Every post currently bookmarked or liked that the user has not removed. */
   posts: Post[];
+  /** Posts still bookmarked or liked that the user removed, most recently removed first. Nothing else counts them. */
+  removed: RemovedPost[];
   areas: Area[];
   topics: Topic[];
   resources: Resource[];
