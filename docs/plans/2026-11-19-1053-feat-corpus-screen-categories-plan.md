@@ -16,7 +16,7 @@ execution: code
 - **Product authority:** The user is the sole user and decision-maker. The decisions below were made in dialogue on 2026-11-19 and govern this plan.
 - **Means:** One local SQLite store that the sync job, the web app, and the skill all read; Jev scores posts against topics and Claude proposes the topics (KTD1, KTD4, KTD6).
 - **Authority:** Product Contract requirements win on product behavior. Key Technical Decisions win on mechanism within the requirements they cite. A unit overrides neither.
-- **Execution profile:** One pull request, twelve units in dependency order. The repo has no git remote, so the work ends as local commits unless one is added.
+- **Execution profile:** One pull request, thirteen units in dependency order. The repo has no git remote, so the work ends as local commits unless one is added.
 - **Stop conditions:** Stop and report when a session-settled Key Decision proves unworkable, when Jev or Claude cannot be reached with the credentials on this Mac, or when a change would alter the live 3-hourly sync before U12.
 - **Finishing:** The implementer runs the first live backfill in U12 and confirms the screen against real data. launchd and the skill symlink both run from this working tree, so after U12 the checked-out branch is the live system. The user reviews the result and decides whether to add a remote.
 - **Open blockers:** None.
@@ -48,6 +48,7 @@ Many posts are a short line plus a `t.co` link, so the meaning lives at the link
 - **Multi-topic filters narrow (AND).** Matches drilling into a topic, which is how the user browses. Governs R19. (session-settled: user-directed — chosen over OR and over a match-all/match-any toggle.)
 - **Resources are a first-class view.** The user's stated need is "what resources I have for a topic"; a resource is the thing a post points at, not the post itself. Governs R23–R25. (session-settled: user-approved — proposed as an addition with its cost shown; the user confirmed it into scope.)
 - **Categories reach Claude too.** The keyword problem exists in the skill as much as in the UI. Governs R26, R27. (session-settled: user-directed — chosen over web-only for now.)
+- **Removing a post is a soft hide, not a delete.** The row, its tags, and its fixes stay so the post can be restored, and the sync cannot bring it back by re-exporting it. Governs R28. (session-settled: user-directed — chosen over deleting the row: the user asked for removal from the local corpus and proposed the soft hide.)
 - **Grove design system and UI SDK components.** The screen follows `apps/web/DESIGN.md` and uses UI SDK wherever a component fits, per `apps/web/AGENTS.md`. Governs R2. (session-settled: user-directed — Grove chosen over Citrus, Lagoon, Riso, Spectrum, Ultraviolet, Tidepool, and Sunset in two prototype rounds.)
 
 ### Requirements
@@ -85,6 +86,7 @@ Many posts are a short line plus a `t.co` link, so the meaning lives at the link
 - R16. Automatic restructuring never alters anything the user created or edited: renamed, merged, deleted, or hidden categories, pinned searches (R22), and per-post fixes (R17). New posts can still be tagged into user-edited topics.
 - R17. From a post's card or dialog, the user can add or remove topics on that post, and the fix survives every later re-tag.
 - R18. The user chooses which areas are hidden by default; non-dev areas (e.g. politics) start that way. Hidden areas stay out of the Everything view and out of skill results unless asked for. One control reveals everything.
+- R28. The user can remove any post from the local corpus and restore it later. A removed post is absent from every view, count, resource, and skill result, and stays removed across later syncs. Nothing changes on X.
 
 **Filtering**
 
@@ -432,7 +434,8 @@ state/corpus.sqlite             gitignored
 | U9 | Category management, fixes, What changed | `apps/web/src/components/` | U8, U5 |
 | U10 | Ask-anything, pinning, Resources view | `apps/web/src/app/api/ask/route.ts`, `src/components/` | U8, U3 |
 | U11 | Skill categories and resources | `packages/skill/` | U3 |
-| U12 | Scheduled-job wiring, first backfill, docs | `packages/engine/bin/birdclaw-nightly.sh`, READMEs | U6, U11 |
+| U13 | Remove a post from the corpus | `packages/engine/src/store/`, `apps/web/src/`, `packages/skill/` | U9, U10, U11 |
+| U12 | Scheduled-job wiring, first backfill, docs | `packages/engine/bin/birdclaw-nightly.sh`, READMEs | U6, U11, U13 |
 
 ### U1. Store, test harness, ingest
 
@@ -737,6 +740,32 @@ state/corpus.sqlite             gitignored
   - The store file's modification time is unchanged after every subcommand.
 - **Verification:** Tests pass; after install, the skill's commands return category data from the real store.
 
+### U13. Remove a post from the corpus
+
+- **Goal:** The user can remove a saved post from the local corpus and restore it.
+- **Requirements:** R28; KTD2, KTD7.
+- **Dependencies:** U9, U10, U11.
+- **Files:**
+  - `packages/engine/src/store/schema.ts`, `packages/engine/src/store/membership.ts`, `packages/engine/src/store/edits.ts`, `packages/engine/src/ingest.ts`
+  - `packages/engine/test/edits.test.ts`, `packages/engine/test/membership.test.ts`, `packages/engine/test/ingest.test.ts`
+  - `apps/web/src/lib/read-snapshot.ts`, `apps/web/src/lib/types.ts`, `apps/web/src/lib/filter.ts`, `apps/web/src/app/actions.ts`, `apps/web/test/`
+  - `apps/web/src/components/`
+  - `packages/skill/query.mjs`, `packages/skill/SKILL.md`, `packages/skill/test/query.test.mjs`
+- **Approach:**
+  1. A migration adds a removed-at time to posts and recreates the membership views so "visible" also means not removed. The skill's known schema version moves with it.
+  2. `edits.ts` gains remove and restore. Ingest never clears the marker.
+  3. The snapshot carries removed posts separately; the card and the post dialog offer "Remove from corpus" with an Undo toast, and the sidebar has a "Removed" row that lists them with Restore.
+  4. The skill leaves removed posts out of every command, with no flag to include them.
+- **Test scenarios:**
+  - A removed post is absent from topic membership, Unfiled, hidden, pending, resources, and evolution input.
+  - A removed post stays removed after ingest sees it again in both exports.
+  - Restoring a post returns it with its earlier topics and fixes, with no Jev call.
+  - A resource whose only post was removed is not listed.
+  - The skill's keyword search and `topic` command omit a removed post, with and without `--include-hidden`.
+  - A store at the previous schema version migrates and keeps its data.
+  - Browser: removing a post from its card takes it off the list and shows Undo; Undo brings it back; the Removed row lists it and Restore works.
+- **Verification:** Tests, lint, typecheck, and build pass; the browser checks pass against a copy of the real store.
+
 ### U12. Scheduled-job wiring, first backfill, docs
 
 - **Goal:** The 3-hourly sync runs the new stages, the real corpus is categorized, and the docs describe the system.
@@ -777,7 +806,7 @@ Unit tests never call Jev, Claude, or the network. Live calls happen only in the
 
 ## Definition of Done
 
-- Every requirement R1–R27 is met and every acceptance example AE1–AE9 is covered by a passing test or a passed browser check named in its unit.
+- Every requirement R1–R28 is met and every acceptance example AE1–AE9 is covered by a passing test or a passed browser check named in its unit.
 - All Verification Contract gates pass.
 - The real corpus is categorized, the screen shows it, and the skill returns categories from it.
 - The scheduled job has completed one run with the new stages and still produces `data/` and `markdown/` as before.
