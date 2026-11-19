@@ -224,7 +224,7 @@ const jevAnsweringOnly = (answered: (postNumber: number) => boolean) =>
     return 0.9;
   });
 
-test('tagging stops after 10 posts in a row fail and leaves the rest for the next run', async (t) => {
+test('tagging stops when nothing has been scored and 10 posts in a row, then one from the far end, fail', async (t) => {
   const { db } = tempStore(t);
   seedTopic(db, 'Evals');
   const posts = seedNumberedPosts(db, 25);
@@ -232,19 +232,37 @@ test('tagging stops after 10 posts in a row fail and leaves the rest for the nex
 
   const result = await tagPosts(db, { jev, concurrency: 1 });
 
-  assert.equal(jev.requests.length, 10);
+  assert.equal(jev.requests.length, 11);
+  assert.match(JSON.stringify(jev.requests[10].state), /text of p25/);
   assert.deepEqual(
     { posts: result.posts, scored: result.scored, failed: result.failed },
     { posts: 25, scored: 0, failed: 25 },
   );
   assert.deepEqual(scoreRows(db), []);
   assert.deepEqual(ids(db, 'post_pending'), posts);
-  assert.match(result.errors[0], /stopped after 10 posts in a row failed/i);
-  assert.match(result.errors[0], /15 posts were not tried/);
+  assert.match(result.errors[0], /stopped after 11 posts in a row failed/i);
+  assert.match(result.errors[0], /14 posts were not tried/);
   assert.match(result.errors.join('; '), /Jev is unreachable/);
 });
 
-test('one answered post starts the count of failures in a row again', async (t) => {
+test('posts that always fail at the front of the queue do not keep the posts behind them from being scored', async (t) => {
+  const { db } = tempStore(t);
+  const evals = seedTopic(db, 'Evals');
+  const posts = seedNumberedPosts(db, 20);
+  const jev = jevAnsweringOnly((postNumber) => postNumber > 12);
+
+  const result = await tagPosts(db, { jev, concurrency: 1 });
+
+  assert.deepEqual(members(db, evals), posts.slice(12));
+  assert.deepEqual(ids(db, 'post_pending'), posts.slice(0, 12));
+  assert.deepEqual(
+    { posts: result.posts, scored: result.scored, failed: result.failed },
+    { posts: 20, scored: 8, failed: 12 },
+  );
+  assert.ok(result.errors.every((message) => !/in a row/.test(message)));
+});
+
+test('once one post has been answered, failures in a row no longer stop the pass', async (t) => {
   const { db } = tempStore(t);
   seedTopic(db, 'Evals');
   seedNumberedPosts(db, 25);
@@ -252,11 +270,12 @@ test('one answered post starts the count of failures in a row again', async (t) 
 
   const result = await tagPosts(db, { jev, concurrency: 1 });
 
-  assert.equal(jev.requests.length, 20);
+  assert.equal(jev.requests.length, 25);
   assert.deepEqual(
     { posts: result.posts, scored: result.scored, failed: result.failed },
     { posts: 25, scored: 1, failed: 24 },
   );
+  assert.ok(result.errors.every((message) => !/in a row/.test(message)));
 });
 
 test('failures that never reach 10 in a row leave every post tried', async (t) => {

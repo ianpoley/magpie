@@ -25,13 +25,18 @@ export function cleanQuery(value: unknown): string | null {
   return cleaned === "" || cleaned.length > MAX_QUERY_CHARS ? null : cleaned;
 }
 
+const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+
 /**
  * True when a request can only have come from the app's own page or from a
  * local script. A page on another site can post without asking only if the
  * body is not declared as JSON, and a browser names where a request began.
+ * A page that points its own name at this machine passes both, so the app
+ * must also have been addressed as this machine.
  */
 export function isSameOriginJson(headers: Headers): boolean {
   if (!headers.get("content-type")?.trim().toLowerCase().startsWith("application/json")) return false;
+  if (!LOOPBACK_HOST.test(headers.get("host") ?? "")) return false;
   const fetchSite = headers.get("sec-fetch-site");
   if (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none") return false;
   const origin = headers.get("origin");

@@ -622,3 +622,53 @@ test('a created topic the user merged into another is left alone by the undo, an
   assert.equal(topicNamed(db, 'My tools')?.state, 'merged');
   assert.deepEqual(members(db, second, 'confident'), zeta);
 });
+
+for (const direction of ['lower-numbered into the higher', 'higher-numbered into the lower']) {
+  test(`undoing a split whose subtopics the user merged, ${direction}, takes both out of use`, async (t) => {
+    const { db } = tempStore(t);
+    const { parent, posts } = seedBroadTopic(db);
+    await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+    const [lower, higher] = [topicId(db, 'Animations'), topicId(db, 'CSS')].sort((a, b) => a - b);
+    if (direction.startsWith('lower')) mergeTopics(db, lower, higher);
+    else mergeTopics(db, higher, lower);
+    const changeId = Number(changes(db)[0].id);
+
+    assert.deepEqual(listUndo(db, changeId).map((change) => change.restores), [[]]);
+    undoChange(db, changeId);
+
+    assert.equal(db.prepare(`SELECT state FROM topics WHERE id = ?`).get(parent)?.state, 'active');
+    assert.equal(topicNamed(db, 'Animations')?.state, 'removed');
+    assert.equal(topicNamed(db, 'CSS')?.state, 'removed');
+    assert.equal(count(db, 'suppressed_proposals', `name = 'Animations'`), 1);
+    assert.equal(count(db, 'suppressed_proposals', `name = 'CSS'`), 1);
+    assert.equal(count(db, 'topics', `state = 'active'`), 1);
+    assert.equal(strandedMerges(db), 0);
+    assert.deepEqual(members(db, parent, 'confident'), [...posts].sort());
+  });
+}
+
+test('undoing a split still brings back the user\'s own topic when its subtopic was then merged into the other', async (t) => {
+  const { db } = tempStore(t);
+  const { parent, posts } = seedBroadTopic(db);
+  const mine = seedTopic(db, 'Motion notes');
+  seedPost(db, 'mine-1', { text: 'mine-1 text' });
+  seedScore(db, 'mine-1', mine, 0.9);
+  seedScore(db, 'mine-1', parent, 0.05);
+  for (const id of posts) seedScore(db, id, mine, 0.05);
+  await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+  const animations = topicId(db, 'Animations');
+  mergeTopics(db, mine, animations);
+  mergeTopics(db, animations, topicId(db, 'CSS'));
+  const changeId = Number(changes(db)[0].id);
+
+  assert.deepEqual(listUndo(db, changeId).flatMap((change) => change.restores), ['Motion notes']);
+  undoChange(db, changeId);
+
+  const restored = db.prepare(`SELECT state, merged_into, locked FROM topics WHERE id = ?`).get(mine);
+  assert.deepEqual({ ...restored }, { state: 'active', merged_into: null, locked: 1 });
+  assert.deepEqual(members(db, mine, 'confident'), ['mine-1']);
+  assert.equal(topicNamed(db, 'Animations')?.state, 'removed');
+  assert.equal(topicNamed(db, 'CSS')?.state, 'removed');
+  assert.equal(strandedMerges(db), 0);
+  assert.equal(count(db, 'topics', `state = 'active'`), 2);
+});

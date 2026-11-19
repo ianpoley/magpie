@@ -124,14 +124,25 @@ function metaContents(html: string): Map<string, string> {
   return found;
 }
 
+/** Each step reads the page once from where the last ended, however many titles open and never close. */
+function titleText(html: string): string | undefined {
+  const open = /<title\b/i.exec(html);
+  if (open === null) return undefined;
+  const tagEnd = html.indexOf('>', open.index);
+  if (tagEnd === -1) return undefined;
+  const close = /<\/title>/gi;
+  close.lastIndex = tagEnd + 1;
+  const closed = close.exec(html);
+  return closed === null ? undefined : html.slice(tagEnd + 1, closed.index);
+}
+
 function pageMetadata(html: string): { title: string | null; description: string | null } {
   const meta = metaContents(html);
-  const titleTag = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1];
   return {
     title:
       plainText(meta.get('og:title'), TITLE_MAX) ??
       plainText(meta.get('twitter:title'), TITLE_MAX) ??
-      plainText(titleTag, TITLE_MAX),
+      plainText(titleText(html), TITLE_MAX),
     description:
       plainText(meta.get('og:description'), DESCRIPTION_MAX) ??
       plainText(meta.get('description'), DESCRIPTION_MAX) ??
@@ -165,15 +176,25 @@ for (const [network, prefix] of [
   ['127.0.0.0', 8],
   ['169.254.0.0', 16],
   ['172.16.0.0', 12],
+  ['192.0.0.0', 24],
   ['192.168.0.0', 16],
+  ['198.18.0.0', 15],
+  ['224.0.0.0', 4],
+  ['240.0.0.0', 4],
 ] as const) {
   NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, 'ipv4');
 }
 for (const [network, prefix] of [
   ['::', 128],
   ['::1', 128],
+  // Ranges that carry an IPv4 address inside them, which may be a private one.
+  ['::', 96],
+  ['64:ff9b::', 96],
+  ['2002::', 16],
   ['fc00::', 7],
   ['fe80::', 10],
+  ['fec0::', 10],
+  ['ff00::', 8],
 ] as const) {
   NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, 'ipv6');
 }

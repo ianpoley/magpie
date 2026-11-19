@@ -496,6 +496,38 @@ for (const address of ['127.0.0.1', '192.168.1.5', '::1', '::ffff:10.0.0.1', '16
   });
 }
 
+test('addresses set aside for translation, tunnelling, multicast, testing and future use are never requested', async (t) => {
+  const refused = [
+    '64:ff9b::a00:1',
+    '::10.0.0.1',
+    '2002:c0a8:101::1',
+    'fec0::1',
+    'ff02::1',
+    '224.0.0.251',
+    '240.0.0.1',
+    '192.0.0.8',
+    '198.18.0.1',
+  ];
+  const allowed = ['93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946'];
+  const hostOf = (address: string) => `h${[...refused, ...allowed].indexOf(address)}.example`;
+  const urlOf = (address: string) => `https://${hostOf(address)}/`;
+  const { db, web, run } = setup(t, [{ id: '1', urls: [...refused, ...allowed].map(urlOf) }]);
+  for (const address of [...refused, ...allowed]) {
+    web.set(urlOf(address), page(`Page at ${address}`));
+    web.resolveTo(hostOf(address), [address]);
+  }
+
+  await run();
+
+  assert.deepEqual([...web.calls].sort(), allowed.map(urlOf).sort());
+  for (const address of refused) {
+    const row = link(db, urlOf(address));
+    assert.equal(row.status, 'failed', address);
+    assert.match(String(row.last_error), /not on the public web/, address);
+  }
+  for (const address of allowed) assert.equal(link(db, urlOf(address)).title, `Page at ${address}`);
+});
+
 test('a redirect to a name that resolves to a private address is not followed', async (t) => {
   const { db, web, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
     'https://t.co/a': redirect('https://rebind.example/admin'),
@@ -565,6 +597,29 @@ test('a page that is one enormous meta tag is read quickly, and an ordinary page
   const fine = link(db, 'https://fine.example/post');
   assert.equal(fine.title, 'Shared title');
   assert.equal(fine.description, 'Shared description');
+});
+
+test('a page of titles that never close is read quickly and has no title, and a closed title is still read', async (t) => {
+  const unclosed = `<html><head>${'<title>'.repeat(Math.floor((256 * 1024) / 7))}`;
+  const html = (body: string): HttpResponse => ({ status: 200, headers: { 'content-type': 'text/html' }, body });
+  const { db, run } = setup(
+    t,
+    [{ id: '1', urls: ['https://open.example/', 'https://plain.example/', 'https://shouty.example/'] }],
+    {
+      'https://open.example/': html(unclosed),
+      'https://plain.example/': html('<html><head><title>Plain title</title></head></html>'),
+      'https://shouty.example/': html('<HTML><HEAD><TITLE lang="en" data-kind="x">\n  Mixed &amp; matched\n</Title></HEAD></HTML>'),
+    },
+  );
+
+  const started = performance.now();
+  await run();
+  const elapsed = performance.now() - started;
+
+  assert.ok(elapsed < 500, `resolving took ${Math.round(elapsed)} ms`);
+  assert.equal(link(db, 'https://open.example/').title, 'open.example');
+  assert.equal(link(db, 'https://plain.example/').title, 'Plain title');
+  assert.equal(link(db, 'https://shouty.example/').title, 'Mixed & matched');
 });
 
 test('a GitHub rate-limit response leaves the alias pending without failing, and a later run fills it in', async (t) => {

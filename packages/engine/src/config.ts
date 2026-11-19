@@ -69,7 +69,7 @@ export const ASK = {
 export const TAGGING = {
   /** Jev requests in flight. */
   concurrency: 6,
-  /** Posts failing one after another, with none scored between, before a tagging pass gives up. */
+  /** Posts failing in a row at the start of a pass, with none scored yet, before it probes one post from the far end of the queue and gives up if that fails too. */
   maxConsecutiveFailures: 10,
 } as const;
 
