@@ -1,5 +1,3 @@
-/** Class recipes shared by hand-rolled controls. */
-
 const ICON_BUTTON =
   "focus-ring pressable inline-flex size-8 shrink-0 cursor-pointer no-underline items-center justify-center rounded-full border-0 bg-transparent p-0 text-ink-muted " +
   "[&>svg]:size-4";
@@ -30,7 +28,6 @@ export const dialogContent =
 const POPUP_MOTION =
   "transition-[opacity,translate,scale] duration-200 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
 
-/** A question that needs an answer: narrower than a dialog, with its own padding. */
 export const alertContent =
   `w-[min(26rem,calc(100%-1.5rem))] gap-0 rounded-[20px] border-0 p-5 data-starting-style:scale-[0.97] data-ending-style:scale-[0.97] ${POPUP_MOTION}`;
 
@@ -43,13 +40,14 @@ export const quietAnswer = `${ANSWER} border-0 bg-surface text-ink shadow-card h
 export const primaryAnswer = `${ANSWER} bg-primary-fill border-0 text-on-primary shadow-primary disabled:cursor-default disabled:opacity-50`;
 const DANGER = "border-0 bg-like-soft text-like-text hover:bg-[color-mix(in_oklch,var(--color-like-soft)_88%,var(--color-like))]";
 export const dangerAnswer = `${ANSWER} ${DANGER}`;
-/** A destructive action offered beside other actions, not as the answer to a question. */
 export const dangerButton = `pressable focus-ring h-9 gap-1.5 px-3.5 ${DANGER} disabled:cursor-progress disabled:opacity-60`;
+
+export const softButton =
+  "focus-ring pressable flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-sunken px-3 text-[13px] font-semibold text-ink hover:bg-primary-soft hover:text-primary-text disabled:cursor-progress disabled:opacity-60";
 
 export const popupList =
   `${menuContent} max-h-[min(18rem,var(--available-height))] w-(--anchor-width) overflow-y-auto overscroll-contain`;
 
-/** A text field on a white surface; its focus ring matches the search field's. */
 export const textField =
   "w-full rounded-full text-[16px] outline-none transition-shadow duration-150 ease-out placeholder:text-ink-muted " +
   "focus-visible:border-primary focus-visible:shadow-[0_0_0_1px_var(--color-primary)] sm:text-[14px]";

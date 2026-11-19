@@ -14,13 +14,11 @@ import { compactCount, formatDate } from "./format";
 import { MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, type PostDialogController } from "./post-card";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
-import { dangerButton, iconButton } from "./styles";
+import { dangerButton, dialogContent, iconButton } from "./styles";
 import { TopicChip } from "./topic-chip";
 
-const CONTENT =
-  "w-[min(42rem,calc(100%-1.5rem))] gap-0 overflow-hidden rounded-[20px] border-0 p-0 data-starting-style:translate-y-3 data-starting-style:scale-[0.97] data-ending-style:scale-[0.97]";
+const CONTENT = `w-[min(42rem,calc(100%-1.5rem))] ${dialogContent}`;
 
-/** The one post dialog on the screen. Cards and "Surprise me" open it with a post id. */
 export function PostDialog({
   controller,
   postsById,

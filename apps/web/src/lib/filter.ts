@@ -1,5 +1,5 @@
 import { matchesKeyword } from "./search.ts";
-import type { AuthorCount, Band, Chip, FilterResult, FilterState, Post, Snapshot, Stats, TimeRange } from "./types.ts";
+import type { AuthorCount, Band, Chip, FilterResult, FilterState, Post, Snapshot, TimeRange } from "./types.ts";
 
 export const DEFAULT_FILTER: FilterState = {
   collection: "everything",
@@ -108,19 +108,6 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number)
   };
 }
 
-export function stats(posts: Post[]): Stats {
-  const authors = new Set<string>();
-  let bookmarks = 0;
-  let likes = 0;
-  for (const post of posts) {
-    authors.add(post.authorHandle.toLowerCase());
-    if (post.bookmarked) bookmarks++;
-    if (post.liked) likes++;
-  }
-  return { posts: posts.length, bookmarks, likes, authors: authors.size };
-}
-
-/** The authors with the most saved posts, leaving hidden posts out unless revealed. */
 export function mostSavedAuthors(posts: Post[], revealHidden: boolean, limit: number = MOST_SAVED_AUTHORS): AuthorCount[] {
   const byHandle = new Map<string, AuthorCount>();
   for (const post of posts) {
@@ -143,7 +130,6 @@ export function mostSavedAuthors(posts: Post[], revealHidden: boolean, limit: nu
     .slice(0, limit);
 }
 
-/** A card's chips: its confident topics, then any selected topic it only possibly matches. */
 export function postChips(post: Post, state: FilterState): Chip[] {
   return post.memberships
     .filter(({ topicId, band }) => band === "confident" || state.topicIds.includes(topicId))
@@ -160,7 +146,6 @@ export function toggleArea(state: FilterState, areaId: number): FilterState {
   return { ...state, unfiled: false, areaIds: toggled(state.areaIds, areaId) };
 }
 
-/** What clicking a chip does: the category selection becomes that one topic. */
 export function selectTopicOnly(state: FilterState, topicId: number): FilterState {
   return { ...state, unfiled: false, topicIds: [topicId], areaIds: [] };
 }

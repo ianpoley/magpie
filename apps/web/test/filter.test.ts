@@ -7,7 +7,6 @@ import {
   mostSavedAuthors,
   postChips,
   selectTopicOnly,
-  stats,
   toggleArea,
   toggleAuthor,
   toggleTopic,
@@ -203,8 +202,8 @@ test("hidden posts are absent from keyword results, author counts and totals unt
   });
   assert.deepEqual(sorted({ keyword: "ballot" }, snap), ["seen"]);
   assert.deepEqual(sorted({ keyword: "ballot", revealHidden: true }, snap), ["h1", "h2", "seen"]);
-  assert.deepEqual(stats(run({}, snap).posts), { posts: 1, bookmarks: 1, likes: 0, authors: 1 });
-  assert.equal(stats(run({ revealHidden: true }, snap).posts).posts, 3);
+  assert.equal(run({}, snap).posts.length, 1);
+  assert.equal(run({ revealHidden: true }, snap).posts.length, 3);
   assert.deepEqual(mostSavedAuthors(snap.posts, false).map((a) => [a.handle, a.count]), [["ada", 1]]);
   assert.deepEqual(mostSavedAuthors(snap.posts, true).map((a) => [a.handle, a.count]), [["pol", 2], ["ada", 1]]);
 });
@@ -216,15 +215,6 @@ test("most-saved authors are capped at ten, most saved first", () => {
   const top = mostSavedAuthors(posts, false);
   assert.equal(top.length, 10);
   assert.deepEqual([top[0].handle, top[0].count, top[9].handle], ["author11", 12, "author2"]);
-});
-
-test("stat totals count posts, bookmarks, likes and distinct authors", () => {
-  const posts = [
-    post("1", { authorHandle: "a", bookmarked: true, liked: true }),
-    post("2", { authorHandle: "a", bookmarked: false, liked: true }),
-    post("3", { authorHandle: "b" }),
-  ];
-  assert.deepEqual(stats(posts), { posts: 3, bookmarks: 2, likes: 2, authors: 2 });
 });
 
 test("chips are a post's confident topics, plus a selected unsure topic marked possible", () => {

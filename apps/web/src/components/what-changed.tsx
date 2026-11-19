@@ -18,7 +18,7 @@ import type { Change, UndoStep } from "@/lib/types";
 
 import { formatCount, formatDate, plural } from "./format";
 import { runAction } from "./run-action";
-import { alertBackdrop, alertContent, dialogContent, iconButton, primaryAnswer, quietAnswer } from "./styles";
+import { alertBackdrop, alertContent, dialogContent, iconButton, primaryAnswer, quietAnswer, softButton } from "./styles";
 
 export const createWhatChangedController = () => createDialogController();
 export type WhatChangedController = ReturnType<typeof createWhatChangedController>;
@@ -59,7 +59,7 @@ function Changes({ changes }: { changes: Change[] }) {
                 disabled={asking}
                 onClick={() => ask(change)}
                 aria-label={`Undo: ${change.summary}`}
-                className="focus-ring pressable flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-sunken px-3 text-[13px] font-semibold text-ink hover:bg-primary-soft hover:text-primary-text disabled:cursor-progress disabled:opacity-60"
+                className={softButton}
               >
                 <Undo2 className="size-3.5" aria-hidden="true" />
                 Undo
@@ -90,6 +90,7 @@ function Changes({ changes }: { changes: Change[] }) {
                     <li key={step.id} className="py-2.5">
                       <p className="text-[13px] leading-snug font-medium text-ink">{step.summary}</p>
                       <Detail createdAt={step.createdAt} postCount={step.postCount} />
+                      {step.restores.length > 0 ? <p className="mt-1 text-[12px] text-ink-muted">Brings back {step.restores.join(", ")}, which you merged in.</p> : null}
                     </li>
                   ))}
                 </ol>
@@ -114,10 +115,6 @@ function Changes({ changes }: { changes: Change[] }) {
   );
 }
 
-/**
- * The log of category changes, newest first. An automatic change can be
- * undone; the question beforehand lists every change that goes with it.
- */
 export function WhatChanged({ controller, changes }: { controller: WhatChangedController; changes: Change[] }) {
   return (
     <Dialog controller={controller}>

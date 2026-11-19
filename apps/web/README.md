@@ -23,7 +23,7 @@ The page reads the store on every request and again whenever you return to the w
   - Pressing an area or topic adds it to the filter; pressing it again removes it. Several topics narrow to posts in all of them. An area stands for any topic inside it.
   - Pinned searches and Unfiled sit above the areas. Hidden areas and topics are listed under a collapsed Hidden group, and Show hidden brings their posts back into every view.
   - Sync status shows when the last full sync finished. If a stage failed or the X export is stale, it names the problem.
-- **Main column:** title, Surprise me, stat tiles for the current filter, search, time range, sort, the media switch, and the Posts / Resources toggle.
+- **Main column:** title, Surprise me, search, time range, sort, the media switch, and the Posts / Resources toggle.
   - Search matches post text, quoted text, author name and handle, and the titles of linked pages. Matches are highlighted.
   - Each card shows its topics as chips. Pressing a chip filters to that topic.
   - Under a category filter, confident matches come first and a divider sets the possible matches apart.
@@ -37,7 +37,7 @@ The page reads the store on every request and again whenever you return to the w
 | `src/app/actions.ts` | One server action per category edit. |
 | `src/app/globals.css` | Grove tokens and the few component defaults that carry the look. |
 | `src/components/corpus-screen.tsx` | The client component that holds filter state and lays out the screen. |
-| `src/components/` | Sidebar, category tree, toolbar, stat tiles, post card, post dialog, chips, empty states. |
+| `src/components/` | Sidebar, category tree, toolbar, post card, post dialog, chips, empty states. |
 | `src/lib/` | The snapshot reader and the pure filter, search, and resource logic, with tests in `test/`. |
 
 Filtering runs in the browser over one snapshot of the store, so every control responds at once.

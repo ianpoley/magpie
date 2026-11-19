@@ -8,7 +8,7 @@ import type { RemovedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { formatDate } from "./format";
-import { dialogContent, iconButton } from "./styles";
+import { dialogContent, iconButton, softButton } from "./styles";
 
 export const createRemovedPostsController = () => createDialogController();
 export type RemovedPostsController = ReturnType<typeof createRemovedPostsController>;
@@ -34,7 +34,7 @@ function Row({ post, onRestore }: { post: RemovedPost; onRestore: (postId: strin
         disabled={restoring}
         onClick={() => startRestoring(() => onRestore(post.id))}
         aria-label={`Restore the post by ${post.authorName}`}
-        className="focus-ring pressable flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-sunken px-3 text-[13px] font-semibold text-ink hover:bg-primary-soft hover:text-primary-text disabled:cursor-progress disabled:opacity-60"
+        className={softButton}
       >
         <Undo2 className="size-3.5" aria-hidden="true" />
         {restoring ? "Restoring…" : "Restore"}
@@ -43,7 +43,6 @@ function Row({ post, onRestore }: { post: RemovedPost; onRestore: (postId: strin
   );
 }
 
-/** The posts taken out of the corpus, most recently removed first, each with a way back. */
 export function RemovedPosts({
   controller,
   posts,
