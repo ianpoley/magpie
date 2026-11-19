@@ -4,6 +4,7 @@ import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, AccordionTri
 import { DialogTrigger } from "@ui-sdk/react/dialog";
 import { ChevronDown, ExternalLink, FileText, GitBranch, Package, Play, type LucideIcon } from "lucide-react";
 
+import { shortenUrls } from "@/lib/post-links";
 import type { Post, ResourceGroup } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
@@ -32,7 +33,7 @@ function PostRow({ post, dialog }: { post: Post; dialog: PostDialogController })
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] leading-snug text-ink">
             <span className="font-semibold">{post.authorName}</span>
-            {post.text ? <span className="text-ink-muted"> · {post.text}</span> : null}
+            {post.text ? <span className="text-ink-muted"> · {shortenUrls(post.text)}</span> : null}
           </span>
         </span>
         {date ? <span className="shrink-0 text-[12px] text-ink-muted tabular-nums">{date}</span> : null}

@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
+import { expandLinks, usableTarget } from "./post-links.ts";
 import type { Area, Band, Change, Media, Post, QuotedPost, RemovedPost, Resource, Run, RunStage, Snapshot, Topic } from "./types.ts";
 
 export function emptySnapshot(storeExists: boolean): Snapshot {
@@ -66,7 +67,28 @@ function counts(json: unknown): Record<string, number> {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] => finite(entry[1]) !== null));
 }
 
+/** Each post's shortened addresses and where they lead, for the links that resolved. */
+function linkTargets(db: DatabaseSync): Map<string, Map<string, string>> {
+  const byPost = new Map<string, Map<string, string>>();
+  const rows = db
+    .prepare(`SELECT pl.post_id, l.url, l.final_url FROM post_links pl JOIN links l ON l.url = pl.link_url WHERE l.final_url IS NOT NULL`)
+    .all();
+  for (const row of rows) {
+    const target = text(row.final_url);
+    if (!usableTarget(target)) continue;
+    const postId = String(row.post_id);
+    let targets = byPost.get(postId);
+    if (!targets) byPost.set(postId, (targets = new Map()));
+    targets.set(String(row.url), target);
+  }
+  return byPost;
+}
+
+const NO_TARGETS: ReadonlyMap<string, string> = new Map();
+
 function read(db: DatabaseSync): Snapshot {
+  const targets = linkTargets(db);
+  const readable = (postId: string, value: unknown): string => expandLinks(String(value), postId, targets.get(postId) ?? NO_TARGETS);
   const posts: Post[] = [];
   const postsById = new Map<string, Post>();
   const postRows = db
@@ -82,7 +104,7 @@ function read(db: DatabaseSync): Snapshot {
     const createdAt = text(row.created_at);
     const post: Post = {
       id: String(row.id),
-      text: String(row.text),
+      text: readable(String(row.id), row.text),
       createdAt,
       createdAtMs: epochMs(createdAt),
       url: String(row.url),
@@ -115,7 +137,7 @@ function read(db: DatabaseSync): Snapshot {
     .all()
     .map((row) => ({
       id: String(row.id),
-      text: String(row.text),
+      text: readable(String(row.id), row.text),
       createdAt: text(row.created_at),
       url: String(row.url),
       authorHandle: String(row.author_handle),

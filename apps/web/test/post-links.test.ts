@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { displayUrl, expandLinks, shortenUrls, usableTarget } from "../src/lib/post-links.ts";
+
+const targets = new Map([
+  ["https://t.co/repo", "https://github.com/firecrawl/firecrawl"],
+  ["https://t.co/pic", "https://twitter.com/someone/status/42/photo/1"],
+  ["https://t.co/other", "https://x.com/else/status/7/video/1"],
+  ["https://claude.⁠dev/blog", "https://claude.dev/blog"],
+]);
+
+test("a shortened address becomes where it leads, keeping the punctuation after it", () => {
+  assert.equal(expandLinks("see https://t.co/repo.", "42", targets), "see https://github.com/firecrawl/firecrawl.");
+  assert.equal(expandLinks("(https://t.co/repo)", "42", targets), "(https://github.com/firecrawl/firecrawl)");
+});
+
+test("a link to the post's own picture is dropped, one to another post's media is kept", () => {
+  assert.equal(expandLinks("look https://t.co/repo https://t.co/pic", "42", targets), "look https://github.com/firecrawl/firecrawl");
+  assert.equal(expandLinks("look https://t.co/other", "42", targets), "look https://x.com/else/status/7/video/1");
+  assert.equal(expandLinks("look https://t.co/pic", "43", targets), "look https://twitter.com/someone/status/42/photo/1");
+});
+
+test("an address split by X's invisible joiners is replaced by the working one", () => {
+  assert.equal(expandLinks("read https://claude.⁠dev/blog", "1", targets), "read https://claude.dev/blog");
+});
+
+test("addresses with no resolved target, and text with none, are left alone", () => {
+  assert.equal(expandLinks("x https://t.co/unknown y", "42", targets), "x https://t.co/unknown y");
+  assert.equal(expandLinks("plain  text ", "42", targets), "plain  text ");
+});
+
+test("addresses read without scheme or www, and long ones are cut short", () => {
+  assert.equal(displayUrl("https://www.example.com/"), "example.com");
+  assert.equal(displayUrl("https://github.com/firecrawl/firecrawl"), "github.com/firecrawl/firecrawl");
+  assert.equal(displayUrl("https://platform.claude.com/cookbook/managed-agents-cma-dreaming"), "platform.claude.com/cookbook/manage…");
+  assert.equal(shortenUrls("a https://www.example.com/x, b"), "a example.com/x, b");
+});
+
+test("only http(s) targets without spaces are used", () => {
+  assert.equal(usableTarget("https://ok.example/a"), true);
+  assert.equal(usableTarget("javascript:alert(1)"), false);
+  assert.equal(usableTarget("https://bad.example/a b"), false);
+  assert.equal(usableTarget(null), false);
+});

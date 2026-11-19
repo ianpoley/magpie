@@ -4,6 +4,7 @@ import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogCont
 import { ExternalLink, Undo2, X } from "lucide-react";
 import { useTransition } from "react";
 
+import { shortenUrls } from "@/lib/post-links";
 import type { RemovedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
@@ -24,7 +25,7 @@ function Row({ post, onRestore }: { post: RemovedPost; onRestore: (postId: strin
           <span className="font-semibold text-ink">{post.authorName}</span> · @{post.authorHandle}
           {date ? ` · ${date}` : ""}
         </p>
-        {post.text ? <p className="mt-1 line-clamp-2 text-[14px] leading-snug break-words text-ink">{post.text}</p> : null}
+        {post.text ? <p className="mt-1 line-clamp-2 text-[14px] leading-snug break-words text-ink">{shortenUrls(post.text)}</p> : null}
       </div>
       <a href={post.url} target="_blank" rel="noreferrer" aria-label={`Open the post by ${post.authorName} on X`} className={iconButton}>
         <ExternalLink aria-hidden="true" />
