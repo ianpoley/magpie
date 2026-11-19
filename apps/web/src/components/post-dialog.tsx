@@ -229,7 +229,16 @@ export function PostDialog({
                   </span>
                 ) : null}
                 <div className="ml-auto flex items-center gap-2">
-                  <Button aria-label="Remove from corpus" disabled={removing} onClick={() => startRemoving(() => onRemove(post))} className={`${dangerButton} max-sm:px-2.5`}>
+                  <Button
+                    aria-label="Remove from corpus"
+                    disabled={removing}
+                    onClick={() => {
+                      // The removed post's card goes away, so focus returns to where the dialog was opened from.
+                      stepped.current = false;
+                      startRemoving(() => onRemove(post));
+                    }}
+                    className={`${dangerButton} max-sm:px-2.5`}
+                  >
                     <Trash2 className="size-4" aria-hidden="true" />
                     <span className="max-sm:hidden">Remove from corpus</span>
                   </Button>
