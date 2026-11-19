@@ -1,7 +1,8 @@
 "use client";
 
 import { DialogTrigger, type createDialogController } from "@ui-sdk/react/dialog";
-import { Bookmark, ExternalLink, Heart, Link2 } from "lucide-react";
+import { PopoverTrigger } from "@ui-sdk/react/popover";
+import { Bookmark, ExternalLink, Heart, Link2, Tags } from "lucide-react";
 
 import { authorHue } from "@/lib/author-hues";
 import type { Chip, Post, Topic } from "@/lib/types";
@@ -9,6 +10,7 @@ import type { Chip, Post, Topic } from "@/lib/types";
 import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
 import { Marked, MediaGrid, PostText, Quoted } from "./post-body";
+import type { PostTopicsController } from "./post-topics-editor";
 import { iconButton } from "./styles";
 import { Tip } from "./tip";
 import { TopicChip } from "./topic-chip";
@@ -34,9 +36,14 @@ export function CollectionMarks({ post }: { post: Post }) {
   );
 }
 
-export function PostActions({ post, onCopyLink }: { post: Post; onCopyLink: (post: Post) => void }) {
+export function PostActions({ post, topicsEditor, onCopyLink }: { post: Post; topicsEditor: PostTopicsController; onCopyLink: (post: Post) => void }) {
   return (
     <>
+      <Tip label="Edit topics">
+        <PopoverTrigger controller={topicsEditor} payload={post.id} aria-label="Edit topics" className={`${iconButton} data-open:bg-sunken data-open:text-ink`}>
+          <Tags aria-hidden="true" />
+        </PopoverTrigger>
+      </Tip>
       <Tip label="Copy link">
         <button type="button" aria-label="Copy link" onClick={() => onCopyLink(post)} className={iconButton}>
           <Link2 aria-hidden="true" />
@@ -62,6 +69,7 @@ export function PostCard({
   activeTopicIds,
   keyword,
   dialog,
+  topicsEditor,
   onSelectTopic,
   onCopyLink,
 }: {
@@ -71,6 +79,7 @@ export function PostCard({
   activeTopicIds: number[];
   keyword: string;
   dialog: PostDialogController;
+  topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
   onCopyLink: (post: Post) => void;
 }) {
@@ -128,7 +137,7 @@ export function PostCard({
                 <span className="sr-only"> likes on X</span>
               </span>
             ) : null}
-            <PostActions post={post} onCopyLink={onCopyLink} />
+            <PostActions post={post} topicsEditor={topicsEditor} onCopyLink={onCopyLink} />
           </div>
         </footer>
       </div>

@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import type { AuthorCount, Collection, FilterState, Snapshot } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
+import type { CategoryEdits } from "./category-menu";
 import { CategoryTree } from "./category-tree";
 import { formatCount } from "./format";
 import { SyncStatus } from "./sync-status";
@@ -41,6 +42,7 @@ export type SidebarProps = {
   authors: AuthorCount[];
   expanded: string[];
   whatChanged: WhatChangedController;
+  categoryEdits: CategoryEdits;
   /** A control shown beside the name, such as the close button of the narrow-screen panel. */
   headerAction?: ReactNode;
   onCollection: (collection: Collection) => void;
@@ -61,6 +63,7 @@ export function Sidebar({
   authors,
   expanded,
   whatChanged,
+  categoryEdits,
   headerAction,
   onCollection,
   onExpandedChange,
@@ -137,6 +140,7 @@ export function Sidebar({
                   filter={filter}
                   expanded={expanded}
                   unfiledCount={totals.unfiled}
+                  edits={categoryEdits}
                   onExpandedChange={onExpandedChange}
                   onToggleTopic={onToggleTopic}
                   onToggleArea={onToggleArea}

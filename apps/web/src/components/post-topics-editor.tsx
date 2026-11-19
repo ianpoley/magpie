@@ -1,0 +1,118 @@
+"use client";
+
+import { createPopoverController, Popover, PopoverContent, PopoverDescription, PopoverTitle } from "@ui-sdk/react/popover";
+import { X } from "lucide-react";
+import { useEffect, useTransition } from "react";
+
+import { addPostTopic, removePostTopic } from "@/app/actions";
+import type { Area, Post, Topic } from "@/lib/types";
+
+import { runAction } from "./run-action";
+import { TopicCombobox } from "./topic-combobox";
+
+export const createPostTopicsController = () => createPopoverController<string>();
+export type PostTopicsController = ReturnType<typeof createPostTopicsController>;
+
+function Editor({ post, topics, areas, topicsById }: { post: Post; topics: Topic[]; areas: Area[]; topicsById: Map<number, Topic> }) {
+  const [saving, startSaving] = useTransition();
+  const current = new Set(post.memberships.map((membership) => membership.topicId));
+  const save = (edit: () => Promise<unknown>) => startSaving(async () => void (await edit()));
+
+  return (
+    <>
+      <div className="shrink-0">
+        <PopoverTitle className="text-[15px] font-bold text-ink">Topics on this post</PopoverTitle>
+        <PopoverDescription className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+          What you add or remove here holds through every later sync.
+        </PopoverDescription>
+      </div>
+      {post.memberships.length === 0 ? (
+        <p className="rounded-inner bg-sunken px-3 py-2.5 text-[13px] text-ink-muted">No topic has claimed this post yet.</p>
+      ) : (
+        <ul aria-label="Topics on this post" className="-mx-1 flex max-h-56 min-h-9 flex-col overflow-y-auto overscroll-contain">
+          {post.memberships.map(({ topicId, band }) => {
+            const topic = topicsById.get(topicId);
+            if (!topic) return null;
+            return (
+              <li key={topicId} className="flex h-9 shrink-0 items-center gap-2 rounded-[9px] pr-0.5 pl-2 hover:bg-sunken">
+                <span className="min-w-0 truncate text-[13px] font-semibold text-ink">{topic.name}</span>
+                {band === "unsure" ? (
+                  <span className="shrink-0 text-[10px] font-semibold tracking-[0.04em] text-chip-possible-text uppercase">possible</span>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={saving}
+                  aria-label={`Remove ${topic.name}`}
+                  onClick={() => save(() => runAction(removePostTopic(post.id, topicId)))}
+                  className="focus-ring pressable ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-muted hover:bg-like-soft hover:text-like-text disabled:cursor-progress disabled:opacity-50"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <TopicCombobox
+        label="Add a topic"
+        placeholder="Add a topic"
+        topics={topics.filter((topic) => !current.has(topic.id))}
+        areas={areas}
+        value={null}
+        resetOnChoose
+        disabled={saving}
+        onChoose={(topicId) => {
+          if (topicId !== null) save(() => runAction(addPostTopic(post.id, topicId)));
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * Every topic a post is in, sure or possible, each removable, and a field to
+ * add another. One editor serves every trigger connected to its controller;
+ * a modal dialog needs an editor of its own inside its content.
+ */
+export function PostTopicsEditor({
+  controller,
+  postsById,
+  topics,
+  areas,
+  topicsById,
+  align = "end",
+  listed,
+}: {
+  controller: PostTopicsController;
+  postsById: Map<string, Post>;
+  topics: Topic[];
+  areas: Area[];
+  topicsById: Map<number, Topic>;
+  /** Which edge of the trigger the editor lines up with. */
+  align?: "start" | "end";
+  /** The ids of the posts whose triggers are on screen, when a fix can take a post off it. */
+  listed?: Set<string>;
+}) {
+  // A fix can take the post out of the filtered list, and its trigger with it; the editor has nothing left to point at.
+  useEffect(() => {
+    const postId = controller.getPayload();
+    if (listed && postId !== undefined && controller.isOpen() && !listed.has(postId)) controller.close();
+  });
+
+  return (
+    <Popover controller={controller}>
+      <PopoverContent<string>
+        align={align}
+        sideOffset={6}
+        collisionPadding={12}
+        className="w-[min(20rem,calc(100vw-1.5rem))] origin-(--transform-origin) gap-3 overflow-hidden rounded-card border-0 bg-surface p-4 shadow-(--ui-shadow) transition-[opacity,scale] duration-150 ease-out data-starting-style:scale-96 data-starting-style:opacity-0 data-ending-style:scale-96 data-ending-style:opacity-0 motion-reduce:transition-none"
+      >
+        {(state) => {
+          const post = typeof state.payload === "string" ? postsById.get(state.payload) : undefined;
+          if (!post) return <PopoverTitle className="text-[14px] font-semibold text-ink">This post is no longer saved</PopoverTitle>;
+          return <Editor key={post.id} post={post} topics={topics} areas={areas} topicsById={topicsById} />;
+        }}
+      </PopoverContent>
+    </Popover>
+  );
+}
