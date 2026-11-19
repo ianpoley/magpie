@@ -9,7 +9,7 @@ const hanken = Hanken_Grotesk({
 
 export const metadata: Metadata = {
   title: "x-corpus",
-  description: "Your saved X bookmarks and likes",
+  description: "Every post you bookmarked or liked on X, sorted into topics.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${hanken.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

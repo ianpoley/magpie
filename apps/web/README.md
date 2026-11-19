@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# x-corpus web
 
-## Getting Started
+The corpus screen: every post you bookmarked or liked on X, in one list you can filter by category, collection, author, keyword, time range, and media.
 
-First, run the development server:
+It reads the local store the sync job writes (`state/corpus.sqlite`, or the file `X_CORPUS_STORE` points at). Nothing leaves this Mac, and the server only listens on `127.0.0.1`.
+
+## Run it
+
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run dev        # http://127.0.0.1:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`bun run dev -- -p 3001` picks another port. `bun run build` then `bun run start` serves the production build.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The page reads the store on every request and again whenever you return to the window, so a sync that finished in the background shows up without a reload. If the store does not exist yet, the screen says so and stays empty until the first sync.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## What is on the screen
 
-## Learn More
+- **Sidebar:** collections (Everything, Bookmarks, Likes), the category tree, the ten most-saved authors, sync status, and What changed.
+  - Pressing an area or topic adds it to the filter; pressing it again removes it. Several topics narrow to posts in all of them. An area stands for any topic inside it.
+  - Pinned searches and Unfiled sit above the areas. Hidden areas and topics are listed under a collapsed Hidden group, and Show hidden brings their posts back into every view.
+  - Sync status shows when the last full sync finished. If a stage failed or the X export is stale, it names the problem.
+- **Main column:** title, Surprise me, stat tiles for the current filter, search, time range, sort, the media switch, and the Posts / Resources toggle.
+  - Search matches post text, quoted text, author name and handle, and the titles of linked pages. Matches are highlighted.
+  - Each card shows its topics as chips. Pressing a chip filters to that topic.
+  - Under a category filter, confident matches come first and a divider sets the possible matches apart.
+  - A card opens the full post with its quoted post and media. Copy link and Open on X are on the card and in the dialog.
 
-To learn more about Next.js, take a look at the following resources:
+## Layout of the code
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Path | What it holds |
+|---|---|
+| `src/app/page.tsx` | Loads the snapshot inside a Suspense boundary and renders the screen. |
+| `src/app/actions.ts` | One server action per category edit. |
+| `src/app/globals.css` | Grove tokens and the few component defaults that carry the look. |
+| `src/components/corpus-screen.tsx` | The client component that holds filter state and lays out the screen. |
+| `src/components/` | Sidebar, category tree, toolbar, stat tiles, post card, post dialog, chips, empty states. |
+| `src/lib/` | The snapshot reader and the pure filter, search, and resource logic, with tests in `test/`. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Filtering runs in the browser over one snapshot of the store, so every control responds at once.
 
-## Deploy on Vercel
+## Rules for changing it
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `DESIGN.md` is the design system (Grove). Use its tokens; add a token in OKLCH with contrast checked before using a new color.
+- `AGENTS.md` covers the framework and component rules: read the bundled Next.js and UI SDK docs before using an API, and build controls from `@ui-sdk/react` wherever a component fits.
+- Engine code is loaded only through `src/lib/engine.ts`. A static import of `@x-corpus/engine` breaks the build.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Checks
+
+```bash
+bun run lint
+bun run typecheck
+bun run test
+bun run build
+```
