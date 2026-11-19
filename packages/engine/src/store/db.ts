@@ -1,0 +1,64 @@
+import { mkdirSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import { dirname } from 'node:path';
+
+import { STORE_BUSY_TIMEOUT_MS } from '../config.ts';
+import { SCHEMA_VERSION, assertKnownVersion, migrate } from './schema.ts';
+
+export type Store = DatabaseSync;
+
+/**
+ * Opens the store at `path`.
+ *
+ * Read-write (the default) creates the file and its directory when missing,
+ * switches it to WAL, and migrates it to the current schema.
+ *
+ * Read-only never creates or changes the file. It fails when the file is
+ * missing or its schema is not the version this code knows.
+ *
+ * Either mode fails when the store was written by newer code. The caller
+ * closes the returned handle.
+ */
+export function openStore(path: string, options: { readOnly?: boolean } = {}): Store {
+  const readOnly = options.readOnly === true;
+  if (!readOnly) mkdirSync(dirname(path), { recursive: true });
+  const db = new DatabaseSync(path, { readOnly });
+  try {
+    db.exec(`PRAGMA busy_timeout = ${STORE_BUSY_TIMEOUT_MS}`);
+    db.exec('PRAGMA foreign_keys = ON');
+    if (readOnly) {
+      const version = assertKnownVersion(db);
+      if (version !== SCHEMA_VERSION) {
+        throw new Error(
+          `Store at ${path} has schema version ${version}; this code needs version ${SCHEMA_VERSION}. Open it read-write once to migrate it.`,
+        );
+      }
+    } else {
+      assertKnownVersion(db);
+      db.exec('PRAGMA journal_mode = WAL');
+      migrate(db);
+    }
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+}
+
+/**
+ * Runs `fn` in one write transaction: committed when it returns, rolled back
+ * when it throws. Called inside a transaction already open on `db`, it joins
+ * that transaction, so the outermost call decides the outcome.
+ */
+export function transaction<T>(db: Store, fn: () => T): T {
+  if (db.isTransaction) return fn();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    if (db.isTransaction) db.exec('ROLLBACK');
+    throw error;
+  }
+}
