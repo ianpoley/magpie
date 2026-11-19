@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 
+import { MEMBERSHIP_VIEWS_V1 } from './membership.ts';
+
 /**
  * The store schema is a contract shared by the sync job, the web app and the
  * skill. Change it only by appending a migration; never edit one that shipped.
@@ -237,6 +239,7 @@ const MIGRATIONS: string[] = [
     created_at     TEXT NOT NULL
   );
   `,
+  MEMBERSHIP_VIEWS_V1,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
