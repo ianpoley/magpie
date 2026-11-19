@@ -4,7 +4,7 @@ import { Button } from "@ui-sdk/react/button";
 import { Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
 import { ChevronDown, ChevronUp, ExternalLink, Heart, Link2, Tags, Trash2, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
 import type { Area, Chip, Post, Topic } from "@/lib/types";
@@ -54,13 +54,25 @@ export function PostDialog({
 }) {
   const [topicsEditor] = useState(createPostTopicsController);
   const [removing, startRemoving] = useTransition();
+  const open = useRef(false);
+  const stepped = useRef(false);
   return (
-    <Dialog controller={controller}>
+    <Dialog
+      controller={controller}
+      onOpenChange={(next) => {
+        open.current = next;
+        if (next) stepped.current = false;
+      }}
+      onPayloadChange={() => {
+        if (open.current) stepped.current = true;
+      }}
+    >
       <DialogBackdrop />
       <DialogContent<string>
         initialFocus="content"
         // After stepping to other posts, closing lands on the card of the post last shown, when it is listed.
         finalFocus={() => {
+          if (!stepped.current) return undefined;
           const id = controller.getPayload();
           const card = id === undefined ? null : document.querySelector<HTMLElement>(postCardOpen(id));
           card?.scrollIntoView({ block: "nearest" });
