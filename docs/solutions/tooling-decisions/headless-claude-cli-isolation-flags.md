@@ -29,7 +29,7 @@ The plan first assumed `claude --print --tools ""` gave such a session. Plan rev
 
 ## Guidance
 
-**The argument list.** `cliArgs` passes these, and `packages/engine/test/claude-cli.test.ts` fails if an isolation flag goes missing or if prompt text reaches the arguments:
+**The argument list.** `cliArgs` passes these, and `packages/engine/test/claude-cli.test.ts` fails if an isolation flag goes missing or if prompt text reaches the arguments. The test does not assert the `--output-format stream-json --verbose` row:
 
 | Flag | What it does here |
 |---|---|
@@ -42,14 +42,14 @@ The plan first assumed `claude --print --tools ""` gave such a session. Plan rev
 
 The prompt goes on stdin, so nothing in a post can be read as an argument.
 
-**What a correctly isolated session reports.** Measured on Claude Code 2.1.328 over three live calls, the `system/init` event read the same each time:
+**What a correctly isolated session reports.** Measured on Claude Code 2.1.328 over the three live calls made in this session, the `system/init` event read the same each time:
 
 - `tools` is `["StructuredOutput"]`, not empty. `--json-schema` adds this tool, and the model answers through it with one `tool_use` per call. It is not a built-in tool and cannot act on the machine.
 - `mcp_servers`, `skills` and `slash_commands` are empty.
-- `plugins` still lists the installed plugins, although `claude --help` says `--safe-mode` starts with installed plugins disabled. The listing may be an inventory and not a sign that they are active: the same event shows no skills, commands or MCP servers, which is what a plugin would contribute. That was not tested further, so treat "plugins are out of the session" as unproven and do not read the list as a regression.
+- `plugins` still lists the installed plugins, although `claude --help` says `--safe-mode` starts with installed plugins disabled. The same help entry says built-in plugins keep working under `--safe-mode`. The listing may be an inventory and not a sign that the installed ones are active: the same event shows no skills, commands or MCP servers, which is what a plugin would contribute. That was not tested further, so treat "plugins are out of the session" as unproven and do not read the list as a regression.
 - `agents` lists the CLI's built-in agent types.
 
-**Where the report is.** Only the `system/init` event of `--output-format stream-json --verbose` carries the tool, MCP and plugin lists. Plain `--output-format json` returns the result alone, so it cannot be used to verify isolation. The adapter returns the init event as `session` on every successful `send`.
+**Where the report is.** Only the `system/init` event of `--output-format stream-json --verbose` carries the tool, MCP and plugin lists. Plain `--output-format json` returns the result alone, so it cannot be used to verify isolation. The adapter returns the init event as `session` on a successful `send`, or null when the CLI sent none.
 
 **Rejected alternatives.**
 
