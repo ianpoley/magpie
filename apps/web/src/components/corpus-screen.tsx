@@ -4,10 +4,12 @@ import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toast, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
-import { CircleAlert, CircleCheck, CloudOff, Inbox, Layers, Link2Off, Menu as MenuIcon, SearchX, Shuffle, Tag, X } from "lucide-react";
+import { CircleAlert, CircleCheck, CloudOff, Inbox, Layers, Link2Off, Menu as MenuIcon, SearchX, Shuffle, Sparkles, Tag, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState, useSyncExternalStore } from "react";
 
+import { pinQuery } from "@/app/actions";
+import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
   DEFAULT_FILTER,
@@ -24,6 +26,7 @@ import { resourcesFor } from "@/lib/resources";
 import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
 
 import { ActiveFilters } from "./active-filters";
+import { AskBar } from "./ask-bar";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
@@ -31,12 +34,13 @@ import { formatCount, plural } from "./format";
 import { PostDialog } from "./post-dialog";
 import { PostList } from "./post-list";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
-import { ResourceList } from "./resource-list";
+import { ResourcesView } from "./resources-view";
+import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
 import { StatTiles } from "./stat-tiles";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
-import { Toolbar } from "./toolbar";
+import { Toolbar, type SearchMode } from "./toolbar";
 import { createWhatChangedController, WhatChanged } from "./what-changed";
 
 type View = "posts" | "resources";
@@ -44,6 +48,9 @@ type View = "posts" | "resources";
 const COLLECTION_TITLES = { everything: "Everything", bookmarks: "Bookmarks", likes: "Likes" } as const;
 const RESOURCE_ROWS = 100;
 const REFRESH_GAP_MS = 2000;
+
+const postAsk = (query: string, signal: AbortSignal): Promise<Response> =>
+  fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), signal });
 
 const randomItem = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
@@ -61,7 +68,7 @@ function heading(snapshot: Snapshot, filter: FilterState): { eyebrow: string; ti
   if (selected === 1 && filter.topicIds.length === 1) {
     const topic = snapshot.topics.find((candidate) => candidate.id === filter.topicIds[0]);
     const area = snapshot.areas.find((candidate) => candidate.id === topic?.areaId);
-    if (topic) return { eyebrow: area ? `${collection} · ${area.name}` : collection, title: topic.name, detail: topic.definition || null };
+    if (topic) return { eyebrow: area ? `${collection} · ${area.name}` : collection, title: topic.name, detail: topic.definition && topic.definition !== topic.name ? topic.definition : null };
   }
   if (selected === 1) {
     const area = snapshot.areas.find((candidate) => candidate.id === filter.areaIds[0]);
@@ -131,6 +138,41 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   );
 }
 
+/** What ask results show in place of an empty list: still judging, nothing judged, or nothing matched. */
+function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilters: () => void) {
+  if (ask.status === "running") {
+    return (
+      <EmptyState icon={Sparkles} title="Judging your saved posts">
+        Matches appear here as they are found, strongest first.
+      </EmptyState>
+    );
+  }
+  const button = (label: string, action: () => void) => (
+    <Button data-variant="solid" onClick={action} className="pressable focus-ring h-9 px-4">
+      {label}
+    </Button>
+  );
+  if (ask.scores.length === 0) {
+    return (
+      <EmptyState icon={CloudOff} title="The search could not be run" action={button("Try again", retry)}>
+        No post could be judged. Check that this Mac is online, then try again.
+      </EmptyState>
+    );
+  }
+  if (anyMatch) {
+    return (
+      <EmptyState icon={SearchX} title="No matches under these filters" action={button("Clear filters", clearFilters)}>
+        Posts match “{ask.query}”, but none of them fit the filters that are on.
+      </EmptyState>
+    );
+  }
+  return (
+    <EmptyState icon={SearchX} title="Nothing matches">
+      No saved post is about “{ask.query}”. Try describing the topic in other words.
+    </EmptyState>
+  );
+}
+
 export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: number }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
@@ -141,6 +183,10 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   const [sidebarPanel] = useState(() => createDialogController());
   const [categoryEdits] = useState(createCategoryEdits);
   const [topicsEditor] = useState(createPostTopicsController);
+  const [mode, setMode] = useState<SearchMode>("search");
+  const [askDraft, setAskDraft] = useState("");
+  const [askRunner] = useState(() => createAskRunner(postAsk));
+  const ask = useSyncExternalStore(askRunner.subscribe, askRunner.getState, () => null);
 
   // The store changes underneath the page every few hours, and on every edit.
   useEffect(() => {
@@ -159,7 +205,9 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   }, [router]);
 
   const keyword = useDeferredValue(filter.keyword);
-  const result = applyFilter(snapshot, { ...filter, keyword }, now);
+  const browsed = applyFilter(snapshot, { ...filter, keyword }, now);
+  // While an ask is on screen its ranked matches stand in for the browsed list everywhere below.
+  const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
@@ -182,8 +230,14 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   // own topics shows as the topic alone, and must not come back when the topic goes.
   const shownSelection = (current: FilterState): FilterState => ({ ...current, topicIds: applied.topicIds, areaIds: applied.areaIds });
 
-  const selectTopic = (topicId: number) => {
-    const areaId = topicsById.get(topicId)?.areaId;
+  const leaveAsk = () => {
+    askRunner.clear();
+    setAskDraft("");
+    setMode("search");
+  };
+  // Picking a category is browsing again, so it ends an ask.
+  const selectTopic = (topicId: number, areaId: number | null | undefined = topicsById.get(topicId)?.areaId) => {
+    if (ask) leaveAsk();
     if (areaId != null) setExpanded((open) => (open.includes(areaNode(areaId)) ? open : [...open, areaNode(areaId)]));
     setFilter((current) => selectTopicOnly(current, topicId));
     setView("posts");
@@ -191,6 +245,17 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   const clearCategories = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false }));
   const clearPills = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false, author: null, keyword: "" }));
   const clearAll = () => setFilter((current) => ({ ...DEFAULT_FILTER, sort: current.sort, revealHidden: current.revealHidden }));
+  const changeMode = (next: SearchMode) => {
+    if (next === "search") askRunner.clear();
+    setMode(next);
+  };
+  const pin = async () => {
+    if (!ask) return;
+    const pinned = await runAction(pinQuery(ask.query, ask.scores));
+    if (!pinned) return;
+    selectTopic(pinned.topicId, pinned.areaId);
+    toast.success("Pinned as a topic");
+  };
 
   const copyLink = (post: Post) => {
     navigator.clipboard.writeText(post.url).then(
@@ -214,16 +279,25 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
     categoryEdits,
     onCollection: (collection) => setFilter((current) => ({ ...current, collection })),
     onExpandedChange: setExpanded,
-    onToggleTopic: (topicId) => setFilter((current) => toggleTopic(shownSelection(current), topicId)),
-    onToggleArea: (areaId) => setFilter((current) => toggleArea(shownSelection(current), areaId)),
-    onToggleUnfiled: () => setFilter((current) => toggleUnfiled(current)),
+    onToggleTopic: (topicId) => {
+      if (ask) leaveAsk();
+      setFilter((current) => toggleTopic(shownSelection(current), topicId));
+    },
+    onToggleArea: (areaId) => {
+      if (ask) leaveAsk();
+      setFilter((current) => toggleArea(shownSelection(current), areaId));
+    },
+    onToggleUnfiled: () => {
+      if (ask) leaveAsk();
+      setFilter((current) => toggleUnfiled(current));
+    },
     onToggleAuthor: (handle) => setFilter((current) => toggleAuthor(current, handle)),
     onRevealHidden: (revealHidden) => setFilter((current) => ({ ...current, revealHidden })),
   };
 
   const { eyebrow, title, detail } = heading(snapshot, applied);
   const groups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];
-  const listKey = JSON.stringify([applied.collection, applied.topicIds, applied.areaIds, applied.unfiled, applied.author, keyword, applied.timeRange, applied.sort, applied.mediaOnly, applied.revealHidden]);
+  const listKey = JSON.stringify([ask?.query, applied.collection, applied.topicIds, applied.areaIds, applied.unfiled, applied.author, keyword, applied.timeRange, applied.sort, applied.mediaOnly, applied.revealHidden]);
 
   return (
     <TipProvider>
@@ -257,15 +331,23 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
             <StatTiles stats={stats(result.posts)} />
 
             <Toolbar
+              mode={mode}
               keyword={filter.keyword}
+              askDraft={askDraft}
               timeRange={applied.timeRange}
               sort={applied.sort}
               mediaOnly={applied.mediaOnly}
+              sortable={!ask}
+              onMode={changeMode}
+              onAskDraft={setAskDraft}
+              onAsk={() => askRunner.ask(askDraft)}
               onKeyword={(next) => setFilter((current) => ({ ...current, keyword: next }))}
               onTimeRange={(timeRange) => setFilter((current) => ({ ...current, timeRange }))}
               onSort={(sort) => setFilter((current) => ({ ...current, sort }))}
               onMediaOnly={(mediaOnly) => setFilter((current) => ({ ...current, mediaOnly }))}
             />
+
+            {ask ? <AskBar ask={ask} onPin={pin} onRetry={() => askRunner.ask(ask.query)} onClear={leaveAsk} /> : null}
 
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
               <SegmentedControl aria-label="View" value={view} onValueChange={(next) => next && setView(next as View)} className="border-0 bg-sunken p-[3px]">
@@ -279,7 +361,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
               </SegmentedControl>
               <p className="text-[13px] font-medium text-ink-muted" aria-live="polite">
                 <span className="font-bold text-ink tabular-nums">{formatCount(result.posts.length)}</span>{" "}
-                {plural(result.posts.length, "post")}
+                {plural(result.posts.length, ask ? "match" : "post", ask ? "matches" : "posts")}
                 {view === "resources" ? (
                   <>
                     {" · "}
@@ -302,7 +384,9 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
               onClear={clearPills}
             />
 
-            {view === "posts" ? (
+            {ask && result.posts.length === 0 ? (
+              emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)
+            ) : view === "posts" ? (
               result.posts.length === 0 ? (
                 emptyPosts(snapshot, result, clearAll, clearCategories)
               ) : (
@@ -328,7 +412,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
               )
             ) : (
               <>
-                <ResourceList groups={groups.slice(0, RESOURCE_ROWS)} />
+                <ResourcesView key={listKey} groups={groups.slice(0, RESOURCE_ROWS)} dialog={postDialog} />
                 {groups.length > RESOURCE_ROWS ? (
                   <p className="text-center text-[13px] text-ink-muted">
                     Showing the {RESOURCE_ROWS} most saved of <span className="tabular-nums">{formatCount(groups.length)}</span>.
@@ -366,7 +450,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
         topicsById={topicsById}
         chipsFor={(post) => postChips(post, applied)}
         activeTopicIds={applied.topicIds}
-        keyword={keyword}
+        keyword={applied.keyword === "" ? "" : keyword}
         onSelectTopic={selectTopic}
         onCopyLink={copyLink}
       />
