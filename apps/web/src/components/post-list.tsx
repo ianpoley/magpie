@@ -7,6 +7,7 @@ import type { FilterState, Post, Topic } from "@/lib/types";
 
 import { formatCount } from "./format";
 import { PostCard, type PostDialogController } from "./post-card";
+import type { PostTopicsController } from "./post-topics-editor";
 
 const PAGE = 60;
 
@@ -33,6 +34,7 @@ export function PostList({
   filter,
   topicsById,
   dialog,
+  topicsEditor,
   onSelectTopic,
   onCopyLink,
 }: {
@@ -41,6 +43,7 @@ export function PostList({
   filter: FilterState;
   topicsById: Map<number, Topic>;
   dialog: PostDialogController;
+  topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
   onCopyLink: (post: Post) => void;
 }) {
@@ -76,6 +79,7 @@ export function PostList({
               activeTopicIds={filter.topicIds}
               keyword={filter.keyword}
               dialog={dialog}
+              topicsEditor={topicsEditor}
               onSelectTopic={onSelectTopic}
               onCopyLink={onCopyLink}
             />

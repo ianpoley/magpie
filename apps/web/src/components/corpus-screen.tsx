@@ -24,11 +24,13 @@ import { resourcesFor } from "@/lib/resources";
 import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
 
 import { ActiveFilters } from "./active-filters";
+import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { formatCount, plural } from "./format";
 import { PostDialog } from "./post-dialog";
 import { PostList } from "./post-list";
+import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { ResourceList } from "./resource-list";
 import { Sidebar, type SidebarProps } from "./sidebar";
 import { StatTiles } from "./stat-tiles";
@@ -137,6 +139,8 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
   const [postDialog] = useState(() => createDialogController<string>());
   const [whatChanged] = useState(createWhatChangedController);
   const [sidebarPanel] = useState(() => createDialogController());
+  const [categoryEdits] = useState(createCategoryEdits);
+  const [topicsEditor] = useState(createPostTopicsController);
 
   // The store changes underneath the page every few hours, and on every edit.
   useEffect(() => {
@@ -207,6 +211,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
     authors,
     expanded,
     whatChanged,
+    categoryEdits,
     onCollection: (collection) => setFilter((current) => ({ ...current, collection })),
     onExpandedChange: setExpanded,
     onToggleTopic: (topicId) => setFilter((current) => toggleTopic(shownSelection(current), topicId)),
@@ -308,6 +313,7 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
                   filter={applied}
                   topicsById={topicsById}
                   dialog={postDialog}
+                  topicsEditor={topicsEditor}
                   onSelectTopic={selectTopic}
                   onCopyLink={copyLink}
                 />
@@ -355,6 +361,8 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
       <PostDialog
         controller={postDialog}
         postsById={postsById}
+        topics={snapshot.topics}
+        areas={snapshot.areas}
         topicsById={topicsById}
         chipsFor={(post) => postChips(post, applied)}
         activeTopicIds={applied.topicIds}
@@ -362,7 +370,16 @@ export function CorpusScreen({ snapshot, now }: { snapshot: Snapshot; now: numbe
         onSelectTopic={selectTopic}
         onCopyLink={copyLink}
       />
+      <PostTopicsEditor
+        controller={topicsEditor}
+        postsById={postsById}
+        topics={snapshot.topics}
+        areas={snapshot.areas}
+        topicsById={topicsById}
+        listed={new Set(result.posts.map((post) => post.id))}
+      />
       <WhatChanged controller={whatChanged} changes={snapshot.changes} />
+      <CategoryDialogs edits={categoryEdits} topics={snapshot.topics} areas={snapshot.areas} topicsById={topicsById} areasById={areasById} />
 
       <ToastRegion side="bottom" align="center" className="mb-6 w-fit [&_[data-slot=toast-list]]:items-center">
         {(state) => (

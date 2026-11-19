@@ -15,3 +15,36 @@ export const menuContent =
 
 export const menuItem =
   "rounded-[9px] data-highlighted:bg-sunken data-checked:font-semibold data-checked:text-primary-text [&_[data-slot=menu-item-indicator]]:text-primary";
+
+/** Popups mounted inside the sidebar read the page's colors, not the ink that sits on the gradient. */
+export const pageColors =
+  "[--ui-background:var(--color-surface)] [--ui-foreground:var(--color-ink)] [--ui-muted:var(--color-sunken)] " +
+  "[--ui-muted-foreground:var(--color-ink-muted)] [--ui-border:var(--color-line)]";
+
+export const dialogContent =
+  "gap-0 overflow-hidden rounded-[20px] border-0 p-0 data-starting-style:translate-y-3 data-starting-style:scale-[0.97] data-ending-style:scale-[0.97]";
+
+const POPUP_MOTION =
+  "transition-[opacity,translate,scale] duration-200 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
+
+/** A question that needs an answer: narrower than a dialog, with its own padding. */
+export const alertContent =
+  `w-[min(26rem,calc(100%-1.5rem))] gap-0 rounded-[20px] border-0 p-5 data-starting-style:scale-[0.97] data-ending-style:scale-[0.97] ${POPUP_MOTION}`;
+
+export const alertBackdrop =
+  "bg-[color-mix(in_oklch,var(--color-ink)_45%,transparent)] transition-opacity duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
+
+const ANSWER = "focus-ring pressable h-9 cursor-pointer rounded-full px-4 text-[13px] font-semibold data-pending:cursor-progress data-pending:opacity-70";
+
+export const quietAnswer = `${ANSWER} border-0 bg-surface text-ink shadow-card hover:bg-surface hover:shadow-card-hover`;
+export const primaryAnswer = `${ANSWER} bg-primary-fill border-0 text-on-primary shadow-primary disabled:cursor-default disabled:opacity-50`;
+export const dangerAnswer =
+  `${ANSWER} border-0 bg-like-soft text-like-text hover:bg-[color-mix(in_oklch,var(--color-like-soft)_88%,var(--color-like))]`;
+
+export const popupList =
+  `${menuContent} max-h-[min(18rem,var(--available-height))] w-(--anchor-width) overflow-y-auto overscroll-contain`;
+
+/** A text field on a white surface; its focus ring matches the search field's. */
+export const textField =
+  "w-full rounded-full text-[16px] outline-none transition-shadow duration-150 ease-out placeholder:text-ink-muted " +
+  "focus-visible:border-primary focus-visible:shadow-[0_0_0_1px_var(--color-primary)] sm:text-[14px]";

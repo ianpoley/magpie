@@ -2,15 +2,18 @@
 
 import { Button } from "@ui-sdk/react/button";
 import { Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
-import { ExternalLink, Heart, Link2, X } from "lucide-react";
+import { PopoverTrigger } from "@ui-sdk/react/popover";
+import { ExternalLink, Heart, Link2, Tags, X } from "lucide-react";
+import { useState } from "react";
 
 import { authorHue } from "@/lib/author-hues";
-import type { Chip, Post, Topic } from "@/lib/types";
+import type { Area, Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
 import { MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, type PostDialogController } from "./post-card";
+import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { iconButton } from "./styles";
 import { TopicChip } from "./topic-chip";
 
@@ -21,6 +24,8 @@ const CONTENT =
 export function PostDialog({
   controller,
   postsById,
+  topics,
+  areas,
   topicsById,
   chipsFor,
   activeTopicIds,
@@ -30,6 +35,8 @@ export function PostDialog({
 }: {
   controller: PostDialogController;
   postsById: Map<string, Post>;
+  topics: Topic[];
+  areas: Area[];
   topicsById: Map<number, Topic>;
   chipsFor: (post: Post) => Chip[];
   activeTopicIds: number[];
@@ -37,6 +44,7 @@ export function PostDialog({
   onSelectTopic: (topicId: number) => void;
   onCopyLink: (post: Post) => void;
 }) {
+  const [topicsEditor] = useState(createPostTopicsController);
   return (
     <Dialog controller={controller}>
       <DialogBackdrop />
@@ -82,27 +90,35 @@ export function PostDialog({
                 {post.text ? <PostText text={post.text} keyword={keyword} links className="text-[16px]" /> : null}
                 {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} full /> : null}
                 <MediaGrid media={post.media} full />
-                {chips.length > 0 ? (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {chips.map((chip) => {
-                      const topic = topicsById.get(chip.topicId);
-                      if (!topic) return null;
-                      return (
-                        <li key={chip.topicId} className="flex min-w-0">
-                          <TopicChip
-                            name={topic.name}
-                            possible={chip.possible}
-                            active={activeTopicIds.includes(chip.topicId)}
-                            onSelect={() => {
-                              onSelectTopic(chip.topicId);
-                              controller.close();
-                            }}
-                          />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
+                <ul className="flex flex-wrap items-center gap-1.5">
+                  {chips.map((chip) => {
+                    const topic = topicsById.get(chip.topicId);
+                    if (!topic) return null;
+                    return (
+                      <li key={chip.topicId} className="flex min-w-0">
+                        <TopicChip
+                          name={topic.name}
+                          possible={chip.possible}
+                          active={activeTopicIds.includes(chip.topicId)}
+                          onSelect={() => {
+                            onSelectTopic(chip.topicId);
+                            controller.close();
+                          }}
+                        />
+                      </li>
+                    );
+                  })}
+                  <li className="flex">
+                    <PopoverTrigger
+                      controller={topicsEditor}
+                      payload={post.id}
+                      className="focus-ring pressable inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-[12px] font-semibold text-ink-muted shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-sunken hover:text-ink data-open:bg-sunken data-open:text-ink"
+                    >
+                      <Tags className="size-3.5" aria-hidden="true" />
+                      Edit topics
+                    </PopoverTrigger>
+                  </li>
+                </ul>
               </div>
 
               <footer className="flex items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">
@@ -128,6 +144,7 @@ export function PostDialog({
                   </Button>
                 </div>
               </footer>
+              <PostTopicsEditor align="start" controller={topicsEditor} postsById={postsById} topics={topics} areas={areas} topicsById={topicsById} />
             </>
           );
         }}
