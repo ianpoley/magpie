@@ -21,15 +21,15 @@ tags: [nextjs, dev-server, parallel-agents, scratch-store, browser-verification,
 
 ## Context
 
-During the corpus-screen build, the orchestrating session kept one `next dev` running in `apps/web` so the user could watch the screen change. Workers building later units each started their own `next dev` in the same directory, pointed at a scratch copy of the store, for browser checks that edit categories.
+During the corpus-screen build, the orchestrating session kept one `next dev` running in `apps/web` so the user could watch the screen change. Workers building later units each tried to start their own `next dev` in the same directory, pointed at a scratch copy of the store, for browser checks that edit categories.
 
-The shared server on port 3000 was stopped more than once without the orchestrator asking, each time while a worker was starting or stopping its own `next dev` in the same directory. The exact kill was not traced; the session attributed it to the workers' start and stop steps. One worker also tried `pkill -f next-server`, which would have taken down every Next process on the machine, including an unrelated server on another port; the permission system refused it. An earlier scaffold session in this repo stopped its server with `pkill -f "next dev"`, the same pattern.
+The shared server on port 3000 was stopped more than once without the orchestrator asking, each time while a worker was starting or stopping its own `next dev` in the same directory. The exact kill was not traced; the session attributed it to the workers' start and stop steps. Next's own behaviour makes that likely: a second `next dev` cannot run beside the first, and it exits printing a `kill <pid>` hint for the server that holds the lock. One worker also tried `pkill -f next-server`, which would have taken down every Next server on the machine, including an unrelated server on another port; the permission system refused it. An earlier scaffold session in this repo stopped its server with `pkill -f "next dev"`, the same pattern.
 
 Two things were wrong in the working belief. A different port does not make a second dev server independent, and stopping "the dev server" by name is not scoped to the one you started.
 
 ## Guidance
 
-**One `next dev` per app directory.** Next keeps a single dev server per project. It writes the PID, port and URL to `apps/web/.next/dev/lock`; a second `next dev` in the same project prints the existing server's URL and PID with a command to stop it (`apps/web/node_modules/next/dist/docs/01-app/02-guides/ai-agents.md`). A worker that follows that suggestion kills someone else's server. Use the running one, or leave it alone.
+**One `next dev` per app directory.** Next keeps a single dev server per project. It writes the PID, port and URL to `apps/web/.next/dev/lock`; a second `next dev` in the same project prints the existing server's URL and PID with a command to stop it (`apps/web/node_modules/next/dist/docs/01-app/02-guides/ai-agents.md`). It then exits. A worker that follows that suggestion kills someone else's server. Use the running one, or leave it alone.
 
 **Read-only checks use the running dev server.** It serves the live store. Do not trigger anything that writes there: no category edit, pin, post removal or undo.
 
@@ -43,12 +43,12 @@ X_CORPUS_STORE=/path/to/scratch/copy.sqlite ./node_modules/.bin/next start -H 12
 
 - The build writes to `apps/web/.next/` and the dev server works under `apps/web/.next/dev/`, so the two coexist. In this session a build and a `next start` on another port ran several times beside the dev server on 3000 without disturbing it.
 - `X_CORPUS_STORE` is read when the store is opened, not at build time, so one build serves any copy.
-- Make the copy with SQLite's `VACUUM INTO` through `node:sqlite`, which gives a consistent file even if the sync job is writing. Keep the copy outside the repo's `state/` directory.
+- Make the copy with SQLite's `VACUUM INTO` through `node:sqlite`, as this session did; SQLite writes the copy from one consistent read of the database. Keep the copy outside the repo's `state/` directory.
 - Keep `-H 127.0.0.1`. The app has no auth and its server actions edit the store.
 
 **Stop only what you started, by PID.** Record the PID when you start a server and kill that PID. Never `pkill -f next`, `pkill -f "next dev"` or `pkill -f next-server`, and never kill whatever holds a port you did not open.
 
-**If a build fails on a lock while the dev server runs, report it.** Do not stop the dev server to get past it. This did not happen in the session, but the rule kept the shared server safe.
+**If a build fails on a lock while the dev server runs, report it.** Do not stop the dev server to get past it. The build lock is `apps/web/.next/lock` (it exists only while a build runs), separate from the dev lock, so a build lock failure points at another `next build` or one that did not exit cleanly, not at the dev server. This did not happen in the session.
 
 ## Why This Matters
 
@@ -69,8 +69,8 @@ Killing by name is wider than it looks: a pattern match cannot tell this app's s
 Before, per worker (the shape of what the sessions did, not a verbatim command):
 
 ```bash
-cd apps/web && X_CORPUS_STORE=$COPY bunx next dev -p 3107 &   # second dev server in the project
-# ... checks ...
+cd apps/web && X_CORPUS_STORE=$COPY bunx next dev -p 3107 &   # refused while another dev server holds the lock; prints a kill hint
+# ... follow the hint or restart, then checks ...
 pkill -f "next dev"                                            # stops every dev server, including the user's
 ```
 
@@ -91,4 +91,4 @@ A production build has no hot reload. A worker that is iterating on UI code rebu
 
 - `apps/web/README.md`, "Run it"
 - `packages/engine/src/config.ts`: `paths()` and the `X_CORPUS_STORE` override
-- `docs/solutions/build-errors/turbopack-static-import-of-engine-workspace-package.md`: why the engine loads at runtime, which is what lets one build serve any store file
+- `docs/solutions/build-errors/turbopack-static-import-of-engine-workspace-package.md`: why the engine loads at runtime; because `paths()` reads the environment on each call, one build serves any store file
