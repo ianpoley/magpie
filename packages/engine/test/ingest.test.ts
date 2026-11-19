@@ -241,3 +241,15 @@ test('a malformed export file leaves the store unchanged and reports the error',
   assert.throws(() => ingest(db, { ...good, likesPath: join(dir, 'absent.json') }), /absent\.json/);
   assert.deepEqual(dump(db), before);
 });
+
+test('the HTML entities X escapes in post text are stored decoded, in the post and its quoted post', (t) => {
+  const { db, dir } = setup(t);
+  const quoted = exportPost('901', { text: 'a &lt;dialog&gt; &amp; more' });
+  const post = exportPost('1', { text: 'if (a &lt; b &amp;&amp; c &gt; d) &amp;amp;', quoted });
+  ingest(db, writeExports(dir, { bookmarks: [post], likes: [] }));
+
+  const row = db.prepare(`SELECT text, quoted_json FROM posts WHERE id = '1'`).get();
+  assert.ok(row);
+  assert.equal(row.text, 'if (a < b && c > d) &amp;');
+  assert.equal(JSON.parse(String(row.quoted_json)).text, 'a <dialog> & more');
+});
