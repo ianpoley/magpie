@@ -26,6 +26,8 @@ const SORTS: { value: Sort; label: string }[] = [
 
 export type SearchMode = "search" | "ask";
 
+export const SEARCH_INPUT_ID = "post-search";
+
 const MODE_ITEM = "focus-ring h-7 gap-1.5 px-3 text-[13px] font-semibold [&>svg]:size-3.5";
 
 const CHANGED = "bg-primary-soft text-primary-text shadow-none [&>svg]:text-primary-text hover:bg-primary-soft hover:shadow-none";
@@ -129,6 +131,8 @@ export function Toolbar({
             </SegmentedControlItem>
           </SegmentedControl>
           <Input
+            id={SEARCH_INPUT_ID}
+            aria-keyshortcuts="/"
             type="search"
             enterKeyHint="search"
             aria-label={asking ? "Ask about your saved posts" : "Search saved posts"}

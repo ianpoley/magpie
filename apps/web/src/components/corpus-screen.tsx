@@ -41,7 +41,7 @@ import { Sidebar, type SidebarProps } from "./sidebar";
 import { SidebarResizer } from "./sidebar-resizer";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
-import { Toolbar, type SearchMode } from "./toolbar";
+import { SEARCH_INPUT_ID, Toolbar, type SearchMode } from "./toolbar";
 import { createWhatChangedController, WhatChanged } from "./what-changed";
 
 type View = "posts" | "resources";
@@ -218,6 +218,20 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [router]);
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
+      const input = document.getElementById(SEARCH_INPUT_ID);
+      if (!input) return;
+      event.preventDefault();
+      input.focus();
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
 
   const keyword = useDeferredValue(filter.keyword);
   const browsed = applyFilter(snapshot, { ...filter, keyword }, now);
