@@ -125,9 +125,9 @@ export function PostDialog({
                         onSelectAuthor(post.authorHandle);
                         controller.close();
                       }}
-                      className="focus-ring pointer-events-auto max-w-full cursor-pointer truncate rounded-[4px] border-0 bg-transparent p-0 text-left decoration-current/40 underline-offset-2 hover:underline"
+                      className="focus-ring pointer-events-auto relative max-w-full min-w-0 cursor-pointer rounded-[4px] border-0 bg-transparent p-0 text-left decoration-current/40 underline-offset-2 after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] hover:underline"
                     >
-                      {post.authorName}
+                      <span className="block truncate">{post.authorName}</span>
                     </button>
                   </DialogTitle>
                   <DialogDescription className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">

@@ -125,8 +125,10 @@ export function PostCard({
           <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} />
           <div className="min-w-0 flex-1">
             <p className="flex text-[15px] leading-tight font-bold" style={{ color: hue.fg }}>
-              <button type="button" aria-label={`Show posts by ${post.authorName}`} onClick={() => onSelectAuthor(post.authorHandle)} className="focus-ring pointer-events-auto max-w-full cursor-pointer truncate rounded-[4px] border-0 bg-transparent p-0 text-left decoration-current/40 underline-offset-2 hover:underline">
-                <Marked text={post.authorName} keyword={keyword} />
+              <button type="button" aria-label={`Show posts by ${post.authorName}`} onClick={() => onSelectAuthor(post.authorHandle)} className="focus-ring pointer-events-auto relative max-w-full min-w-0 cursor-pointer rounded-[4px] border-0 bg-transparent p-0 text-left decoration-current/40 underline-offset-2 after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] hover:underline">
+                <span className="block truncate">
+                  <Marked text={post.authorName} keyword={keyword} />
+                </span>
               </button>
             </p>
             <p className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">
