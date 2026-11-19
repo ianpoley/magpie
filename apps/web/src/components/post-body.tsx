@@ -6,8 +6,9 @@ import type { LinkedPage, Media, QuotedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 
-export function Marked({ text, keyword }: { text: string; keyword: string }) {
-  const ranges = highlightRanges(text, keyword);
+/** Text with the search marked. `phrase` marks the query only as typed, for the category search. */
+export function Marked({ text, keyword, phrase = false }: { text: string; keyword: string; phrase?: boolean }) {
+  const ranges = highlightRanges(text, keyword, phrase);
   if (ranges.length === 0) return text;
   const parts: React.ReactNode[] = [];
   let at = 0;

@@ -9,9 +9,13 @@ const TERM = /["“”]([^"“”]+)["“”]|(\S+)/g;
 const words = (query: string): string[] =>
   Array.from(query.matchAll(TERM), (match) => (match[1] ?? match[2]).trim().replace(/^["“”]+|["“”]+$/g, "")).filter(Boolean);
 
-// Longest first, so where one word contains another the whole of it is marked.
-export function highlightRanges(text: string, query: string): Range[] {
-  const terms = words(query).sort((a, b) => b.length - a.length);
+/**
+ * Where the query occurs in the text. Each word is marked on its own, longest
+ * first so a word inside another is marked whole; with `phrase`, only the
+ * query as typed is marked, for searches that match it that way.
+ */
+export function highlightRanges(text: string, query: string, phrase = false): Range[] {
+  const terms = phrase ? [query.trim()].filter(Boolean) : words(query).sort((a, b) => b.length - a.length);
   if (terms.length === 0) return [];
   const pattern = new RegExp(terms.map(escape).join("|"), "gi");
   return Array.from(text.matchAll(pattern), (match): Range => [match.index, match.index + match[0].length]);

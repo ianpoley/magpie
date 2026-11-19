@@ -41,7 +41,7 @@ function TopicRow({ topic, prefix, menu, query }: { topic: Topic; prefix?: strin
       <TreeItemLabel className={ROW} title={topic.definition || undefined}>
         <span className="min-w-0 truncate">
           {prefix ? <span className="text-side-muted">{prefix} › </span> : null}
-          <Marked text={topic.name} keyword={query} />
+          <Marked text={topic.name} keyword={query} phrase />
         </span>
         <Count value={topic.postCount} />
         <CategoryMenuTrigger menu={menu} target={{ kind: "topic", id: topic.id }} name={topic.name} />
@@ -72,7 +72,7 @@ function AreaRow({
         </TreeItemIndicator>
         {Icon ? <Icon className="size-3.5 shrink-0 text-side-muted" aria-hidden="true" /> : null}
         <span className="min-w-0 truncate font-semibold">
-          <Marked text={area.name} keyword={query} />
+          <Marked text={area.name} keyword={query} phrase />
         </span>
         <Count value={area.postCount} />
         {area.kind === "system" ? MENU_GAP : <CategoryMenuTrigger menu={menu} target={{ kind: "area", id: area.id }} name={area.name} />}
@@ -219,7 +219,7 @@ export function CategoryTree({
             <TreeItemLabel className={`${ROW} ps-2`}>
               <Inbox className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
               <span className="truncate font-semibold">
-                <Marked text={UNFILED_LABEL} keyword={needle} />
+                <Marked text={UNFILED_LABEL} keyword={needle} phrase />
               </span>
               <Count value={counts.unfiled} />
               {MENU_GAP}
@@ -237,7 +237,7 @@ export function CategoryTree({
               </TreeItemIndicator>
               <EyeOff className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate font-semibold">
-                <Marked text={HIDDEN_LABEL} keyword={needle} />
+                <Marked text={HIDDEN_LABEL} keyword={needle} phrase />
               </span>
               <Count value={hiddenCount} />
               {MENU_GAP}
