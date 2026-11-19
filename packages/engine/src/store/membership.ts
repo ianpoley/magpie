@@ -1,0 +1,181 @@
+import type { DatabaseSync } from 'node:sqlite';
+
+import { BANDS } from '../config.ts';
+
+/**
+ * Which posts are in which topic, and which posts are Unfiled, hidden or
+ * pending. Each is defined once, here, as a view in the store, so the sync
+ * job, the web app and the skill read the same answer with plain SQL.
+ *
+ * All five views cover visible posts only (bookmarked or liked).
+ *
+ *   scoring_topics   (topic_id, target_id)
+ *     Every definition posts are scored against, with the active topic its
+ *     matches count for: an active topic counts for itself, a merged-away
+ *     topic for the active topic at the end of its merge chain.
+ *
+ *   pairs_to_score   (post_id, topic_id)
+ *     Post and definition pairs that need a score: none stored yet, or the
+ *     stored one is older than a link of the post that resolved to a page with
+ *     a title or description.
+ *
+ *   topic_membership (post_id, topic_id, area_id, band, probability, strength,
+ *                     hidden, pinned)
+ *     One row per post and active topic the post is in.
+ *       band         'confident' | 'unsure'
+ *       probability  best score among the topic's definitions; NULL when only
+ *                    a per-post decision places the post
+ *       strength     order within a band, highest first
+ *       hidden       1 when the topic or its area is hidden
+ *       pinned       1 when the topic is a pinned search
+ *     Per post and topic, first match wins:
+ *       the user removed the post from the topic        -> not in it
+ *       the user added the post to the topic            -> confident
+ *       best score >= confident threshold               -> confident
+ *       best score >= unsure threshold                  -> unsure
+ *       a split carried the post onto the topic         -> unsure
+ *       otherwise                                       -> not in it
+ *     A decision recorded on a merged-away topic follows it: an add or a carry
+ *     counts for the surviving topic, a remove discards that definition's
+ *     score only.
+ *
+ *   post_unfiled     (post_id)  No confident match in any topic.
+ *
+ *   post_hidden      (post_id)  The best match is in a hidden topic or area and
+ *     no visible topic matches confidently. Pinned searches are ignored.
+ *
+ *   post_pending     (post_id)  A score is still needed, or a link has not
+ *     been resolved yet and will be tried again.
+ *
+ * The two thresholds are read from `meta` (`band_confident`, `band_unsure`),
+ * so changing them re-bands every stored score without scoring anything again.
+ *
+ * This text is a shipped migration. To change a view, add a new constant that
+ * drops and recreates it and append that as a new migration.
+ */
+export const MEMBERSHIP_VIEWS_V1 = `
+  INSERT OR IGNORE INTO meta (key, value) VALUES ('band_confident', '0.7'), ('band_unsure', '0.3');
+
+  DROP VIEW IF EXISTS scoring_topics;
+  CREATE VIEW scoring_topics AS
+  WITH RECURSIVE chain (topic_id, target_id) AS (
+    SELECT id, id FROM topics WHERE state = 'active'
+    UNION ALL
+    SELECT t.id, chain.target_id
+    FROM topics t JOIN chain ON t.merged_into = chain.topic_id
+    WHERE t.state = 'merged'
+  )
+  SELECT topic_id, target_id FROM chain;
+
+  DROP VIEW IF EXISTS pairs_to_score;
+  CREATE VIEW pairs_to_score AS
+  WITH page_resolved AS (
+    SELECT pl.post_id, MAX(l.resolved_at) AS at
+    FROM post_links pl JOIN links l ON l.url = pl.link_url
+    WHERE l.status = 'resolved' AND (l.title IS NOT NULL OR l.description IS NOT NULL)
+    GROUP BY pl.post_id
+  )
+  SELECT p.id AS post_id, st.topic_id
+  FROM posts p
+  CROSS JOIN scoring_topics st
+  LEFT JOIN scores s ON s.post_id = p.id AND s.topic_id = st.topic_id
+  LEFT JOIN page_resolved pr ON pr.post_id = p.id
+  WHERE (p.bookmarked = 1 OR p.liked = 1)
+    AND (s.post_id IS NULL OR pr.at > s.scored_at);
+
+  DROP VIEW IF EXISTS topic_membership;
+  CREATE VIEW topic_membership AS
+  WITH thresholds AS (
+    SELECT
+      (SELECT CAST(value AS REAL) FROM meta WHERE key = 'band_confident') AS confident,
+      (SELECT CAST(value AS REAL) FROM meta WHERE key = 'band_unsure') AS unsure
+  ),
+  claims AS (
+    SELECT s.post_id, st.target_id AS topic_id, s.probability, 0 AS added, 0 AS carried
+    FROM scores s
+    JOIN scoring_topics st ON st.topic_id = s.topic_id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM overrides o
+      WHERE o.post_id = s.post_id AND o.topic_id = s.topic_id AND o.action = 'remove'
+    )
+    UNION ALL
+    SELECT o.post_id, st.target_id, NULL, o.action = 'add', o.action = 'unsure'
+    FROM overrides o
+    JOIN scoring_topics st ON st.topic_id = o.topic_id
+    WHERE o.action IN ('add', 'unsure')
+  ),
+  best AS (
+    SELECT post_id, topic_id,
+      MAX(probability) AS probability,
+      MAX(added) AS added,
+      MAX(carried) AS carried
+    FROM claims
+    GROUP BY post_id, topic_id
+  )
+  SELECT
+    b.post_id,
+    b.topic_id,
+    t.area_id,
+    CASE WHEN b.added = 1 OR b.probability >= th.confident THEN 'confident' ELSE 'unsure' END AS band,
+    b.probability,
+    CASE WHEN b.added = 1 THEN 1.0 ELSE COALESCE(b.probability, 0.0) END AS strength,
+    CASE WHEN t.hidden = 1 OR a.hidden = 1 THEN 1 ELSE 0 END AS hidden,
+    CASE WHEN t.kind = 'pinned' THEN 1 ELSE 0 END AS pinned
+  FROM best b
+  JOIN posts p ON p.id = b.post_id AND (p.bookmarked = 1 OR p.liked = 1)
+  JOIN topics t ON t.id = b.topic_id
+  LEFT JOIN areas a ON a.id = t.area_id
+  CROSS JOIN thresholds th
+  WHERE (b.added = 1 OR b.carried = 1 OR b.probability >= th.unsure)
+    AND NOT EXISTS (
+      SELECT 1 FROM overrides o
+      WHERE o.post_id = b.post_id AND o.topic_id = b.topic_id AND o.action = 'remove'
+    );
+
+  DROP VIEW IF EXISTS post_unfiled;
+  CREATE VIEW post_unfiled AS
+  SELECT p.id AS post_id
+  FROM posts p
+  WHERE (p.bookmarked = 1 OR p.liked = 1)
+    AND p.id NOT IN (SELECT post_id FROM topic_membership WHERE band = 'confident');
+
+  DROP VIEW IF EXISTS post_hidden;
+  CREATE VIEW post_hidden AS
+  SELECT post_id
+  FROM topic_membership
+  WHERE pinned = 0
+  GROUP BY post_id
+  HAVING MAX(band = 'confident' AND hidden = 0) = 0
+    AND (
+      MAX(band = 'confident' AND hidden = 1) = 1
+      OR COALESCE(MAX(CASE WHEN hidden = 1 THEN strength END), -1)
+       > COALESCE(MAX(CASE WHEN hidden = 0 THEN strength END), -1)
+    );
+
+  DROP VIEW IF EXISTS post_pending;
+  CREATE VIEW post_pending AS
+  SELECT post_id FROM pairs_to_score
+  UNION
+  SELECT pl.post_id
+  FROM post_links pl
+  JOIN links l ON l.url = pl.link_url
+  JOIN posts p ON p.id = pl.post_id
+  WHERE (p.bookmarked = 1 OR p.liked = 1)
+    AND l.status IN ('new', 'failed');
+`;
+
+/**
+ * Stores the two band thresholds where the membership view reads them. The
+ * sync job calls this at the start of a run so the store follows the config.
+ */
+export function syncBands(
+  db: DatabaseSync,
+  bands: { confident: number; unsure: number } = BANDS,
+): void {
+  const set = db.prepare(
+    `INSERT INTO meta (key, value) VALUES (?, ?)
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value WHERE value <> excluded.value`,
+  );
+  set.run('band_confident', String(bands.confident));
+  set.run('band_unsure', String(bands.unsure));
+}
