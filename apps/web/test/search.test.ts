@@ -83,3 +83,8 @@ test("addresses on X itself are not searched, other addresses are", () => {
   assert.equal(matchesKeyword(linking, "acme"), true);
   assert.equal(matchesKeyword(linking, "status-page"), true);
 });
+
+test("phrase highlighting marks the query only as typed", () => {
+  assert.deepEqual(highlightRanges("Coding Agent Tools", "agent tools", true), [[7, 18]]);
+  assert.deepEqual(highlightRanges("Agent Skills", "agent tools", true), []);
+});
