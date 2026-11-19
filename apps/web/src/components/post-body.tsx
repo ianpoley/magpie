@@ -29,11 +29,13 @@ export function PostText({
   text,
   keyword,
   links = false,
+  id,
   className = "",
 }: {
   text: string;
   keyword: string;
   links?: boolean;
+  id?: string;
   className?: string;
 }) {
   const parts: React.ReactNode[] = [];
@@ -60,7 +62,7 @@ export function PostText({
     at = match.index + url.length;
   }
   if (at < text.length) parts.push(<Marked key={`t${at}`} text={text.slice(at)} keyword={keyword} />);
-  return <p className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
+  return <p id={id} className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
 }
 
 /** The titles of the pages a post links to. With `links`, each row opens its page. */

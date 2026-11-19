@@ -105,12 +105,14 @@ export function PostCard({
   const date = formatDate(post.createdAt);
   const page = post.linkedPages.slice(0, 1);
   const text = withoutTrailingUrl(post.text, page[0]?.url ?? null);
+  const textId = `post-text-${post.id}`;
   return (
     <article className="relative rounded-card bg-surface shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover">
       <DialogTrigger
         controller={dialog}
         payload={post.id}
         aria-label={`Open post by ${post.authorName}`}
+        aria-describedby={text ? textId : undefined}
         className="focus-ring absolute inset-0 size-full cursor-pointer rounded-card border-0 bg-transparent p-0 hover:bg-transparent"
       />
       <div className="pointer-events-none relative flex flex-col gap-3 p-4 sm:p-5">
@@ -130,7 +132,7 @@ export function PostCard({
           <CollectionMarks post={post} />
         </header>
 
-        {text ? <PostText text={text} keyword={keyword} className="line-clamp-[9]" /> : null}
+        {text ? <PostText id={textId} text={text} keyword={keyword} className="line-clamp-[9]" /> : null}
         <LinkedPages pages={page} keyword={keyword} />
         {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} /> : null}
         <MediaGrid media={post.media} />
