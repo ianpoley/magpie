@@ -7,6 +7,7 @@
   "scripts": {
     "sync": "bash bin/birdclaw-nightly.sh",
     "build:markdown": "node bin/build-markdown.mjs ../../data/bookmarks.json ../../markdown/bookmarks bookmark ../../data/bookmarks.normalized.jsonl && node bin/build-markdown.mjs ../../data/likes.json ../../markdown/likes like ../../data/likes.normalized.jsonl",
+    "categorize": "node bin/categorize.mjs",
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc -p tsconfig.json"
   },
