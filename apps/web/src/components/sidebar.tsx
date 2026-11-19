@@ -40,7 +40,7 @@ export type SidebarProps = {
   snapshot: Snapshot;
   now: number;
   filter: FilterState;
-  totals: { everything: number; bookmarks: number; likes: number; unfiled: number };
+  totals: { everything: number; bookmarks: number; likes: number };
   authors: AuthorCount[];
   expanded: string[];
   whatChanged: WhatChangedController;
@@ -175,7 +175,6 @@ export function Sidebar({
                   filter={filter}
                   query={categoryQuery}
                   expanded={expanded}
-                  unfiledCount={totals.unfiled}
                   edits={categoryEdits}
                   onExpandedChange={onExpandedChange}
                   onToggleTopic={onToggleTopic}

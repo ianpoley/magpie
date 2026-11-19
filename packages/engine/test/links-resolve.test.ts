@@ -499,6 +499,10 @@ for (const address of ['127.0.0.1', '192.168.1.5', '::1', '::ffff:10.0.0.1', '16
 test('addresses set aside for translation, tunnelling, multicast, testing and future use are never requested', async (t) => {
   const refused = [
     '64:ff9b::a00:1',
+    '64:ff9b:1::a00:1',
+    '::ffff:0:a00:1',
+    '2001:0:4136:e378:8000:63bf:f5ff:fffe',
+    '2001:db8::1',
     '::10.0.0.1',
     '2002:c0a8:101::1',
     'fec0::1',

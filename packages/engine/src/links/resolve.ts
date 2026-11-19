@@ -189,8 +189,13 @@ for (const [network, prefix] of [
   ['::1', 128],
   // Ranges that carry an IPv4 address inside them, which may be a private one.
   ['::', 96],
+  ['::ffff:0:0:0', 96],
   ['64:ff9b::', 96],
+  ['64:ff9b:1::', 48],
+  ['2001::', 32],
   ['2002::', 16],
+  // Used in examples only; nothing real answers there.
+  ['2001:db8::', 32],
   ['fc00::', 7],
   ['fe80::', 10],
   ['fec0::', 10],

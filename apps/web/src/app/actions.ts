@@ -170,10 +170,6 @@ export async function pinQuery(query: string, scores: { postId: string; probabil
   );
 }
 
-export async function unpin(topicId: number) {
-  return withStore(WRITE, () => id(topicId, "The topic"), (db, edits, topic) => edits.unpin(db, topic));
-}
-
 /** Every change that undoing this one would reverse, newest first, for the confirmation. */
 export async function listUndo(changeId: number) {
   return withStore(

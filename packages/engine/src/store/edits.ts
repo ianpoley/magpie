@@ -23,6 +23,7 @@ export type EditErrorCode =
   | 'invalid_name'
   | 'invalid_score'
   | 'merge_into_self'
+  | 'pinned_target'
   | 'not_pinned'
   | 'system_area'
   | 'not_undoable'
@@ -94,13 +95,16 @@ export function renameArea(db: Store, areaId: number, name: string): { areaId: n
  * Folds `fromId` into `intoId`. The merged-away topic's definition keeps being
  * scored and its matches count for the survivor. Its per-post fixes move to
  * the survivor; where both topics have a fix for the same post, the
- * survivor's own stays.
+ * survivor's own stays. A pinned search cannot be the survivor: deleting it
+ * removes it outright, which would leave the merged topic pointing at nothing.
  */
 export function mergeTopics(db: Store, fromId: number, intoId: number): { fromId: number; intoId: number } {
   return transaction(db, () => {
     if (fromId === intoId) throw new EditError('merge_into_self', 'A topic cannot be merged into itself.');
     activeTopic(db, fromId);
-    activeTopic(db, intoId);
+    if (activeTopic(db, intoId).kind === 'pinned') {
+      throw new EditError('pinned_target', 'A topic cannot be merged into a pinned search.');
+    }
     const now = timestamp();
     db.prepare(
       `DELETE FROM overrides WHERE topic_id = ? AND post_id IN (SELECT post_id FROM overrides WHERE topic_id = ?)`,

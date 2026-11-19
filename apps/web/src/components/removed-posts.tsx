@@ -55,7 +55,7 @@ export function RemovedPosts({
   return (
     <Dialog controller={controller}>
       <DialogBackdrop />
-      <DialogContent initialFocus="content" className={`w-[min(34rem,calc(100%-1.5rem))] ${dialogContent}`}>
+      <DialogContent initialFocus="[data-removed-close]" className={`w-[min(34rem,calc(100%-1.5rem))] ${dialogContent}`}>
         <header className="flex items-start gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-display text-[20px]">Removed</DialogTitle>
@@ -63,7 +63,7 @@ export function RemovedPosts({
               Posts you took out of this corpus. They are still bookmarked or liked on X.
             </DialogDescription>
           </div>
-          <DialogClose aria-label="Close" className={iconButton}>
+          <DialogClose data-removed-close aria-label="Close" className={iconButton}>
             <X aria-hidden="true" />
           </DialogClose>
         </header>

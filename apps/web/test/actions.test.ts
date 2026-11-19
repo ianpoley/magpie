@@ -71,7 +71,6 @@ test("an id that is not a positive whole number is refused before the store is l
     await actions.deleteArea(wrongType("1")),
     await actions.setTopicHidden(wrongType({}), true),
     await actions.addPostTopic("p1", 2 ** 60),
-    await actions.unpin(wrongType(undefined)),
     await actions.listUndo(wrongType("1")),
     await actions.undoChange(0),
   ];

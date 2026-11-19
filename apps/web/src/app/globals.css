@@ -272,6 +272,11 @@
   .side-scope mark {
     color: var(--color-ink);
   }
+  /* A name is never cut inside a match: the ellipsis takes the sidebar's light ink, which the highlight would hide. A match that does not fit goes whole. */
+  .side-scope .truncate > mark {
+    display: inline-block;
+    line-height: 1.25;
+  }
 }
 
 body {

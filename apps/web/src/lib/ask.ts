@@ -28,6 +28,14 @@ export function cleanQuery(value: unknown): string | null {
 const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 
 /**
+ * True when a `Host` header names this machine, on any port. A page elsewhere
+ * that points its own name at this machine still sends its own name here.
+ */
+export function isLoopbackHost(host: string | null): boolean {
+  return host !== null && LOOPBACK_HOST.test(host);
+}
+
+/**
  * True when a request can only have come from the app's own page or from a
  * local script. A page on another site can post without asking only if the
  * body is not declared as JSON, and a browser names where a request began.
@@ -36,7 +44,7 @@ const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
  */
 export function isSameOriginJson(headers: Headers): boolean {
   if (!headers.get("content-type")?.trim().toLowerCase().startsWith("application/json")) return false;
-  if (!LOOPBACK_HOST.test(headers.get("host") ?? "")) return false;
+  if (!isLoopbackHost(headers.get("host"))) return false;
   const fetchSite = headers.get("sec-fetch-site");
   if (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none") return false;
   const origin = headers.get("origin");
