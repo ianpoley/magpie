@@ -32,6 +32,7 @@ import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { formatCount, plural } from "./format";
+import { POST_CARD_OPEN } from "./post-card";
 import { PostDialog } from "./post-dialog";
 import { PostList } from "./post-list";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
@@ -230,17 +231,29 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   }, [router]);
 
   useEffect(() => {
-    const focusSearch = (event: KeyboardEvent) => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+    // "/" jumps to search; j and k move between post cards, and Enter opens the focused one.
+    const shortcuts = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
       const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
-      const input = document.getElementById(SEARCH_INPUT_ID);
-      if (!input) return;
+      if (target?.closest("input, textarea, select, [contenteditable]:not([contenteditable=false]), [role=dialog]")) return;
+      if (event.key === "/") {
+        const input = document.getElementById(SEARCH_INPUT_ID);
+        if (!input) return;
+        event.preventDefault();
+        input.focus();
+        return;
+      }
+      if (event.key !== "j" && event.key !== "k") return;
+      const cards = [...document.querySelectorAll<HTMLElement>(POST_CARD_OPEN)];
+      if (cards.length === 0) return;
+      const at = cards.findIndex((card) => card.closest("article")?.contains(target));
+      const next = cards[at === -1 ? 0 : Math.min(Math.max(at + (event.key === "j" ? 1 : -1), 0), cards.length - 1)];
       event.preventDefault();
-      input.focus();
+      next.focus({ preventScroll: true });
+      next.scrollIntoView({ block: "nearest" });
     };
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
+    window.addEventListener("keydown", shortcuts);
+    return () => window.removeEventListener("keydown", shortcuts);
   }, []);
 
   const keyword = useDeferredValue(filter.keyword);
