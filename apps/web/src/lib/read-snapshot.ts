@@ -95,7 +95,7 @@ function read(db: DatabaseSync): Snapshot {
   const postRows = db
     .prepare(
       `SELECT id, text, created_at, url, author_handle, author_name, author_avatar_url, author_avatar_hue,
-              like_count, quoted_json, media_json, bookmarked, liked
+              like_count, quoted_json, media_json, bookmarked, liked, first_seen_at
        FROM posts
        WHERE id IN (SELECT id FROM visible_posts)
        ORDER BY created_at DESC, id`,
@@ -109,6 +109,7 @@ function read(db: DatabaseSync): Snapshot {
       text: readable(String(row.id), row.text, quotedPost?.id ?? null),
       createdAt,
       createdAtMs: epochMs(createdAt),
+      addedAtMs: epochMs(text(row.first_seen_at)),
       url: String(row.url),
       authorHandle: String(row.author_handle),
       authorName: String(row.author_name),

@@ -20,6 +20,7 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "newest", label: "Newest" },
+  { value: "added", label: "Recently added" },
   { value: "oldest", label: "Oldest" },
   { value: "most_liked", label: "Most liked" },
 ];
