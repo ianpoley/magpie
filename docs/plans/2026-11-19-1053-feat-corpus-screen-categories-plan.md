@@ -16,7 +16,7 @@ execution: code
 - **Product authority:** The user is the sole user and decision-maker. The decisions below were made in dialogue on 2026-11-19 and govern this plan.
 - **Means:** One local SQLite store that the sync job, the web app, and the skill all read; Jev scores posts against topics and Claude proposes the topics (KTD1, KTD4, KTD6).
 - **Authority:** Product Contract requirements win on product behavior. Key Technical Decisions win on mechanism within the requirements they cite. A unit overrides neither.
-- **Execution profile:** One pull request, thirteen units in dependency order. The repo has no git remote, so the work ends as local commits unless one is added.
+- **Execution profile:** One pull request, fourteen units in dependency order. The repo has no git remote, so the work ends as local commits unless one is added.
 - **Stop conditions:** Stop and report when a session-settled Key Decision proves unworkable, when Jev or Claude cannot be reached with the credentials on this Mac, or when a change would alter the live 3-hourly sync before U12.
 - **Finishing:** The implementer runs the first live backfill in U12 and confirms the screen against real data. launchd and the skill symlink both run from this working tree, so after U12 the checked-out branch is the live system. The user reviews the result and decides whether to add a remote.
 - **Open blockers:** None.
@@ -92,6 +92,7 @@ Many posts are a short line plus a `t.co` link, so the meaning lives at the link
 
 - R19. Selecting several topics shows posts in all of them. Selecting an area counts as selecting any topic inside it.
 - R20. Category filters combine with collection (Everything, Bookmarks, Likes), author, keyword search, time range, sort, and the media toggle.
+- R29. The category selection is deep-linkable. The URL carries the selected topics and areas, one or several, and Unfiled; opening or reloading that URL restores the selection, and browser back and forward step through selections.
 
 **Ask-anything topics**
 
@@ -201,7 +202,6 @@ Considered and not built:
 - Undo for the user's own edits. R14 covers automatic changes only; delete and merge ask for confirmation instead. A mis-clicked merge the user cannot repair would change this.
 - Moving a topic between areas, editing a definition, and unlocking a topic. R15 does not list them. A locked topic that grows too large with no way to split it would change this.
 - Mapping an npm package to its repo. Only the GitHub homepage alias is built (KTD11).
-- Filter state in the URL. No requirement asks for reloadable views; state lives in the client.
 - A cap on automatic changes per run. Every change is logged and undoable, and a cap would delay R11 and R12.
 
 ### Dependencies / Assumptions
@@ -435,6 +435,7 @@ state/corpus.sqlite             gitignored
 | U10 | Ask-anything, pinning, Resources view | `apps/web/src/app/api/ask/route.ts`, `src/components/` | U8, U3 |
 | U11 | Skill categories and resources | `packages/skill/` | U3 |
 | U13 | Remove a post from the corpus | `packages/engine/src/store/`, `apps/web/src/`, `packages/skill/` | U9, U10, U11 |
+| U14 | Deep links for the category selection | `apps/web/src/lib/filter-url.ts`, `apps/web/src/components/corpus-screen.tsx` | U8, U10 |
 | U12 | Scheduled-job wiring, first backfill, docs | `packages/engine/bin/birdclaw-nightly.sh`, READMEs | U6, U11, U13 |
 
 ### U1. Store, test harness, ingest
@@ -766,6 +767,21 @@ state/corpus.sqlite             gitignored
   - Browser: removing a post from its card takes it off the list and shows Undo; Undo brings it back; the Removed row lists it and Restore works.
 - **Verification:** Tests, lint, typecheck, and build pass; the browser checks pass against a copy of the real store.
 
+### U14. Deep links for the category selection
+
+- **Goal:** A URL identifies a category selection, so a view can be bookmarked, reloaded, and passed along.
+- **Requirements:** R29, R19.
+- **Dependencies:** U8, U10.
+- **Files:** `apps/web/src/lib/filter-url.ts`, `apps/web/test/filter-url.test.ts`, `apps/web/src/components/corpus-screen.tsx`, `apps/web/src/app/page.tsx`
+- **Approach:** A pure module turns the category part of the filter state into query parameters and back, by topic and area id. The screen reads the selection from the URL on load, writes it on every selection change, and follows back and forward. Ids that no longer exist are dropped, as the filter already does. The server stays bound to loopback; this unit does not make the app reachable from other machines.
+- **Test scenarios:**
+  - One topic, several topics, an area with a topic, and Unfiled each round-trip through the URL to the same selection.
+  - An empty selection produces no query parameters.
+  - A URL naming a topic id that no longer exists restores the rest of the selection and drops that id.
+  - Malformed parameter values (non-numeric, negative, duplicated, very long) are ignored without an error.
+  - Browser: selecting two topics updates the URL; reloading shows the same two selected; back returns to the previous selection.
+- **Verification:** Tests, lint, typecheck, and build pass; the browser checks pass.
+
 ### U12. Scheduled-job wiring, first backfill, docs
 
 - **Goal:** The 3-hourly sync runs the new stages, the real corpus is categorized, and the docs describe the system.
@@ -806,7 +822,7 @@ Unit tests never call Jev, Claude, or the network. Live calls happen only in the
 
 ## Definition of Done
 
-- Every requirement R1–R28 is met and every acceptance example AE1–AE9 is covered by a passing test or a passed browser check named in its unit.
+- Every requirement R1–R29 is met and every acceptance example AE1–AE9 is covered by a passing test or a passed browser check named in its unit.
 - All Verification Contract gates pass.
 - The real corpus is categorized, the screen shows it, and the skill returns categories from it.
 - The scheduled job has completed one run with the new stages and still produces `data/` and `markdown/` as before.
