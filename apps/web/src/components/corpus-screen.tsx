@@ -107,7 +107,7 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
     return (
       <EmptyState icon={SearchX} title="No posts match" action={solidButton("Clear filters", clear)}>
         {filter.keyword.trim() !== ""
-          ? `Nothing you saved mentions “${filter.keyword.trim()}” under these filters. Try a shorter word, or widen the filters.`
+          ? `Nothing you saved mentions “${filter.keyword.trim()}” under these filters. Try fewer or shorter words, or widen the filters.`
           : "No saved post fits every filter that is on. Widen the time range or remove a filter."}
       </EmptyState>
     );

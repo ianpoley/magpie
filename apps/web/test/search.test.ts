@@ -51,5 +51,17 @@ test("regex characters match literally", () => {
   assert.equal(matchesKeyword(cpp, "a.b"), true);
   assert.equal(matchesKeyword(post("3", { text: "axb" }), "a.b"), false);
   assert.equal(matchesKeyword(post("4", { text: "plain" }), ".*"), false);
-  assert.deepEqual(highlightRanges("why c++ (and a.b) [works]", "(and a.b)"), [[8, 17]]);
+  assert.deepEqual(highlightRanges("why c++ (and a.b) [works]", "(and a.b)"), [[8, 12], [13, 17]]);
+});
+
+test("every word must occur, in any order and in any field", () => {
+  for (const query of ["tracing note", "Shaders tracing", "ada tracing", "motion docs lovelace"]) {
+    assert.equal(matchesKeyword(p, query), true, query);
+  }
+  assert.equal(matchesKeyword(p, "tracing absent"), false);
+});
+
+test("each word is highlighted, and a longer word wins where words overlap", () => {
+  assert.deepEqual(highlightRanges("Evals for agents", "agents evals"), [[0, 5], [10, 16]]);
+  assert.deepEqual(highlightRanges("evals", "eval evals"), [[0, 5]]);
 });
