@@ -13,6 +13,7 @@ import { AuthorAvatar } from "./author-avatar";
 import { compactCount, formatDate } from "./format";
 import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, type PostDialogController } from "./post-card";
+import { PostRow } from "./resources-view";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { dangerButton, dialogContent, iconButton } from "./styles";
 import { TopicChip } from "./topic-chip";
@@ -26,6 +27,7 @@ export function PostDialog({
   areas,
   topicsById,
   chipsFor,
+  similarFor,
   activeTopicIds,
   keyword,
   onSelectTopic,
@@ -39,6 +41,7 @@ export function PostDialog({
   areas: Area[];
   topicsById: Map<number, Topic>;
   chipsFor: (post: Post) => Chip[];
+  similarFor: (post: Post) => Post[];
   activeTopicIds: number[];
   keyword: string;
   onSelectTopic: (topicId: number) => void;
@@ -70,6 +73,7 @@ export function PostDialog({
           const hue = authorHue(post.authorHandle);
           const date = formatDate(post.createdAt);
           const chips = chipsFor(post);
+          const similar = similarFor(post);
           return (
             <>
               <header className="flex items-center gap-3 border-b border-line px-5 py-4">
@@ -100,7 +104,14 @@ export function PostDialog({
                 </DialogClose>
               </header>
 
-              <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5">
+              <div
+                key={post.id}
+                // Picking a suggestion replaces the row that had focus, so focus returns to the dialog instead of the page.
+                ref={(node) => {
+                  if (node && document.activeElement === document.body) node.closest<HTMLElement>("[data-slot=dialog-content]")?.focus();
+                }}
+                className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5"
+              >
                 {post.text ? <PostText text={post.text} keyword={keyword} links className="text-[16px]" /> : null}
                 <LinkedPages pages={post.linkedPages} keyword={keyword} links />
                 {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} full /> : null}
@@ -134,6 +145,16 @@ export function PostDialog({
                     </PopoverTrigger>
                   </li>
                 </ul>
+                {similar.length > 0 ? (
+                  <section aria-label="More like this" className="flex flex-col gap-1.5 border-t border-line pt-4">
+                    <h3 className="text-eyebrow text-ink-muted">More like this</h3>
+                    <ul className="-mx-2.5 flex flex-col">
+                      {similar.map((other) => (
+                        <PostRow key={other.id} post={other} dialog={controller} />
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
               </div>
 
               <footer className="flex flex-wrap items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">

@@ -23,6 +23,7 @@ import {
 } from "@/lib/filter";
 import { linkedQuery, parseLinked, type LinkedFilter } from "@/lib/filter-url";
 import { resourcesFor } from "@/lib/resources";
+import { similarPosts } from "@/lib/similar";
 import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
 
 import { ActiveFilters } from "./active-filters";
@@ -55,6 +56,7 @@ const RESOURCE_KINDS = [
 
 const COLLECTION_TITLES = { everything: "Everything", bookmarks: "Bookmarks", likes: "Likes" } as const;
 const RESOURCE_ROWS = 100;
+const SIMILAR_POSTS = 4;
 const REFRESH_GAP_MS = 2000;
 
 const postAsk = (query: string, signal: AbortSignal): Promise<Response> =>
@@ -542,6 +544,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
         areas={snapshot.areas}
         topicsById={topicsById}
         chipsFor={(post) => postChips(post, applied)}
+        similarFor={(post) => similarPosts(snapshot, post, shownPosts, SIMILAR_POSTS)}
         activeTopicIds={applied.topicIds}
         keyword={applied.keyword === "" ? "" : keyword}
         onSelectTopic={selectTopic}
