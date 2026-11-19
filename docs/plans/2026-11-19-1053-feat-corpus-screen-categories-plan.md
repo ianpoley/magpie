@@ -58,7 +58,7 @@ Many posts are a short line plus a `t.co` link, so the meaning lives at the link
 - R1. The screen covers every saved post, with bookmarks and likes merged into one entry per post. It is not limited to a recent slice.
 - R2. The screen keeps the Grove prototype's layout:
   - a sidebar with collections, most-saved authors, the category tree, and sync status;
-  - a main column with title, stat tiles, toolbar (search, time range, sort, media toggle), post cards, and a post dialog;
+  - a main column with title, toolbar (search, time range, sort, media toggle), post cards, and a post dialog (the prototype's stat tiles were removed at the user's direction once the screen was built);
   - copy-link and open-on-X actions;
   - designed empty states.
 - R3. Keyword search matches post text, quoted-post text, author name and handle, and the title of each post's linked page. Matches are highlighted.
@@ -374,7 +374,7 @@ These are bets the Product Contract does not settle. Each is reversible in one m
 - An edit locks only the topic or area edited. A locked area still receives new automatic topics, and its unlocked topics can still split. A per-post fix does not lock its topic (R16).
 - The Resources view is available under every filter, not only category filters. A resource's count is the number of distinct posts under the active filters, and a post with several links counts under each (R24).
 - A post that leaves both bookmarks and likes stays in the store with its tags and fixes but is no longer shown. Ingest skips this step for a collection whose export shrank by more than 5%, so a short export does not hide posts (R1).
-- The stat tiles show saved posts, bookmarks, likes, and authors for the current filter. The Grove prototype was deleted after the design decision, so R2 and `apps/web/DESIGN.md` are the specification.
+- The Grove prototype was deleted after the design decision, so R2 and `apps/web/DESIGN.md` are the specification.
 - Site-and-repo grouping covers the homepage a GitHub repo declares. Other variants, such as a separate docs domain, stay separate resources (R23).
 
 ### Sequencing
