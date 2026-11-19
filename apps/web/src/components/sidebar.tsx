@@ -1,11 +1,12 @@
 "use client";
 
 import { DialogTrigger } from "@ui-sdk/react/dialog";
+import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from "@ui-sdk/react/scroll-area";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
-import { Bookmark, Eye, Heart, History, Layers, Sprout, Tags, Trash2, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { Bookmark, Eye, Heart, History, Layers, Search, Sprout, Tags, Trash2, X, type LucideIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
 import type { AuthorCount, Collection, FilterState, Snapshot } from "@/lib/types";
 
@@ -79,6 +80,8 @@ export function Sidebar({
   const hasHidden = snapshot.areas.some((area) => area.hidden) || snapshot.topics.some((topic) => topic.hiddenSelf);
   const changeCount = snapshot.changes.length;
   const removedCount = snapshot.removed.length;
+  // Narrows the tree only: the selection and the address stay as they are.
+  const [categoryQuery, setCategoryQuery] = useState("");
 
   return (
     <div className="side-scope bg-side flex h-full min-h-0 flex-col">
@@ -138,9 +141,39 @@ export function Sidebar({
                 Categories
               </Eyebrow>
               {hasCategories ? (
+                <InputGroup className="mx-0.5 mb-2 h-9 w-auto items-center gap-2 rounded-full border-0 bg-side-hover pr-1 pl-3 transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-side-ink)]">
+                  <Search className="size-3.5 shrink-0 text-side-muted" aria-hidden="true" />
+                  <Input
+                    type="search"
+                    enterKeyHint="search"
+                    aria-label="Search categories"
+                    placeholder="Search categories"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={categoryQuery}
+                    onValueChange={setCategoryQuery}
+                    onKeyDown={(event) => {
+                      // With text to clear, Escape clears it and goes no further, so the narrow-screen panel stays open.
+                      if (event.key !== "Escape" || categoryQuery === "") return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setCategoryQuery("");
+                    }}
+                    className="min-w-0 text-[16px] text-side-ink placeholder:text-side-muted sm:text-[13px] [&::-webkit-search-cancel-button]:hidden"
+                  />
+                  <InputClear
+                    aria-label="Clear category search"
+                    className="focus-ring-side pressable flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-muted hover:bg-side-wash hover:text-side-ink"
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </InputClear>
+                </InputGroup>
+              ) : null}
+              {hasCategories ? (
                 <CategoryTree
                   snapshot={snapshot}
                   filter={filter}
+                  query={categoryQuery}
                   expanded={expanded}
                   unfiledCount={totals.unfiled}
                   edits={categoryEdits}

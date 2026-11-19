@@ -12,10 +12,10 @@ import {
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
 import { Input } from "@ui-sdk/react/input";
 import { createMenuController, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@ui-sdk/react/menu";
-import { Ellipsis, Eye, EyeOff, Merge, Pencil, PinOff, Trash2 } from "lucide-react";
+import { Ellipsis, Eye, EyeOff, Merge, Pencil, Trash2 } from "lucide-react";
 import { useState, useTransition, type FormEvent, type SyntheticEvent } from "react";
 
-import { deleteArea, deleteTopic, renameArea, renameTopic, setAreaHidden, setTopicHidden, unpin } from "@/app/actions";
+import { deleteArea, deleteTopic, renameArea, renameTopic, setAreaHidden, setTopicHidden } from "@/app/actions";
 import type { Area, Topic } from "@/lib/types";
 
 import { formatCount, plural } from "./format";
@@ -46,8 +46,9 @@ const DANGER_ITEM = `${menuItem} gap-2.5 text-like-text [&>svg]:size-4`;
 const keepFromTree = (event: SyntheticEvent) => event.stopPropagation();
 
 /**
- * The button on a tree row that opens its actions. It stays out of the tab
- * order, as the tree is one tab stop; the tree opens it for the keyboard.
+ * The button on a tree row that opens its actions, always shown after the
+ * count. It stays out of the tab order, as the tree is one tab stop; the tree
+ * opens it for the keyboard.
  */
 export function CategoryMenuTrigger({ menu, target, name }: { menu: CategoryMenuController; target: CategoryTarget; name: string }) {
   return (
@@ -62,13 +63,9 @@ export function CategoryMenuTrigger({ menu, target, name }: { menu: CategoryMenu
       onClick={keepFromTree}
       className={
         "pressable -mr-1 ml-1 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-muted " +
-        "hover:bg-side-wash hover:text-side-ink data-open:bg-side-wash data-open:text-side-ink data-open:opacity-100 " +
+        "hover:bg-side-wash hover:text-side-ink data-open:bg-side-wash data-open:text-side-ink " +
         // On the selected row's wash the muted ink falls under 4.5:1, as it does for the count.
-        "[[data-slot=tree-label][data-selected]>&]:text-side-ink " +
-        // With a mouse the button takes the count's place while the row is pointed at or focused; on touch it has its own space.
-        "[@media(hover:hover)_and_(pointer:fine)]:absolute [@media(hover:hover)_and_(pointer:fine)]:right-1.5 [@media(hover:hover)_and_(pointer:fine)]:m-0 " +
-        "[@media(hover:hover)_and_(pointer:fine)]:opacity-0 [[data-slot=tree-label]:hover>&]:opacity-100 " +
-        "[[data-slot=tree-item]:focus-visible>[data-slot=tree-label]>&]:opacity-100"
+        "[[data-slot=tree-label][data-selected]>&]:text-side-ink"
       }
     >
       <Ellipsis className="size-4" aria-hidden="true" />
@@ -119,12 +116,13 @@ export function CategoryMenu({ menu, edits, topicsById, areasById }: { menu: Cat
 
           const topic = topicsById.get(target.id);
           if (!topic) return null;
+          // A pinned search is a question the user typed, so it is not merged or hidden: it is renamed or deleted.
           if (topic.kind === "pinned") {
             return (
-              <MenuItem className={ITEM} onSelect={() => void runAction(unpin(topic.id))}>
-                <PinOff aria-hidden="true" />
-                Unpin
-              </MenuItem>
+              <>
+                {rename}
+                {remove}
+              </>
             );
           }
           // Inside a hidden area the area decides, so the topic's own switch would change nothing on screen.
@@ -146,11 +144,11 @@ export function CategoryMenu({ menu, edits, topicsById, areasById }: { menu: Cat
   );
 }
 
-function RenameForm({ target, name, onDone }: { target: CategoryTarget; name: string; onDone: () => void }) {
+function RenameForm({ target, name, pinned, onDone }: { target: CategoryTarget; name: string; pinned: boolean; onDone: () => void }) {
   const [value, setValue] = useState(name);
   const [saving, startSaving] = useTransition();
   const next = value.replace(/\s+/g, " ").trim();
-  const noun = target.kind;
+  const noun = pinned ? "pinned search" : target.kind;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -165,7 +163,9 @@ function RenameForm({ target, name, onDone }: { target: CategoryTarget; name: st
       <div>
         <DialogTitle className="text-display text-[20px]">Rename {noun}</DialogTitle>
         <DialogDescription className="mt-1.5 text-[13px] leading-[1.5] text-ink-muted">
-          A renamed {noun} keeps its posts, and automatic changes leave it alone from now on.
+          {pinned
+            ? "Only the name shown here changes. The search keeps its posts and goes on matching new ones the same way."
+            : `A renamed ${noun} keeps its posts, and automatic changes leave it alone from now on.`}
         </DialogDescription>
       </div>
       <Input
@@ -192,6 +192,7 @@ function RenameForm({ target, name, onDone }: { target: CategoryTarget; name: st
 export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }: { edits: CategoryEdits; topics: Topic[]; areas: Area[] } & Lookup) {
   const named = (target: CategoryTarget | undefined): Topic | Area | undefined =>
     target === undefined ? undefined : target.kind === "topic" ? topicsById.get(target.id) : areasById.get(target.id);
+  const isPinned = (target: CategoryTarget): boolean => target.kind === "topic" && topicsById.get(target.id)?.kind === "pinned";
 
   return (
     <>
@@ -202,7 +203,7 @@ export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }:
             const target = state.payload;
             const current = named(target);
             if (!target || !current) return <DialogTitle className="sr-only">Rename</DialogTitle>;
-            return <RenameForm key={`${target.kind}:${target.id}`} target={target} name={current.name} onDone={() => edits.rename.close()} />;
+            return <RenameForm key={`${target.kind}:${target.id}`} target={target} name={current.name} pinned={isPinned(target)} onDone={() => edits.rename.close()} />;
           }}
         </DialogContent>
       </Dialog>
@@ -215,6 +216,7 @@ export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }:
             const current = named(target);
             if (!target || !current) return <AlertDialogTitle className="sr-only">Delete</AlertDialogTitle>;
             const inArea = target.kind === "area" ? topics.filter((topic) => topic.areaId === target.id).length : 0;
+            const pinned = isPinned(target);
             return (
               <>
                 <AlertDialogTitle className="text-display text-[20px]">
@@ -223,9 +225,10 @@ export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }:
                     : `Delete “${current.name}”?`}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
-                  Its <span className="tabular-nums">{formatCount(current.postCount)}</span> {plural(current.postCount, "post")} stay saved and fall
-                  back to their other topics, or to Unfiled. {target.kind === "area" ? "These topics are" : "This topic is"} never suggested again.
-                  This cannot be undone.
+                  Its <span className="tabular-nums">{formatCount(current.postCount)}</span> {plural(current.postCount, "post")} stay saved
+                  {pinned
+                    ? ", and the pinned search leaves the sidebar. Ask the same question again to bring it back."
+                    : ` and fall back to their other topics, or to Unfiled. ${target.kind === "area" ? "These topics are" : "This topic is"} never suggested again. This cannot be undone.`}
                 </AlertDialogDescription>
                 <div className="mt-5 flex justify-end gap-2">
                   <AlertDialogClose className={quietAnswer}>Cancel</AlertDialogClose>
@@ -236,7 +239,7 @@ export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }:
                       await runAction<object>(target.kind === "topic" ? deleteTopic(target.id) : deleteArea(target.id));
                     }}
                   >
-                    Delete {target.kind}
+                    Delete {pinned ? "pinned search" : target.kind}
                   </AlertDialogClose>
                 </div>
               </>

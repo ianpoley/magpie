@@ -486,3 +486,22 @@ test('chosen topics can be scored against chosen posts before the topics are act
   ]);
   assert.equal(result.scored, 2);
 });
+
+test('a renamed pinned search is still judged under the words that were searched for', async (t) => {
+  const { db } = tempStore(t);
+  seedPost(db, '1', { text: 'a post about scroll timelines' });
+  const pinned = seedTopic(db, 'scroll-driven animation', { kind: 'pinned', definition: 'scroll-driven animation' });
+  db.prepare(`UPDATE topics SET query = 'scroll-driven animation', name = 'Scroll stuff' WHERE id = ?`).run(pinned);
+  const regular = seedTopic(db, 'Evals');
+  const jev = fakeJev();
+
+  await tagPosts(db, { jev });
+
+  const names = (id: number) =>
+    jev.requests.flatMap((request) => {
+      const question = request.questions[topicQuestionId(id)] as { instructions: { topic: { name: string } } } | undefined;
+      return question ? [question.instructions.topic.name] : [];
+    });
+  assert.deepEqual(names(pinned), ['scroll-driven animation']);
+  assert.deepEqual(names(regular), ['Evals']);
+});

@@ -38,6 +38,7 @@ import { createRemovedPostsController, RemovedPosts } from "./removed-posts";
 import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
+import { SidebarResizer } from "./sidebar-resizer";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
 import { Toolbar, type SearchMode } from "./toolbar";
@@ -169,7 +170,16 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
   );
 }
 
-const selectionInAddress = (): CategorySelection => parseSelection(Object.fromEntries(new URLSearchParams(window.location.search)));
+// Reads each key the way the server does (first value wins), so a URL with a
+// repeated key seeds and re-reads to the same selection.
+const selectionInAddress = (): CategorySelection => {
+  const params = new URLSearchParams(window.location.search);
+  return parseSelection({
+    topics: params.get("topics") ?? undefined,
+    areas: params.get("areas") ?? undefined,
+    unfiled: params.get("unfiled") ?? undefined,
+  });
+};
 
 /** `linked` is the selection the page was opened with; later changes are read from the address bar. */
 export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; now: number; linked: CategorySelection }) {
@@ -219,7 +229,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
     if (window.location.search === search) return;
     // A selection the address already names is tidied in place, so Back still leaves it.
     const step = selectionQuery(selectionInAddress()) === heldQuery ? "replaceState" : "pushState";
-    window.history[step](null, "", `${window.location.pathname}${search}`);
+    window.history[step](null, "", `${window.location.pathname}${search}${window.location.hash}`);
   }, [shownQuery, heldQuery]);
   useEffect(() => {
     const follow = () => setFilter((current) => ({ ...current, ...selectionInAddress() }));
@@ -329,8 +339,9 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   return (
     <TipProvider>
       <div className="flex min-h-dvh">
-        <aside className="sticky top-0 hidden h-dvh w-[272px] shrink-0 lg:block">
+        <aside id="sidebar" className="w-sidebar sticky top-0 hidden h-dvh shrink-0 lg:block">
           <Sidebar {...sidebar} />
+          <SidebarResizer controls="sidebar" />
         </aside>
 
         <main className="bg-wash min-w-0 flex-1">
