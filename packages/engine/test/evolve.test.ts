@@ -17,7 +17,7 @@ import {
   setTopicHidden,
   undoChange,
 } from '../src/store/edits.ts';
-import { fakeJev, seedArea, seedLink, seedPost, seedScore, seedTopic, tempStore } from './fixtures/corpus.ts';
+import { fakeJev, seedArea, seedLink, seedOverride, seedPost, seedScore, seedTopic, tempStore } from './fixtures/corpus.ts';
 import type { FakeJev } from './fixtures/corpus.ts';
 
 type Reply = Record<string, unknown> | ClaudeFailure;
@@ -25,7 +25,6 @@ type Reply = Record<string, unknown> | ClaudeFailure;
 const isSplitRequest = (request: ClaudeRequest): boolean =>
   request.schema.type === 'object' && 'subtopics' in request.schema.properties;
 
-/** Answers each request with what `reply` returns and keeps the requests it was sent. */
 function fakeClaude(reply: (request: ClaudeRequest, call: number) => Reply): ClaudeAdapter & { requests: ClaudeRequest[] } {
   const requests: ClaudeRequest[] = [];
   return {
@@ -50,7 +49,6 @@ const subtopics = (...names: string[]): Reply => ({
   subtopics: names.map((name) => ({ name, definition: `Posts about ${name}.` })),
 });
 
-/** Scores by the topic's name and the post's text; a topic with no rule scores every post low. */
 function jevBy(rules: Record<string, (text: string) => number>, before?: () => void): FakeJev {
   return fakeJev((id, request) => {
     before?.();
@@ -530,4 +528,97 @@ test('undoing a topic\'s creation after that topic was split undoes the split fi
   assert.equal(count(db, 'topics', `state = 'active'`), 0);
   assert.equal(unfiled(db).length, 150);
   assert.equal(count(db, 'changes', `source = 'auto' AND undone_at IS NULL`), 0);
+});
+
+const strandedMerges = (db: Store): number =>
+  Number(
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM topics t JOIN topics target ON target.id = t.merged_into
+         WHERE t.state = 'merged' AND target.state <> 'active' AND target.state <> 'merged'`,
+      )
+      .get()?.n,
+  );
+
+test('undoing a topic\'s creation brings back a topic the user merged into it, with its posts and fixes', async (t) => {
+  const { db } = tempStore(t);
+  const zeta = seedPosts(db, 'zeta', 9, 'zeta tool');
+  const misc = seedPosts(db, 'misc', 16, 'misc');
+  const mine = seedTopic(db, 'My tools');
+  for (const id of [...zeta, ...misc]) seedScore(db, id, mine, 0.05);
+  for (const id of ['mine-1', 'mine-2', 'mine-3']) seedPost(db, id, { text: `${id} text` });
+  seedScore(db, 'mine-1', mine, 0.9);
+  seedScore(db, 'mine-2', mine, 0.9);
+  seedScore(db, 'mine-3', mine, 0.1);
+  seedOverride(db, 'mine-3', mine, 'add');
+  await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
+  const created = topicId(db, 'Zeta');
+  mergeTopics(db, mine, created);
+  addPostTopic(db, 'misc-001', created);
+  assert.deepEqual(members(db, created, 'confident'), ['mine-1', 'mine-2', 'mine-3', 'misc-001', ...zeta].sort());
+  const changeId = Number(changes(db)[0].id);
+
+  assert.deepEqual(listUndo(db, changeId).map((change) => change.restores), [['My tools']]);
+  undoChange(db, changeId);
+
+  assert.equal(topicNamed(db, 'Zeta')?.state, 'removed');
+  const restored = db.prepare(`SELECT state, merged_into, locked FROM topics WHERE id = ?`).get(mine);
+  assert.deepEqual({ ...restored }, { state: 'active', merged_into: null, locked: 1 });
+  assert.deepEqual(members(db, mine, 'confident'), ['mine-1', 'mine-2', 'mine-3', 'misc-001']);
+  assert.equal(strandedMerges(db), 0);
+  assert.equal(unfiled(db).length, 24);
+  assert.deepEqual(
+    JSON.parse(String(db.prepare(`SELECT match_set_json FROM suppressed_proposals WHERE name = 'Zeta'`).get()?.match_set_json)),
+    zeta,
+  );
+  assert.deepEqual(renameTopic(db, mine, 'Tools I use'), { topicId: mine, name: 'Tools I use' });
+});
+
+test('undoing a split brings back a topic the user merged into one of its subtopics', async (t) => {
+  const { db } = tempStore(t);
+  const { parent, posts } = seedBroadTopic(db);
+  const mine = seedTopic(db, 'Motion notes');
+  seedPost(db, 'mine-1', { text: 'mine-1 text' });
+  seedScore(db, 'mine-1', mine, 0.9);
+  seedScore(db, 'mine-1', parent, 0.05);
+  for (const id of posts) seedScore(db, id, mine, 0.05);
+  await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+  const animations = topicId(db, 'Animations');
+  mergeTopics(db, mine, animations);
+  addPostTopic(db, 'css-001', animations);
+  const changeId = Number(changes(db)[0].id);
+
+  assert.deepEqual(listUndo(db, changeId).map((change) => change.restores), [['Motion notes']]);
+  undoChange(db, changeId);
+
+  const restored = db.prepare(`SELECT state, merged_into, locked FROM topics WHERE id = ?`).get(mine);
+  assert.deepEqual({ ...restored }, { state: 'active', merged_into: null, locked: 1 });
+  assert.deepEqual(members(db, mine, 'confident'), ['css-001', 'mine-1']);
+  assert.deepEqual(members(db, parent, 'confident'), [...posts].sort());
+  assert.equal(strandedMerges(db), 0);
+  assert.equal(count(db, 'topics', `state = 'active'`), 2);
+});
+
+test('a created topic the user merged into another is left alone by the undo, and the confirmation promises nothing for it', async (t) => {
+  const { db } = tempStore(t);
+  const zeta = seedPosts(db, 'zeta', 9, 'zeta tool');
+  const misc = seedPosts(db, 'misc', 16, 'misc');
+  const first = seedTopic(db, 'My tools');
+  const second = seedTopic(db, 'Everything else');
+  for (const id of [...zeta, ...misc]) {
+    seedScore(db, id, first, 0.05);
+    seedScore(db, id, second, 0.05);
+  }
+  await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
+  const created = topicId(db, 'Zeta');
+  mergeTopics(db, first, created);
+  mergeTopics(db, created, second);
+  const changeId = Number(changes(db)[0].id);
+
+  assert.deepEqual(listUndo(db, changeId).map((change) => change.restores), [[]]);
+  undoChange(db, changeId);
+
+  assert.equal(topicNamed(db, 'Zeta')?.state, 'merged');
+  assert.equal(topicNamed(db, 'My tools')?.state, 'merged');
+  assert.deepEqual(members(db, second, 'confident'), zeta);
 });

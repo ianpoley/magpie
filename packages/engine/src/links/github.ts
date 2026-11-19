@@ -1,4 +1,5 @@
 import { LINKS } from '../config.ts';
+import { errorText } from '../util.ts';
 import { canonicalize, normalizeHost } from './canonical.ts';
 import type { HttpFetch } from './http.ts';
 
@@ -45,7 +46,7 @@ export async function lookupRepo(http: HttpFetch, owner: string, repo: string): 
       homepage: homepageUrl(fields.homepage),
     };
   } catch (error) {
-    return { outcome: 'error', message: error instanceof Error ? error.message : String(error) };
+    return { outcome: 'error', message: errorText(error) };
   }
 }
 

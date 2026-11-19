@@ -25,7 +25,6 @@ function setup(t: TestContext, bookmarks: ExportPost[]): DatabaseSync {
 
 const ok = (value: unknown): ClaudeSendResult => ({ ok: true, value, session: null });
 
-/** Answers each request with the next scripted reply and keeps the prompts it was sent. */
 function fakeClaude(replies: ClaudeSendResult[]): ClaudeAdapter & { prompts: string[] } {
   const prompts: string[] = [];
   return {

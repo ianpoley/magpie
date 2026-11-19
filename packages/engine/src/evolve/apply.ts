@@ -4,7 +4,7 @@ import { scorePairs } from '../jev/tagger.ts';
 import { transaction } from '../store/db.ts';
 import type { Store } from '../store/db.ts';
 import type { SubtopicProposal, TopicProposal } from './propose.ts';
-import { isDeletedAreaName, overlapsTombstone, takenTopicNames } from './tombstones.ts';
+import { isDeletedAreaName, key, overlapsTombstone, takenTopicNames } from './tombstones.ts';
 import { ATTEMPT_KIND } from './triggers.ts';
 import type { BroadTopic } from './triggers.ts';
 import { CHANGE_KIND } from './undo.ts';
@@ -20,8 +20,6 @@ export type RoundDeps = { jev: JevClient; runId?: number; now: () => Date };
  *   skipped   posts could not be scored, so nothing was decided or recorded
  */
 export type RoundOutcome = 'applied' | 'rejected' | 'dropped' | { skipped: string };
-
-const key = (name: string): string => name.trim().toLowerCase();
 
 function thresholds(db: Store): { confident: number; unsure: number } {
   const read = db.prepare(`SELECT CAST(value AS REAL) AS value FROM meta WHERE key = ?`);

@@ -24,7 +24,6 @@ type Fakes = PipelineDeps & {
 
 const claudeDown: ClaudeFailure = { ok: false, reason: 'missing', message: 'The CLI is not installed.' };
 
-/** Every page answers with a title; Claude answers discovery with one area of two topics. */
 function fakes(options: { claude?: 'answers' | 'down'; jev?: FakeJev } = {}): Fakes {
   const httpCalls: string[] = [];
   const claudeCalls: ClaudeRequest[] = [];
@@ -63,7 +62,8 @@ function fakes(options: { claude?: 'answers' | 'down'; jev?: FakeJev } = {}): Fa
       return { ok: true, value, session: null };
     },
   };
-  return { http, claude, jev: options.jev ?? fakeJev(() => 0.9), httpCalls, claudeCalls };
+  const lookup = async () => ['93.184.216.34'];
+  return { http, lookup, claude, jev: options.jev ?? fakeJev(() => 0.9), httpCalls, claudeCalls };
 }
 
 function setup(t: TestContext): { files: PipelineFiles; write: (bookmarks: ExportPost[], likes?: ExportPost[]) => void } {
@@ -81,7 +81,6 @@ function setup(t: TestContext): { files: PipelineFiles; write: (bookmarks: Expor
   return { files, write: (bookmarks, likes = []) => void writeExports(dataDir, { bookmarks, likes }) };
 }
 
-/** Runs the pipeline and fails the test unless the run went through. */
 async function run(files: PipelineFiles, deps: PipelineDeps, options?: PipelineOptions) {
   const result = await runPipeline(files, deps, options);
   if (result.status !== 'complete') throw new Error(`the run did not start: ${JSON.stringify(result)}`);

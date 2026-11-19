@@ -209,6 +209,72 @@ test('a failed request leaves that post unscored and the run goes on', async (t)
   assert.match(result.errors[0], /Jev is overloaded/);
 });
 
+function seedNumberedPosts(db: Store, count: number): string[] {
+  return Array.from({ length: count }, (_, index) => {
+    const id = `p${String(index + 1).padStart(2, '0')}`;
+    return seedPost(db, id, { text: `text of ${id}` });
+  });
+}
+
+/** Fails every request except those for the posts numbered here. */
+const jevAnsweringOnly = (answered: (postNumber: number) => boolean) =>
+  fakeJev((_id, request) => {
+    const postNumber = Number(/text of p(\d+)/.exec(JSON.stringify(request.state))?.[1]);
+    if (!answered(postNumber)) throw new Error('Jev is unreachable');
+    return 0.9;
+  });
+
+test('tagging stops after 10 posts in a row fail and leaves the rest for the next run', async (t) => {
+  const { db } = tempStore(t);
+  seedTopic(db, 'Evals');
+  const posts = seedNumberedPosts(db, 25);
+  const jev = jevAnsweringOnly(() => false);
+
+  const result = await tagPosts(db, { jev, concurrency: 1 });
+
+  assert.equal(jev.requests.length, 10);
+  assert.deepEqual(
+    { posts: result.posts, scored: result.scored, failed: result.failed },
+    { posts: 25, scored: 0, failed: 25 },
+  );
+  assert.deepEqual(scoreRows(db), []);
+  assert.deepEqual(ids(db, 'post_pending'), posts);
+  assert.match(result.errors[0], /stopped after 10 posts in a row failed/i);
+  assert.match(result.errors[0], /15 posts were not tried/);
+  assert.match(result.errors.join('; '), /Jev is unreachable/);
+});
+
+test('one answered post starts the count of failures in a row again', async (t) => {
+  const { db } = tempStore(t);
+  seedTopic(db, 'Evals');
+  seedNumberedPosts(db, 25);
+  const jev = jevAnsweringOnly((postNumber) => postNumber === 10);
+
+  const result = await tagPosts(db, { jev, concurrency: 1 });
+
+  assert.equal(jev.requests.length, 20);
+  assert.deepEqual(
+    { posts: result.posts, scored: result.scored, failed: result.failed },
+    { posts: 25, scored: 1, failed: 24 },
+  );
+});
+
+test('failures that never reach 10 in a row leave every post tried', async (t) => {
+  const { db } = tempStore(t);
+  seedTopic(db, 'Evals');
+  seedNumberedPosts(db, 30);
+  const jev = jevAnsweringOnly((postNumber) => postNumber % 10 === 0);
+
+  const result = await tagPosts(db, { jev, concurrency: 1 });
+
+  assert.equal(jev.requests.length, 30);
+  assert.deepEqual(
+    { posts: result.posts, scored: result.scored, failed: result.failed },
+    { posts: 30, scored: 3, failed: 27 },
+  );
+  assert.ok(result.errors.every((message) => !/in a row/.test(message)));
+});
+
 test('an answer that is missing or not a probability fails the post instead of scoring it', async (t) => {
   const { db } = tempStore(t);
   const evals = seedTopic(db, 'Evals');

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 
 import { CLAUDE, paths } from '../config.ts';
+import { MESSAGE_MAX_CHARS, isRecord } from '../util.ts';
 import { schemaErrors } from './schemas.ts';
 import type { JsonSchema } from './schemas.ts';
 
@@ -50,8 +51,6 @@ export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest)
   return { ok: true, value: sent.value as T };
 }
 
-const MESSAGE_MAX_CHARS = 500;
-
 // The prompt carries untrusted post text, so the session must be unable to
 // act: no built-in tools, no MCP servers, and none of the user's
 // customizations (CLAUDE.md, skills, plugins, hooks, commands). The prompt
@@ -72,9 +71,6 @@ function cliArgs(schema: JsonSchema): string[] {
     JSON.stringify(schema),
   ];
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 type Stream = { session: Record<string, unknown> | null; result: Record<string, unknown> | null };
 

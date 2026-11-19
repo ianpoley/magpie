@@ -6,14 +6,12 @@ import type { PostContent } from "@x-corpus/engine/src/jev/questions.ts";
 import { applyFilter } from "./filter.ts";
 import type { FilterResult, FilterState, Snapshot } from "./types.ts";
 
-/** The longest search that can be asked; the same cap applies when one is pinned as a topic. */
 export const MAX_QUERY_CHARS = 500;
 
 export type Bands = { confident: number; unsure: number };
 
 export type AskScore = { postId: string; probability: number };
 
-/** One line of the answer stream. */
 export type AskRecord =
   | { type: "start"; total: number; bands: Bands }
   | { type: "scores"; scores: AskScore[] }
@@ -21,16 +19,32 @@ export type AskRecord =
   | { type: "error"; posts: number }
   | { type: "done" };
 
-/** The search as it is asked and stored: single-spaced and trimmed. Null when it is empty, too long, or not text. */
 export function cleanQuery(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const cleaned = value.replace(/\s+/g, " ").trim();
   return cleaned === "" || cleaned.length > MAX_QUERY_CHARS ? null : cleaned;
 }
 
+/**
+ * True when a request can only have come from the app's own page or from a
+ * local script. A page on another site can post without asking only if the
+ * body is not declared as JSON, and a browser names where a request began.
+ */
+export function isSameOriginJson(headers: Headers): boolean {
+  if (!headers.get("content-type")?.trim().toLowerCase().startsWith("application/json")) return false;
+  const fetchSite = headers.get("sec-fetch-site");
+  if (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none") return false;
+  const origin = headers.get("origin");
+  if (origin === null) return true;
+  try {
+    return new URL(origin).host === headers.get("host");
+  } catch {
+    return false;
+  }
+}
+
 export type AskPost = { id: string; content: PostContent };
 
-/** Every post currently saved, newest first, with the content Jev judges it by. */
 export function readAskPosts(db: DatabaseSync, readPostContent: (db: DatabaseSync, postIds: string[]) => Map<string, PostContent>): AskPost[] {
   const postIds = db
     .prepare(`SELECT id FROM posts WHERE id IN (SELECT id FROM visible_posts) ORDER BY created_at DESC, id`)
@@ -134,7 +148,6 @@ export function rankAsk(snapshot: Snapshot, filter: FilterState, scores: AskScor
   return { ...result, posts: [...confident, ...unsure], unsureStart: confident.length };
 }
 
-/** The records of an answer stream: one JSON object per line. */
 async function* readAskStream(body: ReadableStream<Uint8Array>): AsyncGenerator<AskRecord> {
   const reader = body.getReader();
   const decoder = new TextDecoder();

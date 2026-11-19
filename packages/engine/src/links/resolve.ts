@@ -1,15 +1,23 @@
+import { lookup as dnsLookup } from 'node:dns/promises';
+import { BlockList, isIP } from 'node:net';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { LINKS } from '../config.ts';
 import { transaction } from '../store/db.ts';
+import { errorText } from '../util.ts';
 import { canonicalize, normalizeHost, npmPackageName } from './canonical.ts';
 import type { Canonical } from './canonical.ts';
 import { homepageHost, lookupRepo, onHost } from './github.ts';
 import type { HttpFetch, HttpResponse } from './http.ts';
 
+/** Every address a host name resolves to. */
+export type HostLookup = (host: string) => Promise<string[]>;
+
 export type LinkDeps = {
   http: HttpFetch;
   now: () => Date;
+  /** Defaults to the system resolver. */
+  lookup?: HostLookup;
 };
 
 export type LinkCounts = {
@@ -50,6 +58,7 @@ const NPM_REGISTRY = 'https://registry.npmjs.org';
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 1000;
 const ERROR_MAX = 300;
+const NOT_PUBLIC = 'address is not on the public web';
 
 /** Titles served in place of the page: bot checks, blocks and login prompts. */
 const WALL_TITLES = [
@@ -98,9 +107,15 @@ function plainText(raw: string | undefined | null, max: number): string | null {
 
 function metaContents(html: string): Map<string, string> {
   const found = new Map<string, string>();
-  for (const [tag] of html.matchAll(/<meta\b[^>]*>/gi)) {
+  // Each tag's end is searched for once, however many tags open before it.
+  let end = -1;
+  for (const { index } of html.matchAll(/<meta\b/gi)) {
+    if (end < index) end = html.indexOf('>', index);
+    if (end === -1) break;
+    const tag = html.slice(index, end + 1);
     const attributes: Record<string, string> = {};
-    for (const match of tag.matchAll(/([a-z:_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
+    // A name is only tried from its first character, so a long run with no `=` is read once, not once per character.
+    for (const match of tag.matchAll(/(?<![a-z:_-])([a-z:_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
       attributes[match[1].toLowerCase()] = match[2] ?? match[3] ?? match[4] ?? '';
     }
     const name = (attributes.property ?? attributes.name)?.toLowerCase();
@@ -136,13 +151,40 @@ function httpUrl(value: unknown): URL | null {
 
 /** Link text comes from strangers, so only addresses on the public web are requested. */
 function isPublicHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
+  const host = hostname.toLowerCase().replace(/\.$/, '');
   if (host.startsWith('[') || /^\d+(\.\d+){3}$/.test(host)) return false;
   if (!host.includes('.')) return false;
   return !onHost(host, ['localhost', 'local', 'internal', 'lan', 'home.arpa']);
 }
 
-const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+const NON_PUBLIC_ADDRESSES = new BlockList();
+for (const [network, prefix] of [
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.168.0.0', 16],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, 'ipv4');
+}
+for (const [network, prefix] of [
+  ['::', 128],
+  ['::1', 128],
+  ['fc00::', 7],
+  ['fe80::', 10],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, 'ipv6');
+}
+
+/** An IPv4 address written inside an IPv6 one is checked as the IPv4 address. */
+function isPublicAddress(address: string): boolean {
+  const version = isIP(address);
+  return version !== 0 && !NON_PUBLIC_ADDRESSES.check(address, version === 6 ? 'ipv6' : 'ipv4');
+}
+
+const systemLookup: HostLookup = async (host) => (await dnsLookup(host, { all: true })).map((found) => found.address);
 
 /**
  * npmjs.com refuses clients that are not browsers, so a package is described
@@ -170,13 +212,13 @@ async function readPackage(page: URL, name: string, http: HttpFetch): Promise<Ou
   }
 }
 
-async function follow(start: URL, http: HttpFetch): Promise<Outcome> {
+async function follow(start: URL, http: HttpFetch, lookup: HostLookup): Promise<Outcome> {
   let url = start;
   for (let redirects = 0; ; redirects++) {
     if (onHost(normalizeHost(url.hostname), LINKS.notResourceHosts)) {
       return { status: 'not_resource', finalUrl: url.href };
     }
-    if (!isPublicHost(url.hostname)) throw new Error('address is not on the public web');
+    if (!isPublicHost(url.hostname)) throw new Error(NOT_PUBLIC);
 
     const packageName = npmPackageName(url);
     if (packageName !== null) return readPackage(url, packageName, http);
@@ -184,11 +226,23 @@ async function follow(start: URL, http: HttpFetch): Promise<Outcome> {
     // An address that answers, or that a redirect pointed at, is where the
     // link ends even if its page cannot be read. A shortener's never is.
     const isDestination = !onHost(normalizeHost(url.hostname), LINKS.shortenerHosts);
+    const unreachable = (error: unknown): unknown =>
+      redirects > 0 && isDestination ? new Unreadable(errorText(error), url.href) : error;
+
+    // A public-looking name can resolve to this machine or the local network.
+    let addresses: string[];
+    try {
+      addresses = await lookup(url.hostname);
+    } catch (error) {
+      throw unreachable(error);
+    }
+    if (addresses.length === 0 || !addresses.every(isPublicAddress)) throw new Error(NOT_PUBLIC);
+
     let response: HttpResponse;
     try {
       response = await http({ url: url.href, timeoutMs: LINKS.timeoutMs, maxBytes: LINKS.htmlCapBytes });
     } catch (error) {
-      throw redirects > 0 && isDestination ? new Unreadable(errorText(error), url.href) : error;
+      throw unreachable(error);
     }
 
     if (response.status >= 300 && response.status < 400) {
@@ -254,7 +308,7 @@ async function resolveDue(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts):
     try {
       const start = httpUrl(row.expanded_url) ?? httpUrl(written);
       if (start === null) throw new Error('not a web address');
-      const outcome = await follow(start, deps.http);
+      const outcome = await follow(start, deps.http, deps.lookup ?? systemLookup);
       const at = deps.now().toISOString();
       const host = normalizeHost(new URL(outcome.finalUrl).hostname);
       if (outcome.status === 'resolved') {
