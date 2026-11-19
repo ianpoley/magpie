@@ -233,7 +233,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   useEffect(() => {
     // "/" jumps to search; j and k move between post cards, and Enter opens the focused one.
     const shortcuts = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable]:not([contenteditable=false]), [role=dialog]")) return;
       if (event.key === "/") {
@@ -244,10 +244,14 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
         return;
       }
       if (event.key !== "j" && event.key !== "k") return;
+      // Only from the page itself or a card, so a focused menu, tree row, or control keeps its own keys.
+      const onCard = target?.closest("article") ?? null;
+      if (target !== document.body && onCard === null) return;
       const cards = [...document.querySelectorAll<HTMLElement>(POST_CARD_OPEN)];
       if (cards.length === 0) return;
-      const at = cards.findIndex((card) => card.closest("article")?.contains(target));
-      const next = cards[at === -1 ? 0 : Math.min(Math.max(at + (event.key === "j" ? 1 : -1), 0), cards.length - 1)];
+      const at = cards.findIndex((card) => card.closest("article") === onCard);
+      const firstInView = Math.max(0, cards.findIndex((card) => card.getBoundingClientRect().top >= 0));
+      const next = cards[at === -1 ? firstInView : Math.min(Math.max(at + (event.key === "j" ? 1 : -1), 0), cards.length - 1)];
       event.preventDefault();
       next.focus({ preventScroll: true });
       next.scrollIntoView({ block: "nearest" });
