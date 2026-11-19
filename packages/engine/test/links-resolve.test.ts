@@ -38,6 +38,21 @@ const repoApi = (fields: Record<string, unknown>): HttpResponse => ({
   body: JSON.stringify(fields),
 });
 
+const registry = (fields: Record<string, unknown>): HttpResponse => ({
+  status: 200,
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(fields),
+});
+
+/** Runs the link stage once per allowed attempt, waiting out each retry gap. */
+async function exhaust(run: () => Promise<unknown>, advance: (ms: number) => void) {
+  await run();
+  for (const gap of [6, 12, 24]) {
+    advance(gap * HOUR);
+    await run();
+  }
+}
+
 const rateLimited: HttpResponse = {
   status: 403,
   headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '0' },
@@ -212,8 +227,19 @@ test('a link straight to a twitter.com subdomain makes no request at all', async
   assert.deepEqual(web.calls, []);
 });
 
+test('a link to a media host is not a resource and makes no request', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: ['https://pbs.twimg.com/media/abc.jpg'] }]);
+
+  const counts = await run();
+
+  assert.equal(link(db, 'https://pbs.twimg.com/media/abc.jpg').status, 'not_resource');
+  assert.deepEqual(web.calls, []);
+  assert.deepEqual(groups(db), {});
+  assert.equal(counts.notResource, 1);
+});
+
 test('a link to an image file is not a resource', async (t) => {
-  const image = 'https://pbs.twimg.com/media/abc.jpg';
+  const image = 'https://cdn.pictures.example/media/abc.jpg';
   const { db, run } = setup(t, [{ id: '1', urls: [image] }], {
     [image]: { status: 200, headers: { 'content-type': 'image/jpeg' }, body: '' },
   });
@@ -581,4 +607,211 @@ test('a second run makes no requests and changes nothing', async (t) => {
   assert.equal(db.prepare('SELECT total_changes() AS n').get()?.n, before);
   assert.equal(counts.attempted, 0);
   assert.equal(counts.resources, 1);
+});
+
+test('a link to an npm package is described from the registry, without fetching the package page', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://www.npmjs.com/package/tiny-spring'),
+    'https://registry.npmjs.org/tiny-spring/latest': registry({
+      name: 'tiny-spring',
+      version: '2.0.1',
+      description: 'Spring   physics for\ninterfaces',
+    }),
+  });
+
+  const counts = await run();
+
+  assert.deepEqual(web.calls, ['https://t.co/a', 'https://registry.npmjs.org/tiny-spring/latest']);
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.final_url, 'https://www.npmjs.com/package/tiny-spring');
+  assert.equal(row.title, 'tiny-spring');
+  assert.equal(row.description, 'Spring physics for interfaces');
+  const resource = db.prepare('SELECT canonical_key, kind, title, description FROM resources').get();
+  assert.deepEqual({ ...resource }, {
+    canonical_key: 'npm:tiny-spring',
+    kind: 'package',
+    title: 'tiny-spring',
+    description: 'Spring physics for interfaces',
+  });
+  assert.equal(counts.resolved, 1);
+});
+
+test('a scoped npm package is asked for with its name encoded', async (t) => {
+  const written = 'https://www.npmjs.com/package/@acme/motion?activeTab=versions';
+  const { db, web, run } = setup(t, [{ id: '1', urls: [written] }], {
+    'https://registry.npmjs.org/@acme%2Fmotion/latest': registry({ name: '@acme/motion', description: 'Motion kit' }),
+  });
+
+  await run();
+
+  assert.deepEqual(web.calls, ['https://registry.npmjs.org/@acme%2Fmotion/latest']);
+  const row = link(db, written);
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.title, '@acme/motion');
+  assert.equal(row.description, 'Motion kit');
+  assert.deepEqual(groups(db), { 'npm:@acme/motion': ['1'] });
+});
+
+test('a registry failure is a failed attempt, and the package is still a resource once attempts run out', async (t) => {
+  const { db, web, run, advance } = setup(t, [{ id: '1', urls: ['https://www.npmjs.com/package/gone-pkg'] }], {
+    'https://registry.npmjs.org/gone-pkg/latest': { status: 404, headers: {}, body: '' },
+  });
+
+  const first = await run();
+  let row = link(db, 'https://www.npmjs.com/package/gone-pkg');
+  assert.equal(row.status, 'failed');
+  assert.equal(row.attempts, 1);
+  assert.equal(first.failed, 1);
+  assert.deepEqual(groups(db), {});
+
+  web.set('https://registry.npmjs.org/gone-pkg/latest', {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+    body: '{"name":"gone-pkg","descr',
+  });
+  for (const gap of [6, 12, 24]) {
+    advance(gap * HOUR);
+    await run();
+  }
+
+  row = link(db, 'https://www.npmjs.com/package/gone-pkg');
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.attempts, 4);
+  assert.equal(row.description, null);
+  assert.deepEqual(groups(db), { 'npm:gone-pkg': ['1'] });
+  assert.equal(db.prepare('SELECT title FROM resources').get()?.title, 'gone-pkg');
+});
+
+test('the destination is stored as soon as it is known, even when its page cannot be read', async (t) => {
+  const { db, run } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://slow.example/post'),
+    'https://slow.example/post': new Error('The operation was aborted due to timeout'),
+  });
+
+  await run();
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'failed');
+  assert.equal(row.final_url, 'https://slow.example/post');
+  assert.equal(row.title, null);
+  assert.deepEqual(groups(db), {});
+});
+
+test('a known destination whose page never loads becomes a resource titled by its host', async (t) => {
+  const { db, web, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://www.down.example/guide?utm_source=x'),
+    'https://www.down.example/guide?utm_source=x': { status: 503, headers: {}, body: '' },
+  });
+
+  await run();
+  for (const gap of [6, 12]) {
+    advance(gap * HOUR);
+    await run();
+  }
+  assert.equal(link(db, 'https://t.co/a').status, 'failed', 'retried as before until the attempts run out');
+  assert.deepEqual(groups(db), {});
+
+  advance(24 * HOUR);
+  const last = await run();
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.attempts, 4);
+  assert.equal(row.final_url, 'https://www.down.example/guide?utm_source=x');
+  assert.equal(row.title, 'down.example');
+  assert.equal(row.description, null);
+  assert.deepEqual(groups(db), { 'down.example/guide': ['1'] });
+  assert.equal(last.resolved, 1);
+  assert.equal(last.unresolved, 0);
+
+  const requests = web.calls.length;
+  advance(365 * 24 * HOUR);
+  await run();
+  assert.equal(web.calls.length, requests, 'not tried again');
+});
+
+test('a page that stays behind a bot wall becomes a resource titled by its host, never by the wall', async (t) => {
+  const { db, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://walled.example/article'),
+    'https://walled.example/article': page('Just a moment...', 'Checking your browser'),
+  });
+
+  await exhaust(run, advance);
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.title, 'walled.example');
+  assert.equal(row.description, null);
+  assert.deepEqual(groups(db), { 'walled.example/article': ['1'] });
+});
+
+test('a destination learned on one attempt is kept when later attempts learn nothing', async (t) => {
+  const { db, web, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://down.example/guide'),
+    'https://down.example/guide': { status: 500, headers: {}, body: '' },
+  });
+
+  await run();
+  web.set('https://t.co/a', new Error('The operation was aborted due to timeout'));
+  for (const gap of [6, 12, 24]) {
+    advance(gap * HOUR);
+    await run();
+  }
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.final_url, 'https://down.example/guide');
+  assert.equal(row.title, 'down.example');
+  assert.deepEqual(groups(db), { 'down.example/guide': ['1'] });
+});
+
+test('a link that only ever leads to a private address is given up on without a resource', async (t) => {
+  const { db, web, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('http://192.168.1.1/admin'),
+  });
+
+  await exhaust(run, advance);
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'unresolved');
+  assert.equal(row.final_url, null);
+  assert.deepEqual(groups(db), {});
+  assert.ok(web.calls.every((url) => url === 'https://t.co/a'));
+});
+
+test('a link whose page was never read does not replace what another link read about the same page', async (t) => {
+  const { db, run, advance } = setup(
+    t,
+    [
+      { id: '1', urls: ['https://t.co/a'] },
+      { id: '2', urls: ['https://t.co/b'] },
+    ],
+    {
+      'https://t.co/a': redirect('https://blog.example/p?utm_source=feed'),
+      'https://blog.example/p?utm_source=feed': { status: 503, headers: {}, body: '' },
+      'https://t.co/b': redirect('https://blog.example/p'),
+      'https://blog.example/p': page('The article', 'What it says'),
+    },
+  );
+
+  await exhaust(run, advance);
+
+  assert.equal(link(db, 'https://t.co/a').title, 'blog.example');
+  assert.deepEqual(groups(db), { 'blog.example/p': ['1', '2'] });
+  const resource = db.prepare('SELECT title, description FROM resources').get();
+  assert.deepEqual({ ...resource }, { title: 'The article', description: 'What it says' });
+});
+
+test('a short link that itself answers with an error is given up on without a resource', async (t) => {
+  const { db, run, advance } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': { status: 404, headers: {}, body: '' },
+  });
+
+  await exhaust(run, advance);
+
+  const row = link(db, 'https://t.co/a');
+  assert.equal(row.status, 'unresolved');
+  assert.equal(row.final_url, null);
+  assert.deepEqual(groups(db), {});
 });

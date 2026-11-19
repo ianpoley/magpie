@@ -55,7 +55,9 @@ export const LINKS = {
   /** chosen: gap before retry n is retryBaseGapMs × 2^(n-1), so 6 h, 12 h, 24 h. */
   retryBaseGapMs: 6 * 60 * 60 * 1000,
   /** Links ending on these hosts are posts, not resources, and are not fetched. */
-  notResourceHosts: ['x.com', 'twitter.com'] as readonly string[],
+  notResourceHosts: ['x.com', 'twitter.com', 'twimg.com'] as readonly string[],
+  /** Hosts that only pass a link on, so an address on one is never where a link ends. */
+  shortenerHosts: ['t.co'] as readonly string[],
   /** Hosts that serve many unrelated projects, so never aliased to one repo. */
   sharedHosts: ['github.io', 'vercel.com', 'medium.com', 'substack.com', 'youtube.com', 'npmjs.com'] as readonly string[],
 } as const;
@@ -67,6 +69,16 @@ export const ASK = {
   concurrency: 6,
   /** chosen: characters of post content per question; the tagger uses the same limit. */
   contentCharLimit: 1_500,
+} as const;
+
+export const TAGGING = {
+  /** chosen: Jev requests in flight. */
+  concurrency: 6,
+} as const;
+
+export const CLAUDE = {
+  /** How long one headless Claude call may run. */
+  timeoutMs: 10 * 60 * 1000,
 } as const;
 
 export const INGEST = {
