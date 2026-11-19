@@ -558,6 +558,11 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
         topicsById={topicsById}
         chipsFor={(post) => postChips(post, applied)}
         similarFor={(post) => similarPosts(snapshot, post, shownPosts, SIMILAR_POSTS)}
+        neighborsOf={(postId) => {
+          const at = result.posts.findIndex((post) => post.id === postId);
+          if (at === -1) return { previous: null, next: null };
+          return { previous: result.posts[at - 1]?.id ?? null, next: result.posts[at + 1]?.id ?? null };
+        }}
         activeTopicIds={applied.topicIds}
         keyword={applied.keyword === "" ? "" : keyword}
         onSelectTopic={selectTopic}

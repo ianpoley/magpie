@@ -3,7 +3,7 @@
 import { Button } from "@ui-sdk/react/button";
 import { Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
-import { ExternalLink, Heart, Link2, Tags, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, Heart, Link2, Tags, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
@@ -28,6 +28,7 @@ export function PostDialog({
   topicsById,
   chipsFor,
   similarFor,
+  neighborsOf,
   activeTopicIds,
   keyword,
   onSelectTopic,
@@ -42,6 +43,8 @@ export function PostDialog({
   topicsById: Map<number, Topic>;
   chipsFor: (post: Post) => Chip[];
   similarFor: (post: Post) => Post[];
+  /** The posts listed before and after this one, for stepping through the list without closing. */
+  neighborsOf: (postId: string) => { previous: string | null; next: string | null };
   activeTopicIds: number[];
   keyword: string;
   onSelectTopic: (topicId: number) => void;
@@ -54,7 +57,19 @@ export function PostDialog({
   return (
     <Dialog controller={controller}>
       <DialogBackdrop />
-      <DialogContent<string> initialFocus="content" className={CONTENT}>
+      <DialogContent<string>
+        initialFocus="content"
+        className={CONTENT}
+        onKeyDown={(event) => {
+          if ((event.key !== "j" && event.key !== "k") || event.metaKey || event.ctrlKey || event.altKey) return;
+          if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
+          const current = controller.getPayload();
+          const step = current === undefined ? null : neighborsOf(current)[event.key === "j" ? "next" : "previous"];
+          if (step === null) return;
+          event.preventDefault();
+          void controller.open({ payload: step });
+        }}
+      >
         {(state) => {
           const post = typeof state.payload === "string" ? postsById.get(state.payload) : undefined;
           if (!post) {
@@ -74,6 +89,7 @@ export function PostDialog({
           const date = formatDate(post.createdAt);
           const chips = chipsFor(post);
           const similar = similarFor(post);
+          const { previous, next } = neighborsOf(post.id);
           return (
             <>
               <header className="flex items-center gap-3 border-b border-line px-5 py-4">
@@ -99,6 +115,32 @@ export function PostDialog({
                   </DialogDescription>
                 </div>
                 <CollectionMarks post={post} />
+                {previous !== null || next !== null ? (
+                  <span className="flex items-center">
+                    <button
+                      type="button"
+                      aria-label="Previous post"
+                      aria-keyshortcuts="k"
+                      title="Previous post (k)"
+                      disabled={previous === null}
+                      onClick={() => previous !== null && void controller.open({ payload: previous })}
+                      className={`${iconButton} disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent`}
+                    >
+                      <ChevronUp aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next post"
+                      aria-keyshortcuts="j"
+                      title="Next post (j)"
+                      disabled={next === null}
+                      onClick={() => next !== null && void controller.open({ payload: next })}
+                      className={`${iconButton} disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent`}
+                    >
+                      <ChevronDown aria-hidden="true" />
+                    </button>
+                  </span>
+                ) : null}
                 <DialogClose aria-label="Close" className={iconButton}>
                   <X aria-hidden="true" />
                 </DialogClose>
