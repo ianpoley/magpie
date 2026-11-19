@@ -11,7 +11,12 @@
     "start": "bun --filter @x-corpus/web start",
     "lint": "bun --filter @x-corpus/web lint",
     "sync": "bun --filter @x-corpus/engine sync",
-    "build:markdown": "bun --filter @x-corpus/engine build:markdown"
+    "build:markdown": "bun --filter @x-corpus/engine build:markdown",
+    "test": "node --test 'packages/engine/test/**/*.test.ts'",
+    "typecheck": "bun --filter @x-corpus/engine typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   },
   "packageManager": "bun@1.3.14",
   "trustedDependencies": [
