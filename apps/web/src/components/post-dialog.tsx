@@ -29,6 +29,7 @@ export function PostDialog({
   activeTopicIds,
   keyword,
   onSelectTopic,
+  onSelectAuthor,
   onCopyLink,
   onRemove,
 }: {
@@ -41,6 +42,7 @@ export function PostDialog({
   activeTopicIds: number[];
   keyword: string;
   onSelectTopic: (topicId: number) => void;
+  onSelectAuthor: (handle: string) => void;
   onCopyLink: (post: Post) => void;
   onRemove: (post: Post) => Promise<void>;
 }) {
@@ -73,8 +75,19 @@ export function PostDialog({
               <header className="flex items-center gap-3 border-b border-line px-5 py-4">
                 <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} size="lg" />
                 <div className="min-w-0 flex-1">
-                  <DialogTitle className="truncate text-[17px] leading-tight font-bold" style={{ color: hue.fg }}>
-                    {post.authorName}
+                  <DialogTitle className="flex text-[17px] leading-tight font-bold" style={{ color: hue.fg }}>
+                    {/* The title names the dialog, so the button keeps the author's name and describes itself in `title`. */}
+                    <button
+                      type="button"
+                      title={`Show posts by ${post.authorName}`}
+                      onClick={() => {
+                        onSelectAuthor(post.authorHandle);
+                        controller.close();
+                      }}
+                      className="focus-ring pointer-events-auto max-w-full cursor-pointer truncate rounded-[4px] border-0 bg-transparent p-0 text-left decoration-current/40 underline-offset-2 hover:underline"
+                    >
+                      {post.authorName}
+                    </button>
                   </DialogTitle>
                   <DialogDescription className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">
                     @{post.authorHandle}
