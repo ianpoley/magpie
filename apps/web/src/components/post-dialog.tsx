@@ -61,8 +61,10 @@ export function PostDialog({
         initialFocus="content"
         className={CONTENT}
         onKeyDown={(event) => {
-          if ((event.key !== "j" && event.key !== "k") || event.metaKey || event.ctrlKey || event.altKey) return;
-          if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
+          if ((event.key !== "j" && event.key !== "k") || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+          // Keys from popups portaled out of the dialog, like the topics editor, still bubble here through React.
+          const target = event.target as HTMLElement;
+          if (!event.currentTarget.contains(target) || target.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
           const current = controller.getPayload();
           const step = current === undefined ? null : neighborsOf(current)[event.key === "j" ? "next" : "previous"];
           if (step === null) return;
