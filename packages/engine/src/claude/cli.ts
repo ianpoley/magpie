@@ -52,9 +52,11 @@ export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest)
 }
 
 // The prompt carries untrusted post text, so the session must be unable to
-// act: no built-in tools, no MCP servers, and none of the user's
-// customizations (CLAUDE.md, skills, plugins, hooks, commands). The prompt
-// itself goes on stdin so nothing in it can be read as an argument.
+// act: no built-in tools, no MCP servers, no skills, no slash commands, and
+// no CLAUDE.md. Installed plugins are still listed as loaded under
+// --safe-mode, but with those surfaces off they contribute nothing callable;
+// the only tool present is the StructuredOutput helper that --json-schema
+// adds. The prompt goes on stdin so nothing in it can be read as an argument.
 function cliArgs(schema: JsonSchema): string[] {
   return [
     '--print',

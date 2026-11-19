@@ -26,12 +26,46 @@ function createdTopicIds(change: ChangeRow): number[] {
   return [];
 }
 
-/** Topics merged into `topicId`, which stop counting for anything once it goes out of use. */
-function mergedInto(db: Store, topicId: number): { id: number; name: string }[] {
-  return db
-    .prepare(`SELECT id, name FROM topics WHERE merged_into = ? AND state = 'merged' ORDER BY id`)
-    .all(topicId)
-    .map((row) => ({ id: Number(row.id), name: String(row.name) }));
+type MergedTopic = { id: number; name: string };
+
+/** Each topic the given changes created, with the change that created it. */
+function createdBy(changes: ChangeRow[]): Map<number, number> {
+  const created = new Map<number, number>();
+  for (const change of changes) {
+    for (const topicId of createdTopicIds(change)) created.set(topicId, Number(change.id));
+  }
+  return created;
+}
+
+/**
+ * Topics merged into `topicId`, which stop counting for anything once it goes
+ * out of use: the user's `own`, and those `created` made. What was merged into
+ * one of the latter is found too, since that topic goes out of use as well.
+ */
+function mergedInto(
+  db: Store,
+  topicId: number,
+  created: Map<number, number>,
+): { own: MergedTopic[]; made: MergedTopic[] } {
+  const read = db.prepare(`SELECT id, name FROM topics WHERE merged_into = ? AND state = 'merged' ORDER BY id`);
+  const own: MergedTopic[] = [];
+  const made: MergedTopic[] = [];
+  const reached = new Set([topicId]);
+  const pending = [topicId];
+  for (const targetId of pending) {
+    for (const row of read.all(targetId)) {
+      const merged = { id: Number(row.id), name: String(row.name) };
+      if (reached.has(merged.id)) continue;
+      reached.add(merged.id);
+      if (created.has(merged.id)) {
+        made.push(merged);
+        pending.push(merged.id);
+      } else {
+        own.push(merged);
+      }
+    }
+  }
+  return { own, made };
 }
 
 /**
@@ -60,6 +94,7 @@ export function undoChain(db: Store, changeId: number): LoggedChange[] {
     for (const id of topics) touched.add(id);
   }
   const state = db.prepare(`SELECT state FROM topics WHERE id = ?`);
+  const created = createdBy(chain);
   return chain.reverse().map((row) => ({
     id: Number(row.id),
     kind: String(row.kind),
@@ -68,18 +103,27 @@ export function undoChain(db: Store, changeId: number): LoggedChange[] {
     createdAt: String(row.created_at),
     restores: createdTopicIds(row)
       .filter((topicId) => state.get(topicId)?.state === 'active')
-      .flatMap((topicId) => mergedInto(db, topicId).map((topic) => topic.name)),
+      .flatMap((topicId) => mergedInto(db, topicId, created).own.map((topic) => topic.name)),
   }));
 }
 
 /**
  * Takes topics an automatic change created out of use and keeps them from
  * being proposed again. A topic the user merged into one of them is the
- * user's own, so it comes back as it was rather than going out of use too.
+ * user's own, so it comes back as it was rather than going out of use too,
+ * unless a change being undone (`created`) made that topic as well.
  */
-function removeCreatedTopics(db: Store, topicIds: number[], changeId: number, now: string): void {
+function removeCreatedTopics(
+  db: Store,
+  topicIds: number[],
+  changeId: number,
+  created: Map<number, number>,
+  now: string,
+): void {
   const read = db.prepare(`SELECT name, definition, state FROM topics WHERE id = ?`);
-  const remove = db.prepare(`UPDATE topics SET state = 'removed', locked = 1, updated_at = ? WHERE id = ?`);
+  const remove = db.prepare(
+    `UPDATE topics SET state = 'removed', merged_into = NULL, locked = 1, updated_at = ? WHERE id = ?`,
+  );
   // The posts the proposal itself matched: what was merged in is not part of it.
   const ownMatches = db.prepare(
     `SELECT s.post_id FROM scores s
@@ -98,33 +142,36 @@ function removeCreatedTopics(db: Store, topicIds: number[], changeId: number, no
     `UPDATE topics SET state = 'active', merged_into = NULL, locked = 1, updated_at = ? WHERE id = ?`,
   );
   for (const topicId of topicIds) {
-    const topic = read.get(topicId);
-    if (!topic || topic.state !== 'active') continue;
-    suppressProposal(
-      db,
-      {
-        name: String(topic.name),
-        definition: String(topic.definition),
-        matches: ownMatches.all(topicId).map((row) => String(row.post_id)),
-        topicId,
-        changeId,
-      },
-      now,
-    );
-    for (const merged of mergedInto(db, topicId)) {
-      copyFixes.run(merged.id, topicId);
-      restore.run(now, merged.id);
+    if (read.get(topicId)?.state !== 'active') continue;
+    const merged = mergedInto(db, topicId, created);
+    for (const own of merged.own) {
+      copyFixes.run(own.id, topicId);
+      restore.run(now, own.id);
     }
-    remove.run(now, topicId);
+    for (const id of [topicId, ...merged.made.map((topic) => topic.id)]) {
+      const topic = read.get(id);
+      suppressProposal(
+        db,
+        {
+          name: String(topic?.name),
+          definition: String(topic?.definition),
+          matches: ownMatches.all(id).map((row) => String(row.post_id)),
+          topicId: id,
+          changeId: created.get(id) ?? changeId,
+        },
+        now,
+      );
+      remove.run(now, id);
+    }
   }
 }
 
-function reverse(db: Store, change: LoggedChange, now: string): void {
+function reverse(db: Store, change: LoggedChange, created: Map<number, number>, now: string): void {
   const row = db.prepare(`SELECT snapshot_json FROM changes WHERE id = ?`).get(change.id);
   const snapshot = JSON.parse(String(row?.snapshot_json));
   if (change.kind === CHANGE_KIND.newTopic) {
     const { topicId, areaId, areaCreated } = snapshot as NewTopicSnapshot;
-    removeCreatedTopics(db, [topicId], change.id, now);
+    removeCreatedTopics(db, [topicId], change.id, created, now);
     if (areaCreated) {
       db.prepare(
         `DELETE FROM areas WHERE id = ? AND locked = 0
@@ -133,7 +180,7 @@ function reverse(db: Store, change: LoggedChange, now: string): void {
     }
   } else if (change.kind === CHANGE_KIND.split) {
     const { parentId, subtopicIds } = snapshot as SplitSnapshot;
-    removeCreatedTopics(db, subtopicIds, change.id, now);
+    removeCreatedTopics(db, subtopicIds, change.id, created, now);
     db.prepare(
       `UPDATE topics SET state = 'active', locked = 1, last_match_json = NULL, updated_at = ?
        WHERE id = ? AND state = 'split'`,
@@ -159,8 +206,15 @@ export function reverseChanges(db: Store, chain: LoggedChange[], now: string): n
     .run(CHANGE_KIND.undo, `Undid: ${target.summary}`, target.postCount, now);
   const undoId = Number(undo.lastInsertRowid);
   const mark = db.prepare(`UPDATE changes SET undone_at = ?, undone_by = ? WHERE id = ?`);
+  const snapshot = db.prepare(`SELECT id, kind, snapshot_json FROM changes WHERE id = ?`);
+  const created = createdBy(
+    chain.flatMap((change) => {
+      const row = snapshot.get(change.id);
+      return row ? [row] : [];
+    }),
+  );
   for (const change of chain) {
-    reverse(db, change, now);
+    reverse(db, change, created, now);
     mark.run(now, undoId, change.id);
   }
   return undoId;

@@ -467,3 +467,13 @@ test("a request the browser marks as cross-site is refused", () => {
   assert.equal(isSameOriginJson(requestHeaders({ ...json, "sec-fetch-site": "cross-site" })), false);
   assert.equal(isSameOriginJson(requestHeaders({ ...json, "sec-fetch-site": "same-site", origin: `http://${HOST}` })), false);
 });
+
+test("a request addressed to a name that is not this machine is refused, whatever origin it gives", () => {
+  const rebound = { "content-type": "application/json", "sec-fetch-site": "same-origin" };
+  assert.equal(isSameOriginJson(new Headers({ ...rebound, host: "evil.example:3000", origin: "http://evil.example:3000" })), false);
+  assert.equal(isSameOriginJson(new Headers({ ...rebound, host: "127.0.0.1.evil.example:3000", origin: "http://127.0.0.1.evil.example:3000" })), false);
+  assert.equal(isSameOriginJson(new Headers({ "content-type": "application/json", host: "evil.example:3000" })), false);
+  for (const host of ["127.0.0.1:3000", "localhost:3000", "[::1]:3000", "localhost"]) {
+    assert.equal(isSameOriginJson(new Headers({ ...rebound, host, origin: `http://${host}` })), true, host);
+  }
+});
