@@ -20,7 +20,7 @@ const KINDS: Record<string, { icon: LucideIcon; label: string }> = {
   page: { icon: FileText, label: "Page" },
 };
 
-function PostRow({ post, dialog }: { post: Post; dialog: PostDialogController }) {
+export function PostRow({ post, dialog }: { post: Post; dialog: PostDialogController }) {
   const date = formatDate(post.createdAt);
   return (
     <li>
