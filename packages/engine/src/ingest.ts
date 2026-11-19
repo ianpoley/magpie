@@ -82,6 +82,18 @@ const text = (value: unknown): string | null => (value == null ? null : String(v
 
 const ID_KEYS = ['id', 'id_str', 'rest_id', 'tweet_id'];
 const TEXT_KEYS = ['full_text', 'text', 'content', 'tweet'];
+
+// X escapes only these three characters in post text. `&amp;` goes last so `&amp;lt;` stays `&lt;`.
+const decodeEntities = (value: string): string =>
+  value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+
+function decodeQuoted(quoted: Record<string, unknown>): Record<string, unknown> {
+  const decoded = { ...quoted };
+  for (const key of TEXT_KEYS) {
+    if (typeof decoded[key] === 'string') decoded[key] = decodeEntities(decoded[key]);
+  }
+  return decoded;
+}
 const HANDLE_KEYS = ['handle', 'screen_name', 'username'];
 const NAME_KEYS = ['displayName', 'name', 'display_name'];
 
@@ -120,7 +132,7 @@ function parsePost(record: unknown): ParsedPost | null {
 
   return {
     id,
-    text: String(pick(record, TEXT_KEYS) ?? ''),
+    text: decodeEntities(String(pick(record, TEXT_KEYS) ?? '')),
     created_at: text(pick(record, ['createdAt', 'created_at', 'date', 'timestamp'])),
     url: String(
       pick(record, ['url', 'permalink']) ??
@@ -133,7 +145,7 @@ function parsePost(record: unknown): ParsedPost | null {
     author_avatar_hue: Number.isFinite(hue) ? hue : null,
     like_count: Number.isFinite(likes) ? likes : 0,
     reply_to_id: text(pick(record, ['replyToId', 'reply_to_id', 'in_reply_to_status_id_str'])),
-    quoted_json: isObject(quoted) ? JSON.stringify(quoted) : null,
+    quoted_json: isObject(quoted) ? JSON.stringify(decodeQuoted(quoted)) : null,
     media_json: JSON.stringify(Array.isArray(record.media) ? record.media : []),
     entities_json: JSON.stringify(entities),
     links,
