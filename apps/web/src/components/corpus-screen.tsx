@@ -62,7 +62,7 @@ const narrowing = (filter: FilterState): boolean =>
   filter.timeRange !== "all" ||
   filter.mediaOnly;
 
-function heading(snapshot: Snapshot, filter: FilterState): { eyebrow: string; title: string; detail: string | null } {
+function heading(snapshot: Snapshot, filter: FilterState, authorName: string | null): { eyebrow: string; title: string; detail: string | null } {
   const collection = COLLECTION_TITLES[filter.collection];
   const selected = filter.topicIds.length + filter.areaIds.length;
   if (filter.unfiled) return { eyebrow: collection, title: "Unfiled", detail: "Posts no topic has claimed with confidence yet." };
@@ -76,6 +76,7 @@ function heading(snapshot: Snapshot, filter: FilterState): { eyebrow: string; ti
     if (area) return { eyebrow: collection, title: area.name, detail: "Posts in any topic of this area." };
   }
   if (selected > 1) return { eyebrow: collection, title: `${selected} categories`, detail: "Posts that are in every one of them." };
+  if (filter.author !== null) return { eyebrow: `${collection} · @${filter.author}`, title: authorName ?? `@${filter.author}`, detail: null };
   return { eyebrow: "Your saved posts", title: collection, detail: null };
 }
 
@@ -336,7 +337,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
     onRevealHidden: (revealHidden) => setFilter((current) => ({ ...current, revealHidden })),
   };
 
-  const { eyebrow, title, detail } = heading(snapshot, applied);
+  const { eyebrow, title, detail } = heading(snapshot, applied, authorName);
   const groups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];
   const listKey = JSON.stringify([ask?.query, applied.collection, applied.topicIds, applied.areaIds, applied.unfiled, applied.author, keyword, applied.timeRange, applied.sort, applied.mediaOnly, applied.revealHidden]);
 
