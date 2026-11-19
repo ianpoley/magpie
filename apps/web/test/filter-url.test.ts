@@ -90,11 +90,11 @@ test("a repeated parameter is read from its first value without an error", () =>
 });
 
 test("an author round-trips after the category selection", () => {
-  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, author: "ada_l" });
+  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, author: "ada_l", keyword: "" });
   assert.equal(query, "topics=12&author=ada_l");
-  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { topicIds: [12], areaIds: [], unfiled: false, author: "ada_l" });
-  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: "ada_l" }), "author=ada_l");
-  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: null }), "");
+  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { topicIds: [12], areaIds: [], unfiled: false, author: "ada_l", keyword: "" });
+  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: "ada_l", keyword: "" }), "author=ada_l");
+  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: null, keyword: "" }), "");
 });
 
 test("an author that is not an X handle is ignored", () => {
@@ -102,4 +102,12 @@ test("an author that is not an X handle is ignored", () => {
     assert.equal(parseLinked({ author }).author, null, author);
   }
   assert.equal(parseLinked({ author: ["first_one", "second"] }).author, "first_one");
+});
+
+test("search words round-trip last, encoded, and trimmed", () => {
+  const query = linkedQuery({ topicIds: [], areaIds: [3], unfiled: false, author: null, keyword: "  evals & agents " });
+  assert.equal(query, "areas=3&q=evals%20%26%20agents");
+  assert.equal(parseLinked(Object.fromEntries(new URLSearchParams(query))).keyword, "evals & agents");
+  assert.equal(parseLinked({ q: "x".repeat(500) }).keyword.length, 200);
+  assert.equal(parseLinked({}).keyword, "");
 });
