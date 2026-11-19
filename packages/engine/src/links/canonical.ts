@@ -44,6 +44,14 @@ function youtubeId(host: string, segments: string[], parsed: URL): string | null
   return id !== null && YOUTUBE_ID.test(id) ? id : null;
 }
 
+/** The package an npmjs.com package page is about, as written in the URL. */
+export function npmPackageName(url: URL): string | null {
+  const segments = url.pathname.split('/').filter(Boolean);
+  if (normalizeHost(url.hostname) !== 'npmjs.com' || segments[0] !== 'package' || segments.length < 2) return null;
+  const scoped = segments[1].startsWith('@') && segments.length >= 3;
+  return scoped ? `${segments[1]}/${segments[2]}` : segments[1];
+}
+
 /**
  * The identity of the thing a final URL points at. Two URLs with the same key
  * are the same resource. Returns null for anything that is not an http(s) URL.
@@ -60,9 +68,9 @@ export function canonicalize(url: string): Canonical | null {
     return { key: `github:${owner}/${repo}`, kind: 'repo', url: `https://github.com/${owner}/${repo}`, host };
   }
 
-  if (host === 'npmjs.com' && segments[0] === 'package' && segments.length >= 2) {
-    const scoped = segments[1].startsWith('@') && segments.length >= 3;
-    const name = (scoped ? `${segments[1]}/${segments[2]}` : segments[1]).toLowerCase();
+  const packageName = npmPackageName(parsed);
+  if (packageName !== null) {
+    const name = packageName.toLowerCase();
     return { key: `npm:${name}`, kind: 'package', url: `https://www.npmjs.com/package/${name}`, host };
   }
 

@@ -2,10 +2,10 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { LINKS } from '../config.ts';
 import { transaction } from '../store/db.ts';
-import { canonicalize, normalizeHost } from './canonical.ts';
+import { canonicalize, normalizeHost, npmPackageName } from './canonical.ts';
 import type { Canonical } from './canonical.ts';
 import { homepageHost, lookupRepo, onHost } from './github.ts';
-import type { HttpFetch } from './http.ts';
+import type { HttpFetch, HttpResponse } from './http.ts';
 
 export type LinkDeps = {
   http: HttpFetch;
@@ -34,6 +34,18 @@ export type LinkCounts = {
 type Outcome =
   | { status: 'resolved'; finalUrl: string; title: string; description: string | null }
   | { status: 'not_resource'; finalUrl: string };
+
+/** A failure at an address already known to be where the link ends. */
+class Unreadable extends Error {
+  finalUrl: string;
+
+  constructor(message: string, finalUrl: string) {
+    super(message);
+    this.finalUrl = finalUrl;
+  }
+}
+
+const NPM_REGISTRY = 'https://registry.npmjs.org';
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 1000;
@@ -130,6 +142,34 @@ function isPublicHost(hostname: string): boolean {
   return !onHost(host, ['localhost', 'local', 'internal', 'lan', 'home.arpa']);
 }
 
+const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/**
+ * npmjs.com refuses clients that are not browsers, so a package is described
+ * by the registry's record of its latest version instead of by its page.
+ */
+async function readPackage(page: URL, name: string, http: HttpFetch): Promise<Outcome> {
+  try {
+    const response = await http({
+      url: `${NPM_REGISTRY}/${name.replace('/', '%2F')}/latest`,
+      timeoutMs: LINKS.timeoutMs,
+      maxBytes: LINKS.htmlCapBytes,
+      headers: { accept: 'application/json' },
+    });
+    if (response.status !== 200) throw new Error(`npm registry http ${response.status}`);
+    const fields = JSON.parse(response.body) as Record<string, unknown> | null;
+    if (typeof fields !== 'object' || fields === null) throw new Error('npm registry sent an unexpected response');
+    return {
+      status: 'resolved',
+      finalUrl: page.href,
+      title: plainText(typeof fields.name === 'string' ? fields.name : null, TITLE_MAX) ?? name,
+      description: plainText(typeof fields.description === 'string' ? fields.description : null, DESCRIPTION_MAX),
+    };
+  } catch (error) {
+    throw new Unreadable(errorText(error), page.href);
+  }
+}
+
 async function follow(start: URL, http: HttpFetch): Promise<Outcome> {
   let url = start;
   for (let redirects = 0; ; redirects++) {
@@ -138,7 +178,18 @@ async function follow(start: URL, http: HttpFetch): Promise<Outcome> {
     }
     if (!isPublicHost(url.hostname)) throw new Error('address is not on the public web');
 
-    const response = await http({ url: url.href, timeoutMs: LINKS.timeoutMs, maxBytes: LINKS.htmlCapBytes });
+    const packageName = npmPackageName(url);
+    if (packageName !== null) return readPackage(url, packageName, http);
+
+    // An address that answers, or that a redirect pointed at, is where the
+    // link ends even if its page cannot be read. A shortener's never is.
+    const isDestination = !onHost(normalizeHost(url.hostname), LINKS.shortenerHosts);
+    let response: HttpResponse;
+    try {
+      response = await http({ url: url.href, timeoutMs: LINKS.timeoutMs, maxBytes: LINKS.htmlCapBytes });
+    } catch (error) {
+      throw redirects > 0 && isDestination ? new Unreadable(errorText(error), url.href) : error;
+    }
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.location;
@@ -154,14 +205,18 @@ async function follow(start: URL, http: HttpFetch): Promise<Outcome> {
       url = next;
       continue;
     }
-    if (response.status < 200 || response.status >= 400) throw new Error(`http ${response.status}`);
+    if (response.status < 200 || response.status >= 400) {
+      const message = `http ${response.status}`;
+      throw isDestination ? new Unreadable(message, url.href) : new Error(message);
+    }
 
     if (/^\s*(image|video|audio)\//i.test(response.headers['content-type'] ?? '')) {
       return { status: 'not_resource', finalUrl: url.href };
     }
     const { title, description } = pageMetadata(response.body);
     if (title !== null && WALL_TITLES.some((pattern) => pattern.test(title))) {
-      throw new Error(`bot wall or login page: ${title}`);
+      const message = `bot wall or login page: ${title}`;
+      throw isDestination ? new Unreadable(message, url.href) : new Error(message);
     }
     return { status: 'resolved', finalUrl: url.href, title: title ?? normalizeHost(url.hostname), description };
   }
@@ -170,7 +225,7 @@ async function follow(start: URL, http: HttpFetch): Promise<Outcome> {
 async function resolveDue(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts): Promise<void> {
   const due = db
     .prepare(
-      `SELECT url, expanded_url, attempts FROM links
+      `SELECT url, expanded_url, attempts, final_url FROM links
        WHERE status = 'new' OR (status = 'failed' AND next_attempt_at <= ?)
        ORDER BY url`,
     )
@@ -181,7 +236,13 @@ async function resolveDue(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts):
      WHERE url = ?`,
   );
   const fail = db.prepare(
-    `UPDATE links SET status = ?, attempts = ?, last_attempt_at = ?, next_attempt_at = ?, last_error = ?
+    `UPDATE links SET status = ?, attempts = ?, last_attempt_at = ?, next_attempt_at = ?, last_error = ?,
+       final_url = COALESCE(?, final_url), host = COALESCE(?, host)
+     WHERE url = ?`,
+  );
+  const settle = db.prepare(
+    `UPDATE links SET status = 'resolved', final_url = ?, host = ?, title = ?, description = NULL, attempts = ?,
+       last_attempt_at = ?, next_attempt_at = NULL, resolved_at = ?, last_error = ?
      WHERE url = ?`,
   );
 
@@ -208,8 +269,28 @@ async function resolveDue(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts):
       const attempts = Number(row.attempts) + 1;
       const givenUp = attempts >= LINKS.maxAttempts;
       const retryAt = new Date(now.getTime() + LINKS.retryBaseGapMs * 2 ** (attempts - 1)).toISOString();
-      const message = (error instanceof Error ? error.message : String(error)).slice(0, ERROR_MAX);
-      fail.run(givenUp ? 'unresolved' : 'failed', attempts, now.toISOString(), givenUp ? null : retryAt, message, written);
+      const message = errorText(error).slice(0, ERROR_MAX);
+      const learned = error instanceof Unreadable ? error.finalUrl : null;
+      const finalUrl = learned ?? (row.final_url as string | null);
+      const host = finalUrl === null ? null : normalizeHost(new URL(finalUrl).hostname);
+      if (givenUp && finalUrl !== null && host !== null && !onHost(host, LINKS.notResourceHosts)) {
+        // The page was never read, but where the link leads is known: it is
+        // filed under that destination, named by its host.
+        settle.run(finalUrl, host, host, attempts, now.toISOString(), now.toISOString(), message, written);
+        counts.resolved++;
+        return;
+      }
+      const learnedHost = learned === null ? null : host;
+      fail.run(
+        givenUp ? 'unresolved' : 'failed',
+        attempts,
+        now.toISOString(),
+        givenUp ? null : retryAt,
+        message,
+        learned,
+        learnedHost,
+        written,
+      );
       if (givenUp) counts.unresolved++;
       else counts.failed++;
     }
@@ -241,7 +322,9 @@ function assignResources(db: DatabaseSync, now: Date): void {
   transaction(db, () => {
     const links: { row: Record<string, unknown>; own: Canonical }[] = [];
     for (const row of db
-      .prepare(`SELECT url, final_url, title, description, resource_id FROM links WHERE status = 'resolved' ORDER BY url`)
+      .prepare(
+        `SELECT url, final_url, host, title, description, resource_id FROM links WHERE status = 'resolved' ORDER BY url`,
+      )
       .all()) {
       const own = canonicalize(String(row.final_url));
       if (own !== null) links.push({ row, own });
@@ -282,7 +365,9 @@ function assignResources(db: DatabaseSync, now: Date): void {
     );
     const describe = db.prepare(`UPDATE resources SET title = ?, description = ? WHERE id = ?`);
     const described = new Set<string>();
-    for (const { row, own } of links) {
+    // A link whose page was read describes the resource ahead of one that only has its host for a title.
+    const wasRead = ({ row }: (typeof links)[number]) => row.description !== null || row.title !== row.host;
+    for (const { row, own } of [...links.filter(wasRead), ...links.filter((link) => !wasRead(link))]) {
       if (described.has(own.key) || targetOf(own) !== own.key) continue;
       described.add(own.key);
       const title =

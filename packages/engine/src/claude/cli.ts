@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 
-import { paths } from '../config.ts';
+import { CLAUDE, paths } from '../config.ts';
 import { schemaErrors } from './schemas.ts';
 import type { JsonSchema } from './schemas.ts';
 
@@ -49,8 +49,6 @@ export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest)
   }
   return { ok: true, value: sent.value as T };
 }
-
-export const CLAUDE_CLI_TIMEOUT_MS = 10 * 60 * 1000;
 
 const MESSAGE_MAX_CHARS = 500;
 
@@ -121,7 +119,7 @@ function readAnswer(stdout: string): ClaudeSendResult {
  */
 export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number } = {}): ClaudeAdapter {
   const cliPath = options.cliPath ?? paths().claudeCli;
-  const timeoutMs = options.timeoutMs ?? CLAUDE_CLI_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? CLAUDE.timeoutMs;
 
   return {
     send: (request) =>

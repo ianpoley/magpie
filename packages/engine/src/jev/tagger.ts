@@ -1,4 +1,4 @@
-import { ASK } from '../config.ts';
+import { TAGGING } from '../config.ts';
 import { transaction } from '../store/db.ts';
 import type { Store } from '../store/db.ts';
 import { syncBands } from '../store/membership.ts';
@@ -119,7 +119,7 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
   };
 
   const queue = [...topicIdsByPost];
-  const workers = Array.from({ length: Math.max(1, deps.concurrency ?? ASK.concurrency) }, async () => {
+  const workers = Array.from({ length: Math.max(1, deps.concurrency ?? TAGGING.concurrency) }, async () => {
     for (let next = queue.shift(); next; next = queue.shift()) await scorePost(next[0], next[1]);
   });
   await Promise.all(workers);
