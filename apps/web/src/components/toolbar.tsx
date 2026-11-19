@@ -107,7 +107,7 @@ export function Toolbar({
     <div className="flex flex-wrap items-center gap-2">
       <form
         role="search"
-        className="min-w-80 flex-1"
+        className="min-w-[min(20rem,100%)] flex-1"
         onSubmit={(event) => {
           event.preventDefault();
           if (asking) onAsk();
