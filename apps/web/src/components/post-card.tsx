@@ -19,8 +19,9 @@ import { TopicChip } from "./topic-chip";
 
 export type PostDialogController = ReturnType<typeof createDialogController<string>>;
 
-/** Finds the button that opens each card's post, for keyboard movement between cards. */
-export const POST_CARD_OPEN = "[data-post-card-open]";
+/** Finds the button that opens a card's post (one post's, or every card's), for keyboard movement and returning focus. */
+export const postCardOpen = (postId?: string): string =>
+  postId === undefined ? "[data-post-card-open]" : `[data-post-card-open="${CSS.escape(postId)}"]`;
 
 export function CollectionMarks({ post }: { post: Post }) {
   return (
@@ -116,7 +117,7 @@ export function PostCard({
         payload={post.id}
         aria-label={`Open post by ${post.authorName}`}
         aria-describedby={text ? textId : undefined}
-        data-post-card-open=""
+        data-post-card-open={post.id}
         className="focus-ring absolute inset-0 size-full cursor-pointer rounded-card border-0 bg-transparent p-0 hover:bg-transparent"
       />
       <div className="pointer-events-none relative flex flex-col gap-3 p-4 sm:p-5">
