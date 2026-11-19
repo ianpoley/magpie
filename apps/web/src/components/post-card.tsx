@@ -6,6 +6,7 @@ import { Bookmark, ExternalLink, Heart, Link2, Tags, Trash2 } from "lucide-react
 import { useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
+import { withoutTrailingUrl } from "@/lib/post-links";
 import type { Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
@@ -102,6 +103,8 @@ export function PostCard({
 }) {
   const hue = authorHue(post.authorHandle);
   const date = formatDate(post.createdAt);
+  const page = post.linkedPages.slice(0, 1);
+  const text = withoutTrailingUrl(post.text, page[0]?.url ?? null);
   return (
     <article className="relative rounded-card bg-surface shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover">
       <DialogTrigger
@@ -127,8 +130,8 @@ export function PostCard({
           <CollectionMarks post={post} />
         </header>
 
-        {post.text ? <PostText text={post.text} keyword={keyword} className="line-clamp-[9]" /> : null}
-        <LinkedPages pages={post.linkedPages.slice(0, 1)} keyword={keyword} />
+        {text ? <PostText text={text} keyword={keyword} className="line-clamp-[9]" /> : null}
+        <LinkedPages pages={page} keyword={keyword} />
         {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} /> : null}
         <MediaGrid media={post.media} />
 

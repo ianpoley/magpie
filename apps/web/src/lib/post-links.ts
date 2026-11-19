@@ -43,3 +43,10 @@ export const shortenUrls = (text: string): string => text.replace(URL_PATTERN, (
   const url = trimUrl(found);
   return displayUrl(url) + found.slice(url.length);
 });
+
+/** Text without a trailing address to `url`, for a card that shows that link's title on its own. */
+export function withoutTrailingUrl(text: string, url: string | null): string {
+  if (url === null) return text;
+  const trimmed = text.trimEnd();
+  return trimmed.endsWith(url) ? trimmed.slice(0, -url.length).trimEnd() : text;
+}
