@@ -16,7 +16,7 @@ execution: code
 - **Product authority:** The user is the sole user and decision-maker. The decisions below were made in dialogue on 2026-11-19 and govern this plan.
 - **Means:** One local SQLite store that the sync job, the web app, and the skill all read; Jev scores posts against topics and Claude proposes the topics (KTD1, KTD4, KTD6).
 - **Authority:** Product Contract requirements win on product behavior. Key Technical Decisions win on mechanism within the requirements they cite. A unit overrides neither.
-- **Execution profile:** One pull request, fourteen units in dependency order. The repo has no git remote, so the work ends as local commits unless one is added.
+- **Execution profile:** One pull request, fifteen units in dependency order. The repo has no git remote, so the work ends as local commits unless one is added.
 - **Stop conditions:** Stop and report when a session-settled Key Decision proves unworkable, when Jev or Claude cannot be reached with the credentials on this Mac, or when a change would alter the live 3-hourly sync before U12.
 - **Finishing:** The implementer runs the first live backfill in U12 and confirms the screen against real data. launchd and the skill symlink both run from this working tree, so after U12 the checked-out branch is the live system. The user reviews the result and decides whether to add a remote.
 - **Open blockers:** None.
@@ -92,6 +92,7 @@ Many posts are a short line plus a `t.co` link, so the meaning lives at the link
 
 - R19. Selecting several topics shows posts in all of them. Selecting an area counts as selecting any topic inside it.
 - R20. Category filters combine with collection (Everything, Bookmarks, Likes), author, keyword search, time range, sort, and the media toggle.
+- R30. The sidebar has a search field that filters the category tree by area and topic name as the user types. The menu that edits a category is visible on its row without hovering.
 - R29. The category selection is deep-linkable. The URL carries the selected topics and areas, one or several, and Unfiled; opening or reloading that URL restores the selection, and browser back and forward step through selections.
 
 **Ask-anything topics**
@@ -436,6 +437,7 @@ state/corpus.sqlite             gitignored
 | U11 | Skill categories and resources | `packages/skill/` | U3 |
 | U13 | Remove a post from the corpus | `packages/engine/src/store/`, `apps/web/src/`, `packages/skill/` | U9, U10, U11 |
 | U14 | Deep links for the category selection | `apps/web/src/lib/filter-url.ts`, `apps/web/src/components/corpus-screen.tsx` | U8, U10 |
+| U15 | Category search in the sidebar | `apps/web/src/lib/category-search.ts`, `apps/web/src/components/category-tree.tsx` | U9 |
 | U12 | Scheduled-job wiring, first backfill, docs | `packages/engine/bin/birdclaw-nightly.sh`, READMEs | U6, U11, U13 |
 
 ### U1. Store, test harness, ingest
@@ -782,6 +784,22 @@ state/corpus.sqlite             gitignored
   - Browser: selecting two topics updates the URL; reloading shows the same two selected; back returns to the previous selection.
 - **Verification:** Tests, lint, typecheck, and build pass; the browser checks pass.
 
+### U15. Category search in the sidebar
+
+- **Goal:** The user can find a category by name in the sidebar and can see where to edit or delete it.
+- **Requirements:** R30, R15.
+- **Dependencies:** U9.
+- **Files:** `apps/web/src/lib/category-search.ts`, `apps/web/test/category-search.test.ts`, `apps/web/src/components/category-tree.tsx`, `apps/web/src/components/sidebar.tsx`, `apps/web/src/components/category-menu.tsx`
+- **Approach:** A pure function filters areas and topics by a case-insensitive name match: a matching topic shows under its area, a matching area shows with all its topics, and Pinned, Unfiled, and Hidden rows follow the same rule. While a query is present, matching areas are expanded and the match is highlighted. The row menu button is always visible, in a quiet style, instead of appearing on hover. Search is view state only: it does not change the selection or the URL.
+- **Test scenarios:**
+  - A query matching one topic returns that topic under its area and no other areas.
+  - A query matching an area name returns the area with all its topics.
+  - Matching ignores case and surrounding whitespace; an empty query returns the full tree.
+  - A query matching nothing returns an empty tree, and the sidebar shows a "no categories match" state.
+  - A selected topic that the query hides stays selected and is still listed in the active-filter bar.
+  - Browser: typing narrows the tree; clearing restores it with the earlier expansion; the row menu opens from its visible button and Delete removes the category after confirmation.
+- **Verification:** Tests, lint, typecheck, and build pass; the browser checks pass.
+
 ### U12. Scheduled-job wiring, first backfill, docs
 
 - **Goal:** The 3-hourly sync runs the new stages, the real corpus is categorized, and the docs describe the system.
@@ -822,7 +840,7 @@ Unit tests never call Jev, Claude, or the network. Live calls happen only in the
 
 ## Definition of Done
 
-- Every requirement R1–R29 is met and every acceptance example AE1–AE9 is covered by a passing test or a passed browser check named in its unit.
+- Every requirement R1–R30 is met and every acceptance example AE1–AE9 is covered by a passing test or a passed browser check named in its unit.
 - All Verification Contract gates pass.
 - The real corpus is categorized, the screen shows it, and the skill returns categories from it.
 - The scheduled job has completed one run with the new stages and still produces `data/` and `markdown/` as before.
