@@ -180,6 +180,7 @@ const selectionInAddress = (): LinkedFilter => {
     areas: params.get("areas") ?? undefined,
     unfiled: params.get("unfiled") ?? undefined,
     author: params.get("author") ?? undefined,
+    q: params.get("q") ?? undefined,
   });
 };
 
@@ -225,14 +226,15 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   const applied = result.state;
 
   const shownQuery = linkedQuery(browsed.state);
-  const heldQuery = linkedQuery(filter);
+  const heldSelection = linkedQuery({ ...filter, keyword: "" });
   useEffect(() => {
     const search = shownQuery === "" ? "" : `?${shownQuery}`;
     if (window.location.search === search) return;
     // A selection the address already names is tidied in place, so Back still leaves it.
-    const step = linkedQuery(selectionInAddress()) === heldQuery ? "replaceState" : "pushState";
+    // A search alone rewrites the current entry, so Back does not step through every letter typed.
+    const step = linkedQuery({ ...selectionInAddress(), keyword: "" }) === heldSelection ? "replaceState" : "pushState";
     window.history[step](null, "", `${window.location.pathname}${search}${window.location.hash}`);
-  }, [shownQuery, heldQuery]);
+  }, [shownQuery, heldSelection]);
   useEffect(() => {
     const follow = () => setFilter((current) => ({ ...current, ...selectionInAddress() }));
     window.addEventListener("popstate", follow);

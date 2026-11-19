@@ -43,20 +43,30 @@ export function parseSelection(query: QueryValues): CategorySelection {
   return { topicIds: ids(query.topics), areaIds: ids(query.areas), unfiled: false };
 }
 
-/** The selection plus the author, which a link also carries. */
-export type LinkedFilter = CategorySelection & Pick<FilterState, "author">;
+/** The selection plus the author and search words, which a link also carries. */
+export type LinkedFilter = CategorySelection & Pick<FilterState, "author" | "keyword">;
 
 const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
+const MAX_KEYWORD_LENGTH = 200;
 
-/** The filter as a query string without the leading "?"; the author follows the category selection. */
+/** The filter as a query string without the leading "?": the category selection, then the author, then the search. */
 export function linkedQuery(filter: LinkedFilter): string {
-  const selection = selectionQuery(filter);
-  if (filter.author === null) return selection;
-  return [selection, `author=${filter.author}`].filter(Boolean).join("&");
+  const keyword = filter.keyword.trim();
+  return [
+    selectionQuery(filter),
+    filter.author === null ? "" : `author=${filter.author}`,
+    keyword === "" ? "" : `q=${encodeURIComponent(keyword)}`,
+  ]
+    .filter(Boolean)
+    .join("&");
 }
 
-/** The selection and author a URL names. An author that is not an X handle is ignored. */
+/** The selection, author and search a URL names. An author that is not an X handle is ignored. */
 export function parseLinked(query: QueryValues): LinkedFilter {
   const author = first(query.author);
-  return { ...parseSelection(query), author: HANDLE.test(author) ? author : null };
+  return {
+    ...parseSelection(query),
+    author: HANDLE.test(author) ? author : null,
+    keyword: first(query.q).trim().slice(0, MAX_KEYWORD_LENGTH),
+  };
 }
