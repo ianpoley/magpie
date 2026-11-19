@@ -353,3 +353,15 @@ test("a removed post is listed apart and counts toward no post list, topic, area
     [[shared, ["kept"]]],
   );
 });
+
+test("post text reads with resolved links expanded, and search finds the destination", (t) => {
+  const { db } = tempStore(t);
+  seedPost(db, "9", { text: "Try this https://t.co/abc https://t.co/pic" });
+  seedLink(db, "9", "https://t.co/abc", { status: "resolved" });
+  seedLink(db, "9", "https://t.co/pic", { status: "not_resource" });
+  db.prepare(`UPDATE links SET final_url = ? WHERE url = ?`).run("https://github.com/acme/widget", "https://t.co/abc");
+  db.prepare(`UPDATE links SET final_url = ? WHERE url = ?`).run("https://x.com/someone/status/9/photo/1", "https://t.co/pic");
+  const snap = readSnapshot(db);
+  assert.equal(snap.posts[0].text, "Try this https://github.com/acme/widget");
+  assert.deepEqual(shown(snap, { keyword: "acme widget" }), ["9"]);
+});

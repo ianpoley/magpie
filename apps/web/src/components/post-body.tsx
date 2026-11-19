@@ -1,9 +1,8 @@
+import { displayUrl, trimUrl, URL_PATTERN } from "@/lib/post-links";
 import { highlightRanges } from "@/lib/search";
 import type { Media, QuotedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-
-const URL_PATTERN = /https?:\/\/[^\s]+/g;
 
 export function Marked({ text, keyword }: { text: string; keyword: string }) {
   const ranges = highlightRanges(text, keyword);
@@ -20,8 +19,9 @@ export function Marked({ text, keyword }: { text: string; keyword: string }) {
 }
 
 /**
- * Post text with search matches marked. With `links`, addresses in the text
- * become links; a card leaves them plain because the whole card opens the post.
+ * Post text with search matches marked and addresses shortened the way X shows
+ * them. With `links`, addresses become links; a card leaves them plain because
+ * the whole card opens the post.
  */
 export function PostText({
   text,
@@ -34,14 +34,14 @@ export function PostText({
   links?: boolean;
   className?: string;
 }) {
-  let body: React.ReactNode = <Marked text={text} keyword={keyword} />;
-  if (links) {
-    const parts: React.ReactNode[] = [];
-    let at = 0;
-    for (const match of text.matchAll(URL_PATTERN)) {
-      const url = match[0].replace(/[.,;:!?)\]]+$/, "");
-      if (match.index > at) parts.push(<Marked key={`t${at}`} text={text.slice(at, match.index)} keyword={keyword} />);
-      parts.push(
+  const parts: React.ReactNode[] = [];
+  let at = 0;
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const url = trimUrl(match[0]);
+    if (match.index > at) parts.push(<Marked key={`t${at}`} text={text.slice(at, match.index)} keyword={keyword} />);
+    const label = <Marked text={displayUrl(url)} keyword={keyword} />;
+    parts.push(
+      links ? (
         <a
           key={`a${match.index}`}
           href={url}
@@ -49,15 +49,16 @@ export function PostText({
           rel="noreferrer"
           className="focus-ring rounded-[4px] font-medium text-primary-text underline decoration-[color-mix(in_oklch,var(--color-primary)_40%,transparent)] underline-offset-2 hover:decoration-primary"
         >
-          <Marked text={url} keyword={keyword} />
-        </a>,
-      );
-      at = match.index + url.length;
-    }
-    if (at < text.length) parts.push(<Marked key={`t${at}`} text={text.slice(at)} keyword={keyword} />);
-    body = parts;
+          {label}
+        </a>
+      ) : (
+        <span key={`a${match.index}`}>{label}</span>
+      ),
+    );
+    at = match.index + url.length;
   }
-  return <p className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{body}</p>;
+  if (at < text.length) parts.push(<Marked key={`t${at}`} text={text.slice(at)} keyword={keyword} />);
+  return <p className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
 }
 
 const GRID: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-2" };
