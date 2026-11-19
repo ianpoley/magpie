@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { DEFAULT_FILTER, applyFilter } from "../src/lib/filter.ts";
-import { parseSelection, selectionQuery } from "../src/lib/filter-url.ts";
+import { linkedQuery, parseLinked, parseSelection, selectionQuery } from "../src/lib/filter-url.ts";
 import { AGENTS, AI, AREAS, EVALS, FRONTEND, NOW, TOPICS, snapshot } from "./fixtures/snapshot.ts";
 
 const fromQuery = (query: string) => parseSelection(Object.fromEntries(new URLSearchParams(query)));
@@ -87,4 +87,19 @@ test("a repeated parameter is read from its first value without an error", () =>
     unfiled: true,
   });
   assert.deepEqual(parseSelection({ topics: ["12,15", "9"] }).topicIds, [12, 15]);
+});
+
+test("an author round-trips after the category selection", () => {
+  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, author: "ada_l" });
+  assert.equal(query, "topics=12&author=ada_l");
+  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { topicIds: [12], areaIds: [], unfiled: false, author: "ada_l" });
+  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: "ada_l" }), "author=ada_l");
+  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: null }), "");
+});
+
+test("an author that is not an X handle is ignored", () => {
+  for (const author of ["", "has space", "a".repeat(16), "<script>", "ada&topics=1"]) {
+    assert.equal(parseLinked({ author }).author, null, author);
+  }
+  assert.equal(parseLinked({ author: ["first_one", "second"] }).author, "first_one");
 });

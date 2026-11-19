@@ -42,3 +42,21 @@ export function parseSelection(query: QueryValues): CategorySelection {
   if (first(query.unfiled) === "1") return { topicIds: [], areaIds: [], unfiled: true };
   return { topicIds: ids(query.topics), areaIds: ids(query.areas), unfiled: false };
 }
+
+/** The selection plus the author, which a link also carries. */
+export type LinkedFilter = CategorySelection & Pick<FilterState, "author">;
+
+const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
+
+/** The filter as a query string without the leading "?"; the author follows the category selection. */
+export function linkedQuery(filter: LinkedFilter): string {
+  const selection = selectionQuery(filter);
+  if (filter.author === null) return selection;
+  return [selection, `author=${filter.author}`].filter(Boolean).join("&");
+}
+
+/** The selection and author a URL names. An author that is not an X handle is ignored. */
+export function parseLinked(query: QueryValues): LinkedFilter {
+  const author = first(query.author);
+  return { ...parseSelection(query), author: HANDLE.test(author) ? author : null };
+}
