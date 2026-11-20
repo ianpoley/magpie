@@ -2,7 +2,7 @@ import { TypeSafeClient } from '@typesafe-ai/sdk';
 import type { SystemOneRequest } from '@typesafe-ai/sdk';
 
 import { paths } from '../config.ts';
-import { readSecrets } from '../secrets.ts';
+import { createSecretStore } from '../secrets/store.ts';
 
 /** A yes/no question; the answer is the probability that it is true. */
 export type JevQuestion = {
@@ -27,12 +27,18 @@ const KEY_NAME = 'TYPESAFE_API_KEY';
 
 /**
  * The client that calls the live API. The key comes from `options.apiKey`,
- * else the environment, else the secrets file.
+ * else the secret store. Rejects when the key is not set or the store cannot
+ * be read.
  */
-export function createJevClient(options: { apiKey?: string } = {}): JevClient {
-  const apiKey = options.apiKey || process.env[KEY_NAME] || readSecrets()[KEY_NAME];
+export async function createJevClient(options: { apiKey?: string } = {}): Promise<JevClient> {
+  let apiKey = options.apiKey;
   if (!apiKey) {
-    throw new Error(`${KEY_NAME} is not set in the environment or in ${paths().secrets}`);
+    const read = await createSecretStore().get('typesafe-api-key');
+    if (!read.ok) throw new Error(`${KEY_NAME} could not be read: ${read.message}`);
+    apiKey = read.value ?? undefined;
+  }
+  if (!apiKey) {
+    throw new Error(`${KEY_NAME} is not set in the secret store, the environment or ${paths().secrets}`);
   }
   const client = new TypeSafeClient({ apiKey });
 

@@ -78,6 +78,13 @@ export const CLAUDE = {
   timeoutMs: 10 * 60 * 1000,
 } as const;
 
+export const SECRETS = {
+  /** How long one call to the OS secret tool may run before it counts as locked. */
+  timeoutMs: 10_000,
+  /** The keychain service (macOS) or `service` attribute (Linux) every secret is stored under. */
+  defaultKeychainService: 'x-corpus',
+} as const;
+
 export const INGEST = {
   /** A collection whose export shrank by more than this share clears no flags. */
   shrinkGuard: 0.05,
@@ -94,7 +101,14 @@ export type Paths = {
   stateDir: string;
   store: string;
   lock: string;
+  configDir: string;
+  /** The file fallback for secrets, and the legacy home of the Jev key. */
   secrets: string;
+  settings: string;
+  /** Which secret backend the first write chose. Not secret. */
+  secretBackend: string;
+  /** The X handle and connection generation. Not secret. */
+  xConnection: string;
   claudeCli: string;
 };
 
@@ -104,13 +118,14 @@ export type Paths = {
  *   X_CORPUS_ROOT     repo root (default: derived from this file's location)
  *   X_CORPUS_DATA_DIR export directory (default: <root>/data)
  *   X_CORPUS_STORE    store file (default: <root>/state/corpus.sqlite)
- *   X_CORPUS_SECRETS  secrets file (default: ~/.config/x-corpus/secrets.env)
+ *   X_CORPUS_CONFIG_DIR per-user config and secrets file (default: ~/.config/x-corpus)
  */
 export function paths(env: Record<string, string | undefined> = process.env): Paths {
   const repoRoot = resolve(env.X_CORPUS_ROOT || fileURLToPath(new URL('../../..', import.meta.url)));
   const dataDir = resolve(env.X_CORPUS_DATA_DIR || join(repoRoot, 'data'));
   const store = resolve(env.X_CORPUS_STORE || join(repoRoot, 'state', 'corpus.sqlite'));
   const stateDir = resolve(store, '..');
+  const configDir = resolve(env.X_CORPUS_CONFIG_DIR || join(homedir(), '.config', 'x-corpus'));
   return {
     repoRoot,
     dataDir,
@@ -120,7 +135,25 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     stateDir,
     store,
     lock: join(stateDir, 'categorize.lock'),
-    secrets: resolve(env.X_CORPUS_SECRETS || join(homedir(), '.config', 'x-corpus', 'secrets.env')),
+    configDir,
+    secrets: join(configDir, 'secrets.env'),
+    settings: join(configDir, 'settings.env'),
+    secretBackend: join(configDir, 'secret-backend.json'),
+    xConnection: join(configDir, 'x-connection.json'),
     claudeCli: join(homedir(), '.local', 'bin', 'claude'),
+  };
+}
+
+export type SecretSettings = {
+  /** Set by X_CORPUS_KEYCHAIN_SERVICE, so a check can use a throwaway service name. */
+  keychainService: string;
+  /** X_CORPUS_SECRET_BACKEND=file, for tests only: the OS secret store is never touched. */
+  forceFileBackend: boolean;
+};
+
+export function secretSettings(env: Record<string, string | undefined> = process.env): SecretSettings {
+  return {
+    keychainService: env.X_CORPUS_KEYCHAIN_SERVICE || SECRETS.defaultKeychainService,
+    forceFileBackend: env.X_CORPUS_SECRET_BACKEND === 'file',
   };
 }

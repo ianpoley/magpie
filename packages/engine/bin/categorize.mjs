@@ -63,9 +63,10 @@ const { fetchHttp } = await import('../src/links/http.ts');
 const { runPipeline } = await import('../src/pipeline.ts');
 
 // Built on first use: a missing API key then fails the tagging stage, not the whole run.
+// The pending client is shared, so concurrent first asks read the secret store once.
 let jevClient;
 const jev = {
-  ask: async (request, askOptions) => (jevClient ??= createJevClient()).ask(request, askOptions),
+  ask: async (request, askOptions) => (await (jevClient ??= createJevClient())).ask(request, askOptions),
 };
 
 const summarize = (value) =>
