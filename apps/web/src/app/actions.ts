@@ -1,12 +1,13 @@
 "use server";
 
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 
 import { refresh } from "next/cache";
 
 import { MAX_QUERY_CHARS } from "@/lib/ask";
-import { engineConfig, engineEdits, engineStore } from "@/lib/engine";
-import type { ActionResult, UndoStep } from "@/lib/types";
+import { engineBirdclaw, engineConfig, engineEdits, engineSecrets, engineStore, engineSyncState } from "@/lib/engine";
+import { readSyncState } from "@/lib/sync-state";
+import type { ActionErrorCode, ActionResult, SyncState, UndoStep } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
@@ -181,4 +182,94 @@ export async function listUndo(changeId: number) {
 
 export async function undoChange(changeId: number) {
   return withStore(WRITE, () => id(changeId, "The change"), (db, edits, change) => edits.undoChange(db, change));
+}
+
+// ---------------------------------------------------------------------------
+// X connection and Sync now. None of these needs the store. Cookie values are
+// never logged or sent back: errors are logged by name only.
+
+// What X sets as cookie values, and all the secret store accepts.
+const COOKIE = /^[A-Za-z0-9%._-]{1,512}$/;
+
+function cookie(value: unknown, name: string): string {
+  if (typeof value !== "string" || !COOKIE.test(value)) {
+    throw new InvalidInput(`${name} must be 1 to 512 letters, digits or the characters % . _ - with no spaces or line breaks.`);
+  }
+  return value;
+}
+
+const refused = (code: ActionErrorCode, message: string) => ({ ok: false as const, code, message });
+
+const LOCKED_MESSAGE = "Can't reach the keychain. Unlock it, then try again.";
+
+/** The secret store's failure as the code the UI shows. */
+const storeFailure = (reason: "locked" | "unavailable" | "invalid") =>
+  reason === "invalid" ? refused("invalid_input", "Those cookies could not be stored.") : refused("secret_store_locked", LOCKED_MESSAGE);
+
+async function guarded<T extends object>(what: string, work: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof InvalidInput) return refused("invalid_input", error.message);
+    console.error(`${what}:`, error instanceof Error ? error.name : "unknown error");
+    return refused("failed", "That did not work. Try again.");
+  }
+}
+
+/**
+ * Checks the pasted cookies with X and stores them only if X accepts them.
+ * A stored pair starts a new connection, which also clears a pause after X
+ * refused the old one, and asks for a sync.
+ */
+export async function connectX(authToken: string, ct0: string): Promise<ActionResult<{ handle: string | null; sync: SyncState }>> {
+  return guarded("connect X", async () => {
+    const session = { authToken: cookie(authToken, "auth_token"), ct0: cookie(ct0, "ct0") };
+    const [{ createBirdclaw }, { createSecretStore }, state, { paths }] = await Promise.all([
+      engineBirdclaw(),
+      engineSecrets(),
+      engineSyncState(),
+      engineConfig(),
+    ]);
+    const who = await createBirdclaw().whoami(session);
+    if (!who.ok) {
+      if (who.reason === "rejected") return refused("x_rejected", "X didn't accept these cookies. Copy fresh ones from a signed-in x.com tab.");
+      if (who.reason === "transient") return refused("x_unreachable", "X couldn't be reached. Check your connection and try again.");
+      return refused("invalid_input", "Both auth_token and ct0 are needed.");
+    }
+    const saved = await createSecretStore().set("x-session", session);
+    if (!saved.ok) return storeFailure(saved.reason);
+    const files = paths();
+    state.writeConnection(files.xConnection, { handle: who.handle, connectedAt: new Date().toISOString() });
+    state.writeSyncRequest(files.syncRequest);
+    return { ok: true, handle: who.handle, sync: await readSyncState() };
+  });
+}
+
+/** Deletes the stored cookies, then the connection record. */
+export async function disconnectX(): Promise<ActionResult<{ sync: SyncState }>> {
+  return guarded("disconnect X", async () => {
+    const [{ createSecretStore }, { paths }] = await Promise.all([engineSecrets(), engineConfig()]);
+    const deleted = await createSecretStore().delete("x-session");
+    if (!deleted.ok) return storeFailure(deleted.reason);
+    rmSync(paths().xConnection, { force: true });
+    return { ok: true, sync: await readSyncState() };
+  });
+}
+
+/** Asks the background worker to sync now. It refuses when the worker could not or would not run it. */
+export async function requestSync(): Promise<ActionResult<{ sync: SyncState }>> {
+  return guarded("request a sync", async () => {
+    const [{ paths }, state] = await Promise.all([engineConfig(), engineSyncState()]);
+    const current = await readSyncState();
+    if (current.connection === "not_connected") return refused("not_connected", "Connect X first, then sync.");
+    if (current.running) return refused("run_in_progress", "A sync is already running.");
+    if (!current.workerAlive) {
+      return refused(
+        "no_worker",
+        "Background sync isn't running. Start it with bun run service:install, or sync once by hand with bun run sync.",
+      );
+    }
+    state.writeSyncRequest(paths().syncRequest);
+    return { ok: true, sync: await readSyncState() };
+  });
 }

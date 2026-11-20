@@ -135,7 +135,9 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
       const result: Child = { code: null, timedOut: false, stdout: '', stderr: '', spawnError: null };
       // Its own process group, so a timeout also stops the bird child Birdclaw started.
       const child = spawn(command, argv, {
-        env: childEnv(pair, tools.bird),
+        // The cast keeps this call type-checking under the web app's tsconfig,
+        // where Next declares NODE_ENV as a required process.env key.
+        env: childEnv(pair, tools.bird) as NodeJS.ProcessEnv,
         stdio: ['ignore', stdoutFd ?? 'pipe', 'pipe'],
         detached: true,
       });

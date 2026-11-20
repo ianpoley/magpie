@@ -152,6 +152,35 @@ export type Snapshot = {
   lastCompleteRunAt: string | null;
 };
 
+/**
+ * The background sync as the web app can see it: the X connection, the
+ * worker's heartbeat and schedule, the run lock and the last run. Never holds
+ * a cookie value.
+ */
+export type SyncState = {
+  /** When this was read, as epoch milliseconds. */
+  readAt: number;
+  /** "needs_reconnect" when X refused the stored session and scheduled syncs are paused. */
+  connection: "connected" | "needs_reconnect" | "not_connected";
+  /** The X handle, without the @; null when not connected or not known yet. */
+  handle: string | null;
+  /** Where secrets are kept; "file" is the owner-only fallback file. Null before any secret was stored. */
+  secretBackend: "keychain" | "file" | null;
+  /** The last sync could not read the X session from the secret store. */
+  secretStoreLocked: boolean;
+  /** A live process, the worker or a command, holds the run lock. */
+  running: boolean;
+  /** A Sync now request is waiting, and is recent enough that the worker will still run it. */
+  requested: boolean;
+  /** The worker wrote its heartbeat recently. */
+  workerAlive: boolean;
+  /** The next scheduled run, from a live worker; null while paused, running or not connected. */
+  nextRunAt: string | null;
+  storeExists: boolean;
+  lastRun: Run | null;
+  lastCompleteRunAt: string | null;
+};
+
 export type Collection = "everything" | "bookmarks" | "likes";
 export type TimeRange = "all" | "week" | "month" | "year";
 export type Sort = "newest" | "added" | "oldest" | "most_liked";
@@ -216,6 +245,12 @@ export type ActionErrorCode =
   | "already_undone"
   | "invalid_input"
   | "no_store"
+  | "x_rejected"
+  | "x_unreachable"
+  | "not_connected"
+  | "run_in_progress"
+  | "no_worker"
+  | "secret_store_locked"
   | "failed";
 
 export type ActionResult<T> = ({ ok: true } & T) | { ok: false; code: ActionErrorCode; message: string };

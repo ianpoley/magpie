@@ -9,3 +9,7 @@ export const engineEdits = () => import(/* turbopackIgnore: true */ "@x-corpus/e
 export const engineConfig = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/config.ts");
 export const engineJev = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/jev/client.ts");
 export const engineQuestions = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/jev/questions.ts");
+export const engineSecrets = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/secrets/store.ts");
+export const engineSyncState = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/sync/state.ts");
+export const engineLock = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/lock.ts");
+export const engineBirdclaw = () => import(/* turbopackIgnore: true */ "@x-corpus/engine/src/x/birdclaw.ts");
