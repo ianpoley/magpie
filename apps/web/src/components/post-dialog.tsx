@@ -29,6 +29,8 @@ export function PostDialog({
   chipsFor,
   similarFor,
   neighborsOf,
+  isAuthor,
+  onShowAuthor,
   activeTopicIds,
   keyword,
   onSelectTopic,
@@ -45,6 +47,10 @@ export function PostDialog({
   similarFor: (post: Post) => Post[];
   /** The posts listed before and after this one, for stepping through the list without closing. */
   neighborsOf: (postId: string) => { previous: string | null; next: string | null };
+  /** Whether the corpus has posts by this handle, so a mention of it can filter to them. */
+  isAuthor: (handle: string) => boolean;
+  /** Shows everything by a mentioned author, setting aside the search and categories that may exclude them. */
+  onShowAuthor: (handle: string) => void;
   activeTopicIds: number[];
   keyword: string;
   onSelectTopic: (topicId: number) => void;
@@ -175,7 +181,21 @@ export function PostDialog({
                 }}
                 className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5"
               >
-                {post.text ? <PostText text={post.text} keyword={keyword} links className="text-[16px]" /> : null}
+                {post.text ? (
+                  <PostText
+                    text={post.text}
+                    keyword={keyword}
+                    links
+                    mentions={{
+                      known: isAuthor,
+                      select: (handle) => {
+                        onShowAuthor(handle);
+                        controller.close();
+                      },
+                    }}
+                    className="text-[16px]"
+                  />
+                ) : null}
                 <LinkedPages pages={post.linkedPages} keyword={keyword} links />
                 {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} full /> : null}
                 <MediaGrid media={post.media} full />

@@ -293,6 +293,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
     likes: shownPosts.filter((post) => post.liked).length,
   };
   const authors = mostSavedAuthors(snapshot.posts, applied.revealHidden);
+  const authorHandles = new Set(shownPosts.map((post) => post.authorHandle.toLowerCase()));
   const authorName =
     applied.author === null
       ? null
@@ -316,6 +317,11 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   };
   const selectAuthor = (author: string) => {
     setFilter((current) => ({ ...current, author }));
+    setView("posts");
+  };
+  const showAuthor = (author: string) => {
+    if (ask) leaveAsk();
+    setFilter((current) => ({ ...current, author, keyword: "", topicIds: [], areaIds: [], unfiled: false }));
     setView("posts");
   };
   const clearCategories = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false }));
@@ -562,6 +568,8 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
         topicsById={topicsById}
         chipsFor={(post) => postChips(post, applied)}
         similarFor={(post) => similarPosts(snapshot, post, shownPosts, SIMILAR_POSTS)}
+        isAuthor={(handle) => authorHandles.has(handle.toLowerCase())}
+        onShowAuthor={showAuthor}
         neighborsOf={(postId) => {
           const at = result.posts.findIndex((post) => post.id === postId);
           if (at === -1) return { previous: null, next: null };
