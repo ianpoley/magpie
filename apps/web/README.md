@@ -2,7 +2,7 @@
 
 The corpus screen: every post you bookmarked or liked on X, in one list you can filter by category, collection, author, keyword, time range, and media.
 
-It reads the local store the sync job writes (`state/corpus.sqlite`, or the file `X_CORPUS_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
+It reads the local store the sync worker writes (`state/corpus.sqlite`, or the file `X_CORPUS_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
 
 ## Run it
 
@@ -14,6 +14,8 @@ bun run dev        # http://127.0.0.1:3000
 ```
 
 `bun run dev -- -p 3001` picks another port. `bun run build` then `bun run start` serves the production build.
+
+For day-to-day use, `bun run service:install` runs the production build as the `x-corpus-web` background service on http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides), next to the `x-corpus-worker` that syncs. Setup, update and migration steps are in the repo `README.md`. The service has no sign-in and listens on loopback only, so it assumes a machine where only you have a login. Secrets and the X connection are per user while data is per clone: connecting X from a dev server in another clone replaces the cookies the service uses.
 
 The page reads the store on every request and again whenever you return to the window, so a sync that finished in the background shows up without a reload. If the store does not exist yet, the screen says so and stays empty until the first sync.
 
@@ -27,7 +29,7 @@ The page reads the store on every request and again whenever you return to the w
   - Each count is the number of posts that row lists when it is the only one selected.
   - Removed lists the posts you took out of the corpus, each with Restore.
   - Drag the sidebar's right edge to resize it, or focus the edge and use the arrow keys. Double-click resets it. The width is remembered in the browser.
-  - Sync status shows when the last full sync finished. If a stage failed or the X export is stale, it names the problem.
+  - The sync panel shows whether X is connected, when the last full sync finished, and when the next one runs. **Connect X** takes the `auth_token` and `ct0` cookies (browser dev tools, Application, Cookies, x.com); **Sync now** asks the worker to run one. If a stage failed or the X export is stale, it names the problem. Birdclaw syncs with your X session cookies, which X's terms do not allow; treat the cookies like a password.
 - **Main column:** the title with a count line (posts, and how many of them are bookmarked and liked) and the Posts / Resources toggle; under it a tool row with search, time range, sort, the media switch, and Surprise (a random post from the list). The tool row stays pinned to the top as you scroll, and changing a filter from it jumps back to the top of the results.
   - A murmuration of pixel magpies flies in each gutter beside the list, with one bird per post shown (up to 320). Filtering sends birds off and brings them back. While an ask is judging they wheel round the search field, then split back into the two gutters. With reduced motion on, the flock is drawn still.
   - Search matches post text, quoted text, author name and handle, and the titles of linked pages. Every word must appear somewhere in the post, in any order; put words in quotes to match them as a phrase. Addresses on X itself are not searched. Matches are highlighted.

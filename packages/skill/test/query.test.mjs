@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -10,6 +11,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -427,4 +429,51 @@ test('install moves an existing skill directory to a dated backup and leaves its
   assert.equal(second.status, 0, second.stderr);
   assert.deepEqual(readdirSync(skills), ['x-corpus']);
   assert.deepEqual(readdirSync(backupDir), backups);
+});
+
+test('with no env overrides the skill reads the clone its symlink points back to', t => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'skill-root-')));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+
+  // A clone anywhere on disk, with a store and JSONL of its own.
+  const clone = join(base, 'some', 'clone');
+  mkdirSync(join(clone, 'packages'), { recursive: true });
+  mkdirSync(join(clone, 'data'));
+  mkdirSync(join(clone, 'state'));
+  mkdirSync(join(clone, 'packages', 'skill'));
+  copyFileSync(QUERY, join(clone, 'packages', 'skill', 'query.mjs'));
+  writeFileSync(
+    join(clone, 'data', 'bookmarks.normalized.jsonl'),
+    JSON.stringify({
+      type: 'bookmark',
+      id: '9001',
+      handle: 'cloneauthor',
+      name: 'Clone Author',
+      created: '2026-05-01T00:00:00.000Z',
+      url: 'https://x.com/cloneauthor/status/9001',
+      text: 'zebrafinch only lives in this clone',
+    }) + '\n',
+  );
+  const { db, path } = tempStore(t);
+  seedArea(db, 'Cloneonly');
+  db.close();
+  copyFileSync(path, join(clone, 'state', 'corpus.sqlite'));
+
+  // The way install.sh links it: a symlink in a skills directory.
+  const skills = join(base, 'home', '.claude', 'skills');
+  mkdirSync(skills, { recursive: true });
+  symlinkSync(join(clone, 'packages', 'skill'), join(skills, 'x-corpus'));
+
+  const env = { ...process.env, HOME: join(base, 'home') };
+  delete env.X_CORPUS_DIR;
+  delete env.X_CORPUS_STORE;
+  const exec = args => spawnSync(process.execPath, [join(skills, 'x-corpus', 'query.mjs'), ...args], { encoding: 'utf8', env });
+
+  const search = exec(['zebrafinch', '--json']);
+  assert.equal(search.status, 0, search.stderr);
+  assert.deepEqual(JSON.parse(search.stdout).map(r => r.id), ['9001']);
+
+  const categories = exec(['categories']);
+  assert.equal(categories.status, 0, categories.stderr);
+  assert.match(categories.stdout, /Cloneonly/);
 });

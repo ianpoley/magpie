@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Birdclaw sync + export pipeline: X bookmarks/likes -> ~/x-corpus/{data,markdown}",
+  "description": "Birdclaw sync, export and categorization pipeline: X bookmarks and likes into a local corpus (data, markdown, state)",
   "scripts": {
     "sync": "node bin/sync.mjs",
     "build:markdown": "node bin/build-markdown.mjs ../../data/bookmarks.json ../../markdown/bookmarks bookmark ../../data/bookmarks.normalized.jsonl && node bin/build-markdown.mjs ../../data/likes.json ../../markdown/likes like ../../data/likes.normalized.jsonl",
