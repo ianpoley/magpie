@@ -1,0 +1,90 @@
+/* Throwaway — Riff "Roost" on Murmur: same dawn sky, but the flock lives on the category tree, perched on a wire under each area. */
+
+html[data-proto="roost"] {
+  --color-canvas: oklch(0.972 0.014 235);
+  --color-surface: oklch(1 0 0);
+  --color-sunken: oklch(0.955 0.018 60);
+  --color-ink: oklch(0.24 0.03 255);
+  --color-ink-muted: oklch(0.45 0.03 255);
+  --color-line: oklch(0.9 0.02 60);
+  --color-primary: oklch(0.46 0.14 38);
+  --color-primary-top: oklch(0.5 0.13 52);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.44 0.14 40);
+  --color-primary-soft: oklch(0.95 0.035 55);
+  --color-like: oklch(0.6 0.2 5);
+  --color-like-text: oklch(0.48 0.18 5);
+  --color-like-soft: oklch(0.945 0.03 5);
+  --color-chip: oklch(0.955 0.018 60);
+  --color-chip-text: oklch(0.36 0.03 255);
+  --color-chip-possible: oklch(0.975 0.01 60);
+  --color-chip-possible-text: oklch(0.45 0.03 255);
+  --color-side-0: oklch(0.27 0.05 262);
+  --color-side-1: oklch(0.31 0.045 250);
+  --color-side-2: oklch(0.36 0.04 235);
+  --color-side-ink: oklch(0.97 0.01 80);
+  --color-side-muted: oklch(0.86 0.035 70);
+  --shadow-card:
+    0 0 0 1px oklch(0.24 0.03 255 / 0.07),
+    0 1px 2px oklch(0.24 0.03 255 / 0.05),
+    0 8px 18px -10px oklch(0.45 0.08 50 / 0.25);
+  --shadow-card-hover:
+    0 0 0 1px oklch(0.46 0.14 38 / 0.22),
+    0 2px 4px oklch(0.24 0.03 255 / 0.06),
+    0 14px 28px -14px oklch(0.46 0.14 38 / 0.38);
+  --shadow-primary:
+    0 1px 2px oklch(0.46 0.14 38 / 0.4),
+    0 4px 12px -4px oklch(0.46 0.14 38 / 0.5),
+    inset 0 1px 0 oklch(1 0 0 / 0.2);
+}
+html[data-proto="roost"] .bg-side {
+  background:
+    radial-gradient(120% 40% at 0% 100%, oklch(0.55 0.11 50 / 0.22), transparent 70%),
+    linear-gradient(in oklab 172deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
+}
+html[data-proto="roost"] .bg-wash {
+  background: linear-gradient(in oklab 180deg, oklch(0.95 0.035 60), oklch(0.962 0.022 200) 420px, var(--color-canvas) 820px);
+  background-repeat: no-repeat;
+}
+html[data-proto="roost"] .text-display {
+  font-family: var(--f-brico), var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+html[data-proto="roost"] ::selection { background: oklch(0.88 0.08 55 / 0.6); }
+
+/* The roost: a fixed canvas laid exactly over the sidebar, above the rows' selected wash, never taking a click. */
+.rs-roost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Birds standing on the wordmark: a stepped hop when something happens. */
+@keyframes rs-hop {
+  0%, 100% { transform: translateY(0); }
+  25%, 50% { transform: translateY(-3px); }
+  75% { transform: translateY(-1px); }
+}
+.rs-perch { position: absolute; display: block; }
+.rs-perch[data-play] { animation: rs-hop 360ms steps(1, jump-none) var(--d, 0ms); }
+
+/* Empty state: a bare wire, one bird pacing its end. */
+@keyframes rs-pace {
+  0%, 40% { transform: translateX(0) scaleX(1); }
+  45%, 90% { transform: translateX(-22px) scaleX(1); }
+  91%, 100% { transform: translateX(-22px) scaleX(-1); }
+}
+.rs-pacer { animation: rs-pace 5s steps(1, jump-none) infinite; transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-perch[data-play], .rs-pacer { animation: none; }
+}
+
+/* The wordmark birds get the same rim of dawn light as the roost, so they read off the letters as well as on them. */
+.rs-perch svg {
+  filter: drop-shadow(0 -2px 0 oklch(0.84 0.06 62 / 0.42)) drop-shadow(2px 0 0 oklch(0.84 0.06 62 / 0.3)) drop-shadow(-2px 0 0 oklch(0.84 0.06 62 / 0.3));
+}
