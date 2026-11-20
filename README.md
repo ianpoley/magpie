@@ -1,51 +1,221 @@
-# x-corpus
+<div align="center">
 
-A local, self-updating archive of your X bookmarks and likes, with a web screen on top and a Claude skill that searches it. Everything stays on your machine. Bun workspaces monorepo; works on macOS and Linux from a clone anywhere on disk.
+<h1><img src="docs/assets/magpie-banner.svg" alt="Magpie" width="100%"></h1>
 
-## Install
+**Every post you bookmarked or liked on X, archived on your machine, sorted into topics, and searchable by your coding agents.**
 
-1. Install Node 26 (`.node-version` says 26; the supported range is `>=25.8.1 <27`) and [Bun](https://bun.sh). Birdclaw and bird are pinned repo dependencies: no Homebrew and no global npm packages.
-2. `bun install`
-3. `bun run setup` checks Node, the pinned tools, the Claude CLI and the secret store, and tells you what is missing.
-4. `bun run service:install` builds the web app and installs two user-level background services: `x-corpus-web` and `x-corpus-worker`. They start at login and restart on failure.
-5. Open http://127.0.0.1:3030 and press **Connect X** in the sidebar's sync panel. Paste your `auth_token` and `ct0` cookies: copy them from the browser's dev tools, Application, Cookies, x.com. The worker then syncs every 3 hours (set `SYNC_INTERVAL_HOURS` in `~/.config/x-corpus/settings.env`), and **Sync now** runs one on demand.
-6. Optional, for categories: `bun run secrets:set-jev` stores your Jev (TypeSafe) key, and the [Claude Code CLI](https://claude.com/claude-code) must be installed and logged in. Without them the sync and export still work and categorization is skipped.
-7. Optional, for the Claude skill: `bash packages/skill/install.sh` links it into `~/.claude/skills`. The skill finds this clone from its own real path.
+![Node 26](https://img.shields.io/badge/node-26-5fa04e?logo=node.js&logoColor=white)
+![Bun](https://img.shields.io/badge/bun-1.3-000?logo=bun&logoColor=white)
+![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white)
 
-To update: `git pull`, rerun `bun run service:install` (it rebuilds and restarts both services), then `bun run service:status`. If you upgrade Node and the old path disappears, the services stay stopped until you rerun `service:install`; `service:status` says so.
+[Overview](#overview) •
+[Get started with an agent](#get-started-with-an-agent) •
+[Manual setup](#manual-setup) •
+[Usage](#usage) •
+[Commands](#commands) •
+[Project layout](#project-layout)
 
-`bun run service:uninstall` removes the services. Add `-- --purge-secrets` to also delete the stored cookies and Jev key and disconnect X.
+</div>
 
-## Read this first: cookies and X's terms
+## Overview
 
-Birdclaw syncs using your X browser session cookies. X's terms do not allow this. X could limit or suspend your account. The cookies give full access to your account, so treat them like a password. By connecting X you accept that risk.
+You save good posts on X and never see them again. Magpie keeps a local copy of all of them and makes them useful:
 
-## What to know
+- **Self-updating archive.** A background worker syncs your bookmarks and likes every 3 hours and catches up after sleep.
+- **Automatic categories.** Claude proposes areas and topics, Jev (TypeSafe) scores each post against each topic, and new topics appear as your saves grow. Every change is logged and can be undone.
+- **A web screen.** Filter by category, collection, author, keyword, time range and media. Ask a question in plain words, browse the repos and pages your posts link to, and fix categories by hand.
+- **A Claude skill.** Your agents can search what you already vouched for ("what have I saved about scroll animations?") and cite the post.
+- **Local by default.** The corpus, the store and the web app stay on your machine. The app listens on `127.0.0.1` only.
 
-- **Secrets are per user, data is per clone.** The cookies, the Jev key and the connection live under your user (the macOS Keychain or Linux Secret Service, service `x-corpus`, plus `~/.config/x-corpus`). The corpus (`data/`, `markdown/`, `state/`, `logs/`) lives in each clone. Connecting X from another clone or worktree replaces the cookies the installed service uses.
-- **No sign-in.** The web app listens on loopback (127.0.0.1) only and has no login. That assumes a machine where only you have a login: any other local account could open the app, read the corpus, and connect or disconnect X.
-- **Ports.** The installed web service uses 3030 (`X_CORPUS_PORT` overrides it). `bun run dev` uses 3000, so a dev server never collides with the service.
-- **Secret fallback.** When no keychain is available, secrets fall back to an owner-only `~/.config/x-corpus/secrets.env`. The app warns when it is in use.
-
-## Migrating from the old launchd job
-
-If this Mac still runs the old `birdclaw-nightly` LaunchAgent, run `bun run migrate` once after `bun install`. It stops the old job but keeps it, moves your X cookies and Jev key from the old plaintext files into the secret store, installs the two services, and waits for the new worker to finish one good sync (`--timeout-minutes N` changes the 15 minute wait). Only then does it delete the old files. If anything fails it rolls back and puts the old job back. See `packages/engine/SETUP.md`.
-
-## Layout
-
-```
-apps/web/         # @x-corpus/web: Next.js corpus screen
-packages/engine/  # @x-corpus/engine: sync, export, categorization, worker, service installer (see its README and SETUP.md)
-packages/skill/   # the x-corpus Claude skill (symlinked into ~/.claude/skills)
-data/             # generated corpus: raw JSON + normalized JSONL   (gitignored)
-markdown/         # generated per-post markdown                     (gitignored)
-state/            # corpus.sqlite: categories, tags, your edits      (gitignored, not regenerated)
-logs/             # sync and service logs                           (gitignored)
+```mermaid
+flowchart LR
+  X[("X: bookmarks + likes")] -->|"Birdclaw + bird"| D["data/ JSON + JSONL<br/>markdown/"]
+  D --> C["categorize:<br/>links → Jev tags → Claude topics"]
+  C --> S[("state/corpus.sqlite")]
+  S --> W["Web app<br/>127.0.0.1:3030"]
+  S --> K["x-corpus Claude skill"]
+  D --> K
 ```
 
-`state/corpus.sqlite` is the one file that cannot be rebuilt from X: it holds your category edits, per-post fixes, removed posts, and the change log.
+> [!CAUTION]
+> Birdclaw syncs with your X browser session cookies (`auth_token` and `ct0`). X's terms do not allow this, and X could limit or suspend your account. The cookies give full access to your account, so treat them like a password. By connecting X you accept that risk.
 
-## Commands (repo root)
+## Get started with an agent
+
+Most people set this up with a coding agent such as Claude Code. Clone the repo, open your agent in the clone, and paste one of the prompts below.
+
+```bash
+git clone https://github.com/ianpoley/magpie.git
+cd magpie
+claude
+```
+
+> [!IMPORTANT]
+> Never paste your X cookies or your Jev key into the agent chat. You enter the cookies in the web app's **Connect X** dialog, and the Jev key in your own terminal. The prompts below tell the agent to stop and hand those steps to you.
+
+### Prompt: set up Magpie on this machine
+
+```text
+Set up Magpie on this machine. Read README.md and packages/engine/SETUP.md first.
+
+1. Check that Node 26 (supported range >=25.8.1 <27, see .node-version) and Bun are
+   installed. If one is missing, tell me how to install it and wait. Do not install
+   global npm packages or Homebrew formulas: Birdclaw and bird are repo dependencies.
+2. Run `bun install`, then `bun run setup`. Fix what you can and explain what you can't.
+3. If ~/Library/LaunchAgents has an old birdclaw-nightly job, stop and ask me before
+   doing anything else: that machine needs `bun run migrate`, not a fresh install.
+4. Run `bun run service:status`. If the services are already installed from a
+   different clone path, stop and ask me: installing here would point them at this
+   clone and its (possibly empty) corpus.
+5. Run `bun run service:install`, then `bun run service:status`, and show me the result.
+6. Stop and tell me to open http://127.0.0.1:3030 and press Connect X in the sidebar.
+   Do not ask for, read, or handle my X cookies or my Jev key yourself.
+7. Ask whether I want categories. If yes, tell me to run `bun run secrets:set-jev`
+   myself in a separate terminal (it reads the key with echo off), and check that
+   `claude --version` works.
+8. Ask whether I want the Claude skill. If yes, run `bash packages/skill/install.sh`.
+
+End with a short summary: what is running, on which port, and what I still need to do.
+```
+
+### Prompt: get oriented before changing the code
+
+```text
+I want to work on Magpie. Before you change anything, get oriented:
+
+- Read README.md, CONCEPTS.md (domain vocabulary), packages/engine/README.md,
+  apps/web/README.md, apps/web/AGENTS.md and apps/web/DESIGN.md.
+- Skim docs/solutions/: past problems and the decisions they led to.
+- Note the rules: the web app loads engine code only through
+  apps/web/src/lib/engine.ts; UI is built from @ui-sdk/react with Grove tokens;
+  read the Next.js docs bundled in node_modules before using a Next.js API.
+- Do not start a second `next dev` in apps/web if one is already running.
+- Never touch state/corpus.sqlite directly: it holds my edits and can't be rebuilt.
+
+Then summarize how a sync flows from X to the web screen, list the checks to run
+before a change is done (lint, typecheck, test, build), and wait for my task.
+```
+
+### Prompt: draw on your saved posts
+
+Once the skill is installed, use it from any project:
+
+```text
+Use the x-corpus skill. Run `categories`, find the topics that fit what we are
+building, and pull the most relevant posts and resources. Suggest 3 concrete ideas
+for this feature, and cite each one with the @handle and post URL.
+```
+
+## Manual setup
+
+### Prerequisites
+
+- macOS or Linux
+- [Node](https://nodejs.org) 26 (`.node-version`; supported range `>=25.8.1 <27`)
+- [Bun](https://bun.sh) 1.3
+- Optional, for categories: the [Claude Code CLI](https://claude.com/claude-code), installed and logged in, and a Jev (TypeSafe) API key
+- On Linux: libsecret's `secret-tool` and a running Secret Service, or secrets fall back to an owner-only file
+
+### Install
+
+```bash
+bun install
+bun run setup             # checks Node, the pinned tools, the Claude CLI and the secret store
+bun run service:install   # builds the web app, installs the x-corpus-web and x-corpus-worker services
+bun run service:status
+```
+
+The services are LaunchAgents on macOS and `systemd --user` units on Linux. They start at login and restart on failure.
+
+### Connect X
+
+Open http://127.0.0.1:3030 and press **Connect X** in the sidebar's sync panel. Paste your `auth_token` and `ct0` cookies from the browser's dev tools (Application, Cookies, x.com). The first sync starts right away, and **Sync now** runs another at any time.
+
+### Optional extras
+
+```bash
+bun run secrets:set-jev          # Jev key, typed hidden; enables categories
+bash packages/skill/install.sh   # links the Claude skill into ~/.claude/skills
+```
+
+Without the Jev key or the Claude CLI, the sync and export still work and categorization is skipped. The first categorize run takes several minutes; later runs only handle new posts.
+
+### Update or remove
+
+```bash
+git pull
+bun run service:install          # rebuilds and restarts both services
+bun run service:status
+
+bun run service:uninstall                     # remove the services
+bun run service:uninstall -- --purge-secrets  # also delete the cookies and Jev key, and disconnect X
+```
+
+> [!NOTE]
+> If you upgrade Node and the old Node path disappears, the services stay stopped until you rerun `bun run service:install`. `service:status` tells you when this happens.
+
+<details>
+<summary><b>Migrating from the old birdclaw-nightly launchd job</b></summary>
+
+If this Mac still runs the old `birdclaw-nightly` LaunchAgent, run `bun run migrate` once after `bun install`. It stops the old job (but keeps it), moves your X cookies and Jev key from the old plaintext files into the secret store, installs the two services, and waits for the new worker to finish one good sync. Only then does it delete the old files. If anything fails, it rolls back and puts the old job back. `--timeout-minutes N` changes the 15 minute wait. See [packages/engine/SETUP.md](packages/engine/SETUP.md).
+
+</details>
+
+## Usage
+
+### Web app
+
+The installed service runs at http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides it). Highlights:
+
+- Filter by area and topic, collection, author, keyword, time range and media. Filters live in the URL, so you can bookmark them.
+- **Ask** judges every post against a question. **Pin** saves it as a search that later syncs keep up to date.
+- **Resources** lists the repos, packages, videos and pages your posts link to, most saved first.
+- Rename, merge, hide or delete topics. Remove a post from the corpus without touching X.
+- Keyboard: `/` to search, `j` and `k` to move between cards, Enter to open one.
+
+See [apps/web/README.md](apps/web/README.md) for the full tour.
+
+### Claude skill
+
+After `bash packages/skill/install.sh`, agents can query the corpus directly:
+
+```bash
+node ~/.claude/skills/x-corpus/query.mjs categories
+node ~/.claude/skills/x-corpus/query.mjs topic "<area or topic>" --limit 8
+node ~/.claude/skills/x-corpus/query.mjs resources "<area or topic>"
+node ~/.claude/skills/x-corpus/query.mjs "state machine" --source bookmarks --json
+```
+
+The skill is a symlink to `packages/skill/` and finds this clone from its own real path. See [packages/skill/SKILL.md](packages/skill/SKILL.md).
+
+### Raw files
+
+Every sync writes plain files you can read from any tool:
+
+| Path | What it holds |
+|---|---|
+| `data/{bookmarks,likes}.normalized.jsonl` | One `{type,id,handle,name,created,url,text}` record per line |
+| `markdown/{bookmarks,likes}/` | One `.md` per post with YAML frontmatter, plus `index.md` |
+| `state/corpus.sqlite` | Categories, tags, links, your edits and the change log |
+
+> [!WARNING]
+> `state/corpus.sqlite` is the one file that cannot be rebuilt from X. It holds your category edits, per-post fixes, removed posts and the change log. Back it up.
+
+## Things to know
+
+- **The code still says x-corpus.** Magpie used to be called x-corpus. The packages, CLI, services, `~/.config/x-corpus` and the Claude skill keep that name.
+- **Secrets and services are per user, data is per clone.** The cookies, the Jev key and the connection live in the macOS Keychain or Linux Secret Service (service `x-corpus`) and in `~/.config/x-corpus`. The corpus lives in each clone. Connecting X from another clone or worktree replaces the cookies the installed service uses, and running `service:install` from another clone points both services at that clone.
+- **No sign-in.** The web app answers loopback requests only and has no login. That assumes only you have a login on the machine.
+- **Ports.** The service uses 3030. `bun run dev` uses 3000, so a dev server never collides with it.
+- **Sync interval.** Set `SYNC_INTERVAL_HOURS` in `~/.config/x-corpus/settings.env` (default 3).
+- **Secret fallback.** With no usable keychain, secrets go to an owner-only `~/.config/x-corpus/secrets.env`, and the app shows a warning.
+- **History fills in over time.** The first sync of each collection backfills its full history. X rate-limits the likes endpoint, so likes may arrive across several syncs.
+- **What leaves the machine.** Browsing sends nothing. Ask mode and tagging send post text to Jev, category upkeep sends it to Claude through your Claude Code CLI login, and the links stage requests each linked URL once to read its title.
+
+## Commands
+
+Run from the repo root:
 
 ```bash
 bun run setup            # check the machine
@@ -55,22 +225,33 @@ bun run service:uninstall
 bun run secrets:set-jev  # store the Jev key
 bun run migrate          # move off the old launchd job
 bun run sync             # run one whole sync now
+bun run categorize       # categorize only
+bun run build:markdown   # rebuild markdown/ and jsonl from existing data/*.json
 bun run dev              # web app on http://127.0.0.1:3000
 bun run build            # production build of the web app
-bun run categorize       # categorize only
-bun run build:markdown   # rebuild markdown/jsonl from existing data/*.json
 bun run lint
-bun run test             # node --test across engine, skill, and web
 bun run typecheck
+bun run test             # node --test across engine, skill and web
 ```
 
-## Using the corpus from other projects
-
-Read the JSONL, one self-contained record per line, in this clone:
+## Project layout
 
 ```
-data/bookmarks.normalized.jsonl
-data/likes.normalized.jsonl
+apps/web/         # @x-corpus/web: the Next.js corpus screen
+packages/engine/  # @x-corpus/engine: sync, export, categorize, worker, service installer
+packages/skill/   # the x-corpus Claude skill (symlinked into ~/.claude/skills)
+docs/plans/       # implementation plans
+docs/solutions/   # solved problems and tooling decisions
+data/             # generated: raw JSON + normalized JSONL   (gitignored)
+markdown/         # generated: one .md per post              (gitignored)
+state/            # corpus.sqlite: your edits live here      (gitignored, not regenerated)
+logs/             # sync and service logs                    (gitignored)
 ```
 
-To skim or prompt, point Claude at `markdown/bookmarks/` and `markdown/likes/`: one `.md` per post, plus `index.md`. The `x-corpus` Claude skill (`packages/skill/`) searches the JSONL by keyword and reads categories, a topic's posts, and a topic's resources from the store.
+| Read next | For |
+|---|---|
+| [CONCEPTS.md](CONCEPTS.md) | Domain vocabulary: X session, secret backend, worker, run lock |
+| [packages/engine/README.md](packages/engine/README.md) | Sync pipeline, categorization stages, output formats |
+| [packages/engine/SETUP.md](packages/engine/SETUP.md) | Step-by-step setup, update and migration |
+| [apps/web/README.md](apps/web/README.md) | Everything on the screen, code layout, checks |
+| [apps/web/AGENTS.md](apps/web/AGENTS.md) and [DESIGN.md](apps/web/DESIGN.md) | Framework, component and design-system rules |
