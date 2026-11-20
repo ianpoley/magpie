@@ -4,9 +4,8 @@
 @import "@ui-sdk/core/web.css" layer(components);
 
 /*
- * x-corpus design system — "Grove". See apps/web/DESIGN.md for the rationale and rules.
- * Every color is OKLCH: one hue per role, chroma as a fraction of that hue's sRGB ceiling,
- * every text/background pair (including each sidebar gradient stop) ≥ 4.5:1 WCAG.
+ * Magpie design system — "Murmur". See apps/web/DESIGN.md for the rationale and rules.
+ * Every color is OKLCH, and every text/background pair (including each sidebar gradient stop) is ≥ 4.5:1 WCAG.
  * Light only for now; dark mode is to be derived by remapping these roles.
  */
 
@@ -20,93 +19,95 @@
 }
 
 @theme {
-  /* surfaces + ink (neutrals tinted toward the brand hue, H 165) */
-  --color-canvas: oklch(0.978 0.014 165);
-  --color-surface: oklch(1 0 165);
-  --color-sunken: oklch(0.958 0.031 165);
-  --color-ink: oklch(0.23 0.012 165);
-  --color-ink-muted: oklch(0.48 0.018 165);
-  --color-line: oklch(0.915 0.046 165);
+  /* surfaces + ink: a dawn sky, blue-grey ink (H 255) on cool canvas, warm sunken and lines (H 60) */
+  --color-canvas: oklch(0.972 0.014 235);
+  --color-surface: oklch(1 0 0);
+  --color-sunken: oklch(0.955 0.018 60);
+  --color-ink: oklch(0.24 0.03 255);
+  --color-ink-muted: oklch(0.45 0.03 255);
+  --color-line: oklch(0.9 0.02 60);
 
-  /* primary: emerald */
-  --color-primary: oklch(0.5 0.104 160);
-  --color-primary-top: oklch(0.54 0.099 172);
+  /* primary: sunrise burnt orange; white on it stays >= 4.5:1 through the gradient */
+  --color-primary: oklch(0.46 0.14 38);
+  --color-primary-top: oklch(0.5 0.13 52);
   --color-on-primary: oklch(1 0 0);
-  --color-primary-text: oklch(0.49 0.1 160);
-  --color-primary-soft: oklch(0.945 0.059 160);
+  --color-primary-text: oklch(0.44 0.14 40);
+  --color-primary-soft: oklch(0.95 0.035 55);
 
-  /* collections: bookmarks = indigo, likes = coral */
+  /* collections: bookmarks = indigo, likes = rose (never reads as the orange primary) */
   --color-bm: oklch(0.6 0.197 275);
   --color-bm-text: oklch(0.47 0.266 275);
   --color-bm-soft: oklch(0.935 0.023 275);
-  --color-like: oklch(0.6 0.219 25);
-  --color-like-text: oklch(0.48 0.175 25);
-  --color-like-soft: oklch(0.935 0.025 25);
+  --color-like: oklch(0.6 0.2 5);
+  --color-like-text: oklch(0.48 0.18 5);
+  --color-like-soft: oklch(0.945 0.03 5);
 
-  /* search highlight */
+  /* search highlight, and selected text */
   --color-mark: oklch(0.92 0.141 110);
+  --color-selection: oklch(0.88 0.08 55 / 0.6);
 
-  /* topic chips: one neutral tint for every area; "possible" marks an unsure match */
-  --color-chip: oklch(0.945 0.022 165);
-  --color-chip-text: oklch(0.37 0.035 165);
-  --color-chip-possible: oklch(0.972 0.008 165);
-  --color-chip-possible-text: oklch(0.47 0.018 165);
+  /* topic chips: one warm neutral for every area; "possible" marks an unsure match */
+  --color-chip: oklch(0.955 0.018 60);
+  --color-chip-text: oklch(0.36 0.03 255);
+  --color-chip-possible: oklch(0.975 0.01 60);
+  --color-chip-possible-text: oklch(0.45 0.03 255);
 
   /* success: teal-cyan, so "it worked" never reads as the primary action */
   --color-success: oklch(0.5 0.085 195);
   --color-success-soft: oklch(0.95 0.035 195);
 
-  /* sidebar: forest → teal gradient stops, and the ink that sits on them */
-  --color-side-0: oklch(0.28 0.035 172);
-  --color-side-1: oklch(0.34 0.041 188);
-  --color-side-2: oklch(0.4 0.044 205);
-  --color-side-ink: oklch(0.98 0.006 188);
-  --color-side-muted: oklch(0.84 0.058 188);
-  --color-wash: oklch(0.95 0.055 188);
+  /* sidebar: dawn indigo into slate (blue hues, never purple), warmed by a faint sunrise at the bottom */
+  --color-side-0: oklch(0.27 0.05 262);
+  --color-side-1: oklch(0.31 0.045 250);
+  --color-side-2: oklch(0.36 0.04 235);
+  --color-side-ink: oklch(0.97 0.01 80);
+  --color-side-muted: oklch(0.86 0.035 70);
+  --color-sunrise: oklch(0.55 0.11 50);
+
+  /* the top of main: peach at first light, powder blue by mid-morning */
+  --color-dawn: oklch(0.95 0.035 60);
+  --color-morning: oklch(0.962 0.022 200);
 
   /* shape */
   --radius-card: 16px;
   --radius-inner: 10px;
   --radius-avatar: 12px;
 
-  /* depth: layered, primary-tinted */
+  /* depth: ink-edged, with a warm sunrise glow under cards */
   --shadow-card:
     0 0 0 1px color-mix(in oklch, var(--color-ink) 7%, transparent),
     0 1px 2px color-mix(in oklch, var(--color-ink) 5%, transparent),
-    0 4px 12px -6px color-mix(in oklch, var(--color-primary) 18%, transparent);
+    0 8px 18px -10px color-mix(in oklch, var(--color-sunrise) 25%, transparent);
   --shadow-card-hover:
     0 0 0 1px color-mix(in oklch, var(--color-primary) 22%, transparent),
     0 2px 4px color-mix(in oklch, var(--color-ink) 6%, transparent),
-    0 10px 24px -10px color-mix(in oklch, var(--color-primary) 35%, transparent);
+    0 14px 28px -14px color-mix(in oklch, var(--color-primary) 38%, transparent);
   --shadow-primary:
     0 1px 2px color-mix(in oklch, var(--color-primary) 40%, transparent),
     0 4px 12px -4px color-mix(in oklch, var(--color-primary) 50%, transparent),
     inset 0 1px 0 oklch(1 0 0 / 0.2);
+  --shadow-pinned:
+    0 1px 0 color-mix(in oklch, var(--color-ink) 8%, transparent),
+    0 8px 18px -14px color-mix(in oklch, var(--color-ink) 30%, transparent);
 
-  /* type: Hanken Grotesk for everything */
+  /* type: Hanken Grotesk for text, Bricolage Grotesque for display headings and the wordmark */
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-bricolage), var(--font-sans);
 }
 
 /* ---- gradient recipes ---------------------------------------------- */
 @utility bg-side {
   background:
-    radial-gradient(120% 50% at 0% 100%, color-mix(in oklch, var(--color-side-2) 70%, transparent), transparent 70%),
-    linear-gradient(in oklch 170deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
+    radial-gradient(120% 40% at 0% 100%, color-mix(in oklch, var(--color-sunrise) 22%, transparent), transparent 70%),
+    linear-gradient(in oklab 172deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
 }
 @utility bg-primary-fill {
   background-image: linear-gradient(in oklch 180deg, var(--color-primary-top), var(--color-primary));
 }
 @utility bg-wash {
-  background:
-    radial-gradient(55% 340px at 0% 0%, color-mix(in oklch, var(--color-side-2) 13%, transparent), transparent),
-    radial-gradient(45% 300px at 100% 0%, color-mix(in oklch, var(--color-primary) 11%, transparent), transparent),
-    var(--color-canvas);
-  background-repeat: no-repeat;
+  background: linear-gradient(in oklab 180deg, var(--color-dawn), var(--color-morning) 420px, var(--color-canvas) 820px) no-repeat, var(--color-canvas);
 }
 
-@utility bg-tile-* {
-  background-image: linear-gradient(135deg, --value(--color-*), var(--color-surface) 78%);
-}
 @utility bg-side-wash {
   background-color: color-mix(in oklch, var(--color-side-ink) 16%, transparent);
 }
@@ -124,7 +125,8 @@
 
 /* ---- type recipes --------------------------------------------------- */
 @utility text-display {
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   letter-spacing: -0.035em;
   line-height: 1.05;
   text-wrap: balance;
@@ -167,6 +169,25 @@
   outline-offset: -1px;
 }
 
+/* ---- the pixel magpie's inks ----------------------------------------
+ * Read by the flock's canvas and the SVG sprites, never as utilities, so they sit outside @theme
+ * (which only emits the variables a utility uses). */
+:root {
+  --color-bird: oklch(0.4 0.035 255);
+  --color-bird-mark: oklch(0.18 0.03 262);
+  --color-bird-white: oklch(0.99 0.005 80);
+  --color-bird-wing: oklch(0.58 0.12 245);
+  --color-bird-wing-mark: oklch(0.6 0.13 245);
+  --color-bird-tail: oklch(0.6 0.11 180);
+  --color-bird-tip: oklch(0.55 0.13 290);
+  --color-bird-eye: oklch(0.97 0 0);
+  --color-coin: oklch(0.84 0.15 85);
+  --color-coin-shine: oklch(0.97 0.06 95);
+  --color-coin-shade: oklch(0.64 0.13 68);
+  --color-gold-bird: oklch(0.62 0.13 70);
+  --color-gold-white: oklch(0.96 0.07 95);
+}
+
 /* ---- theme tokens → UI SDK tokens ---------------------------------- */
 :root {
   color-scheme: light;
@@ -189,7 +210,7 @@
     0 12px 28px -10px color-mix(in oklch, var(--color-ink) 22%, transparent);
 }
 
-/* ---- component defaults that carry the Grove look ------------------- */
+/* ---- component defaults that carry the Murmur look ------------------- */
 @layer components {
   :is([data-slot="button"], [data-slot="dialog-close"], [data-slot="toggle"])[data-variant="solid"] {
     border-color: transparent;
@@ -287,5 +308,95 @@ body {
 }
 
 ::selection {
-  background: color-mix(in oklch, var(--color-primary) 22%, transparent);
+  background: var(--color-selection);
+}
+
+/* ---- Murmur: the flock, the mark and the pinned tool row ------------ */
+
+/* The sky: fixed over main's box, behind the content column (z-index 1). Low-res and scaled up, so every bird is crisp pixels. */
+.flock-sky {
+  position: fixed;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* The mark's wing beat: the raised-wing frame blinks over the resting one. */
+.mark-flap .wing-up {
+  opacity: 0;
+}
+@keyframes wing-up {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes wing-bob {
+  0%,
+  49% {
+    transform: translateY(-1px);
+  }
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+}
+.mark-flap[data-play] .wing-up {
+  animation: wing-up 200ms steps(1, jump-none) 5;
+}
+.mark-flap[data-play] {
+  animation: wing-bob 200ms steps(1, jump-none) 5;
+}
+
+/* Empty states: a few birds circling a patch with nothing in it. */
+@keyframes orbit {
+  0% { transform: translate(calc(var(--r) * 1), calc(var(--r) * 0)); }
+  12.5% { transform: translate(calc(var(--r) * 0.707), calc(var(--r) * 0.318)); }
+  25% { transform: translate(calc(var(--r) * 0), calc(var(--r) * 0.45)); }
+  37.5% { transform: translate(calc(var(--r) * -0.707), calc(var(--r) * 0.318)); }
+  50% { transform: translate(calc(var(--r) * -1), calc(var(--r) * 0)); }
+  62.5% { transform: translate(calc(var(--r) * -0.707), calc(var(--r) * -0.318)); }
+  75% { transform: translate(calc(var(--r) * 0), calc(var(--r) * -0.45)); }
+  87.5% { transform: translate(calc(var(--r) * 0.707), calc(var(--r) * -0.318)); }
+  100% { transform: translate(calc(var(--r) * 1), calc(var(--r) * 0)); }
+}
+.orbit {
+  animation: orbit var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+.orbit-bird .wing-up {
+  animation: wing-up 260ms steps(1, jump-none) infinite;
+}
+
+/* The tool row picks up a frosted sky once it is pinned to the top, so the list reads clearly as it slides under. */
+.pinned-row {
+  transition:
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+.pinned-row[data-stuck] {
+  background: color-mix(in oklch, var(--color-canvas) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: var(--shadow-pinned);
+}
+
+/* Reduced motion: the mark and the empty-state birds rest; the flock draws itself still (components/flock.tsx). */
+@media (prefers-reduced-motion: reduce) {
+  .mark-flap,
+  .mark-flap .wing-up,
+  .orbit,
+  .orbit-bird .wing-up {
+    animation: none !important;
+  }
+  .orbit {
+    transform: translate(calc(var(--r) * var(--rest-x, 1)), 0);
+  }
+  .pinned-row {
+    transition: none;
+  }
 }

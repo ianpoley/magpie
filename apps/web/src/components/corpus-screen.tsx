@@ -4,7 +4,7 @@ import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
-import { CircleAlert, CircleCheck, CloudOff, Inbox, Layers, Link2Off, Menu as MenuIcon, SearchX, Shuffle, Sparkles, Tag, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Menu as MenuIcon, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useState, useSyncExternalStore } from "react";
 
@@ -22,6 +22,7 @@ import {
   toggleUnfiled,
 } from "@/lib/filter";
 import { linkedQuery, parseLinked, type LinkedFilter } from "@/lib/filter-url";
+import { emitMagpie } from "@/lib/magpie-events";
 import { resourcesFor } from "@/lib/resources";
 import { similarPosts } from "@/lib/similar";
 import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
@@ -31,7 +32,9 @@ import { AskBar } from "./ask-bar";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
-import { formatCount, plural } from "./format";
+import { Flock } from "./flock";
+import { formatCount } from "./format";
+import { PageHeader, SEARCH_INPUT_ID, type SearchMode, type View } from "./page-header";
 import { postCardOpen } from "./post-card";
 import { PostDialog } from "./post-dialog";
 import { PostList } from "./post-list";
@@ -43,10 +46,7 @@ import { Sidebar, type SidebarProps } from "./sidebar";
 import { SidebarResizer } from "./sidebar-resizer";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
-import { SEARCH_INPUT_ID, Toolbar, type SearchMode } from "./toolbar";
 import { createWhatChangedController, WhatChanged } from "./what-changed";
-
-type View = "posts" | "resources";
 
 const RESOURCE_KINDS = [
   { value: "repo", label: "Repos", none: "No repos here" },
@@ -101,14 +101,14 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   const filter = result.state;
   if (!snapshot.storeExists) {
     return (
-      <EmptyState icon={CloudOff} title="Nothing has synced yet">
+      <EmptyState title="Nothing has synced yet">
         The sync job has not run on this Mac. After its first run, every bookmark and like shows up here.
       </EmptyState>
     );
   }
   if (snapshot.posts.length === 0) {
     return (
-      <EmptyState icon={Layers} title="No saved posts yet">
+      <EmptyState title="No saved posts yet">
         Bookmark or like a post on X and it appears here after the next sync.
       </EmptyState>
     );
@@ -116,7 +116,7 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   const selected = filter.topicIds.length + filter.areaIds.length;
   if (narrowing(filter)) {
     return (
-      <EmptyState icon={SearchX} title="No posts match" action={solidButton("Clear filters", clear)}>
+      <EmptyState title="No posts match" action={solidButton("Clear filters", clear)}>
         {filter.keyword.trim() !== ""
           ? `Nothing you saved mentions “${filter.keyword.trim()}” under these filters. Try fewer or shorter words, or widen the filters.`
           : "No saved post fits every filter that is on. Widen the time range or remove a filter."}
@@ -125,27 +125,27 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   }
   if (filter.unfiled) {
     return (
-      <EmptyState icon={Inbox} title="Nothing is unfiled">
+      <EmptyState title="Nothing is unfiled">
         Every saved post has at least one topic it clearly belongs to.
       </EmptyState>
     );
   }
   if (selected > 1) {
     return (
-      <EmptyState icon={Tag} title="No post is in all of these" action={solidButton("Clear categories", clearCategories)}>
+      <EmptyState title="No post is in all of these" action={solidButton("Clear categories", clearCategories)}>
         Selecting several categories shows only posts that are in every one. Remove one to see more.
       </EmptyState>
     );
   }
   if (selected === 1) {
     return (
-      <EmptyState icon={Tag} title="No posts here yet">
+      <EmptyState title="No posts here yet">
         Nothing you saved matches this category so far. New saves are sorted into it on every sync.
       </EmptyState>
     );
   }
   return (
-    <EmptyState icon={SearchX} title="No posts to show">
+    <EmptyState title="No posts to show">
       Every saved post is in a hidden category. Use Show hidden in the sidebar to see them.
     </EmptyState>
   );
@@ -155,27 +155,27 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
 function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilters: () => void) {
   if (ask.status === "running") {
     return (
-      <EmptyState icon={Sparkles} title="Judging your saved posts">
+      <EmptyState title="Judging your saved posts">
         Matches appear here as they are found, strongest first.
       </EmptyState>
     );
   }
   if (ask.scores.length === 0) {
     return (
-      <EmptyState icon={CloudOff} title="The search could not be run" action={solidButton("Try again", retry)}>
+      <EmptyState title="The search could not be run" action={solidButton("Try again", retry)}>
         No post could be judged. Check that this Mac is online, then try again.
       </EmptyState>
     );
   }
   if (anyMatch) {
     return (
-      <EmptyState icon={SearchX} title="No matches under these filters" action={solidButton("Clear filters", clearFilters)}>
+      <EmptyState title="No matches under these filters" action={solidButton("Clear filters", clearFilters)}>
         Posts match “{ask.query}”, but none of them fit the filters that are on.
       </EmptyState>
     );
   }
   return (
-    <EmptyState icon={SearchX} title="Nothing matches">
+    <EmptyState title="Nothing matches">
       No saved post is about “{ask.query}”. Try describing the topic in other words.
     </EmptyState>
   );
@@ -327,9 +327,12 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   const clearCategories = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false }));
   const clearPills = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false, author: null, keyword: "" }));
   const clearAll = () => setFilter((current) => ({ ...DEFAULT_FILTER, sort: current.sort, revealHidden: current.revealHidden }));
-  const changeMode = (next: SearchMode) => {
-    if (next === "search") askRunner.clear();
-    setMode(next);
+  const startAsk = (query: string) => {
+    emitMagpie("ask");
+    setFilter((current) => ({ ...current, keyword: "" }));
+    setAskDraft(query);
+    setMode("ask");
+    askRunner.ask(query);
   };
   const pin = async () => {
     if (!ask) return;
@@ -337,11 +340,15 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
     if (!pinned) return;
     selectTopic(pinned.topicId, pinned.areaId);
     toast.success("Pinned as a topic");
+    emitMagpie("pin");
   };
 
   const copyLink = (post: Post) => {
     navigator.clipboard.writeText(post.url).then(
-      () => toast.success("Link copied"),
+      () => {
+        toast.success("Link copied");
+        emitMagpie("copy");
+      },
       () => toast.error("The link could not be copied"),
     );
   };
@@ -351,10 +358,12 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   const remove = async (post: Post) => {
     if (!(await runAction(removePost(post.id)))) return;
     postDialog.close();
+    emitMagpie("remove");
     toast.success("Removed from corpus", { action: { label: "Undo", onAction: () => restore(post.id) } });
   };
   const surprise = () => {
     if (result.posts.length === 0) return;
+    emitMagpie("surprise");
     void postDialog.open({ payload: randomItem(result.posts).id });
   };
 
@@ -396,73 +405,50 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   return (
     <TipProvider>
       <div className="flex min-h-dvh">
-        <aside id="sidebar" className="w-sidebar sticky top-0 hidden h-dvh shrink-0 lg:block">
+        <aside id="sidebar" className="w-sidebar sticky top-0 z-10 hidden h-dvh shrink-0 lg:block">
           <Sidebar {...sidebar} />
           <SidebarResizer controls="sidebar" />
         </aside>
 
-        <main className="bg-wash min-w-0 flex-1">
-          <div className="mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
-            <header className="flex items-end gap-3">
-              <DialogTrigger controller={sidebarPanel} aria-label="Open filters" className={`${iconButton} mb-0.5 size-10 bg-surface text-ink shadow-card lg:hidden`}>
-                <MenuIcon aria-hidden="true" />
-              </DialogTrigger>
-              <div className="min-w-0 flex-1">
-                <p className="text-eyebrow text-ink-muted">{eyebrow}</p>
-                <h1 className="text-display mt-1.5 text-[30px] text-ink sm:text-[40px]">{title}</h1>
-              </div>
-              <Button
-                data-variant="solid"
-                onClick={surprise}
-                disabled={result.posts.length === 0}
-                className="pressable focus-ring mb-0.5 h-10 shrink-0 gap-2 px-4 text-[14px] font-semibold"
-              >
-                <Shuffle className="size-4" aria-hidden="true" />
-                Surprise me
-              </Button>
-            </header>
-            {detail ? <p className="-mt-2.5 max-w-[60ch] text-[14px] leading-[1.5] text-pretty text-ink-muted">{detail}</p> : null}
-
-            <Toolbar
+        <main className="bg-wash relative min-w-0 flex-1">
+          <Flock count={result.posts.length} asking={ask?.status === "running"} />
+          {/* The flock keeps out of this column; it must stay main's last child. */}
+          <div className="relative z-[1] mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
+            <PageHeader
+              menuButton={
+                <DialogTrigger controller={sidebarPanel} aria-label="Open filters" className={`${iconButton} size-10 bg-surface text-ink shadow-card lg:hidden`}>
+                  <MenuIcon aria-hidden="true" />
+                </DialogTrigger>
+              }
+              eyebrow={eyebrow}
+              title={title}
+              detail={detail}
+              onSurprise={surprise}
+              canSurprise={result.posts.length > 0}
               mode={mode}
               keyword={filter.keyword}
               askDraft={askDraft}
+              askActive={ask !== null}
               timeRange={applied.timeRange}
               sort={applied.sort}
               mediaOnly={applied.mediaOnly}
               sortable={!ask}
-              onMode={changeMode}
-              onAskDraft={setAskDraft}
-              onAsk={() => askRunner.ask(askDraft)}
               onKeyword={(next) => setFilter((current) => ({ ...current, keyword: next }))}
+              onAskDraft={setAskDraft}
+              onAsk={startAsk}
+              onLeaveAsk={leaveAsk}
               onTimeRange={(timeRange) => setFilter((current) => ({ ...current, timeRange }))}
               onSort={(sort) => setFilter((current) => ({ ...current, sort }))}
               onMediaOnly={(mediaOnly) => setFilter((current) => ({ ...current, mediaOnly }))}
+              view={view}
+              onView={setView}
+              count={result.posts.length}
+              bookmarked={result.posts.filter((post) => post.bookmarked).length}
+              liked={result.posts.filter((post) => post.liked).length}
+              resourceCount={view === "resources" ? groups.length : null}
             />
 
             {ask ? <AskBar ask={ask} onPin={pin} onRetry={() => askRunner.ask(ask.query)} onClear={leaveAsk} /> : null}
-
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-              <SegmentedControl aria-label="View" value={view} onValueChange={(next) => next && setView(next as View)} className="border-0 bg-sunken p-[3px]">
-                <SegmentedControlIndicator />
-                <SegmentedControlItem value="posts" className="focus-ring h-8 px-4 text-[13px] font-semibold">
-                  Posts
-                </SegmentedControlItem>
-                <SegmentedControlItem value="resources" className="focus-ring h-8 px-4 text-[13px] font-semibold">
-                  Resources
-                </SegmentedControlItem>
-              </SegmentedControl>
-              <p className="text-[13px] font-medium text-ink-muted" aria-live="polite">
-                <span className="font-bold text-ink tabular-nums">{formatCount(result.posts.length)}</span>{" "}
-                {plural(result.posts.length, ask ? "match" : "post", ask ? "matches" : "posts")}
-                {view === "resources" ? (
-                  <>
-                    {" · "}
-                    <span className="font-bold text-ink tabular-nums">{formatCount(groups.length)}</span> {plural(groups.length, "resource")}
-                  </>
-                ) : null}
-              </p>
-            </div>
 
             {view === "resources" && kinds.length > 1 ? (
               <SegmentedControl
@@ -520,11 +506,11 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
               result.posts.length === 0 ? (
                 emptyPosts(snapshot, result, clearAll, clearCategories)
               ) : shownKind && allGroups.length > 0 ? (
-                <EmptyState icon={Link2Off} title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
+                <EmptyState title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
                   These posts link to other kinds of resources.
                 </EmptyState>
               ) : (
-                <EmptyState icon={Link2Off} title="No resources here">
+                <EmptyState title="No resources here">
                   None of these posts link to a repo, package, video, or page that could be read. They are still listed under Posts.
                 </EmptyState>
               )

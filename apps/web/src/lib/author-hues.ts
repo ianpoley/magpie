@@ -1,4 +1,4 @@
-// Grove author hue family: 8 hues at equal lightness, each at the same fraction of its own
+// Author hue family: 8 hues at equal lightness, each at the same fraction of its own
 // sRGB chroma ceiling (bg 80%, fg/ring 90%), so they read as equally vivid. fg on bg ≥ 4.5:1.
 // Use: tint an author's avatar background (bg), their name (fg), and the avatar ring (ring).
 
