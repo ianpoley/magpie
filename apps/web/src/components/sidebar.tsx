@@ -5,7 +5,7 @@ import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from "@ui-sdk/react/scroll-area";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
-import { Bookmark, Eye, Heart, History, Layers, Search, Sprout, Tags, Trash2, X, type LucideIcon } from "lucide-react";
+import { Bookmark, Eye, Heart, History, Layers, Search, Tags, Trash2, X, type LucideIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import type { AuthorCount, Collection, FilterState, Snapshot } from "@/lib/types";
@@ -14,6 +14,7 @@ import { AuthorAvatar } from "./author-avatar";
 import type { CategoryEdits } from "./category-menu";
 import { CategoryTree } from "./category-tree";
 import { formatCount } from "./format";
+import { MagpieMark } from "./magpie";
 import type { RemovedPostsController } from "./removed-posts";
 import { SyncStatus } from "./sync-status";
 import type { WhatChangedController } from "./what-changed";
@@ -86,10 +87,7 @@ export function Sidebar({
   return (
     <div className="side-scope bg-side flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2.5 px-5 pt-5 pb-4">
-        <span className="bg-primary-fill flex size-8 items-center justify-center rounded-[10px] text-on-primary shadow-primary">
-          <Sprout className="size-[18px]" aria-hidden="true" />
-        </span>
-        <p className="text-[17px] font-extrabold tracking-[-0.03em] text-side-ink">x-corpus</p>
+        <MagpieMark />
         {headerAction ? <div className="ml-auto">{headerAction}</div> : null}
       </div>
 

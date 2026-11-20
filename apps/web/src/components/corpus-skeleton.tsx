@@ -6,11 +6,13 @@ export function CorpusSkeleton() {
       <div className="bg-side sticky top-0 hidden h-dvh w-[272px] shrink-0 lg:block" />
       <div className="bg-wash min-w-0 flex-1">
         <div className="mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
-          <div className="flex flex-col gap-3">
-            <div className={`${BAR} h-3 w-28`} />
-            <div className={`${BAR} h-9 w-56`} />
+          {/* The page header: title and count, Posts/Resources, then the tool row. */}
+          <div className="flex items-center gap-3">
+            <div className={`${BAR} h-8 w-40`} />
+            <div className={`${BAR} h-3 w-48`} />
+            <div className={`${BAR} ml-auto h-[38px] w-[172px]`} />
           </div>
-          <div className="h-10 rounded-full bg-surface shadow-card" />
+          <div className="-mt-1 h-10 rounded-full bg-surface shadow-card" />
           {[0, 1, 2].map((card) => (
             <div key={card} className="flex flex-col gap-3 rounded-card bg-surface p-5 shadow-card">
               <div className="flex items-center gap-3">

@@ -17,6 +17,6 @@ Build UI elements with UI SDK (`@ui-sdk/react` + `@ui-sdk/core`, gallery: https:
 - Components are unstyled; default styles come from `@ui-sdk/core/web.css`, imported in `src/app/globals.css` in `layer(components)` under `@layer ui-sdk`. Style with Tailwind classes.
 - ui-sdk modules already ship `"use client"`; your own wrappers that hold state/callbacks need `"use client"` (see `docs/server-rendering.md`).
 
-## Design system: Grove
+## Design system: Murmur
 
-Follow `DESIGN.md`. Use the tokens in `src/app/globals.css` (Tailwind utilities like `bg-canvas`, `text-ink-muted`, `bg-bm-soft`, `rounded-card`, `shadow-card`, `bg-side`, `bg-primary-fill`, `bg-wash`) and `authorHue()` from `src/lib/author-hues.ts`. No raw hex or new colors; add a token (in OKLCH, contrast-checked) if one is missing.
+Follow `DESIGN.md`. Use the tokens in `src/app/globals.css` (Tailwind utilities like `bg-canvas`, `text-ink-muted`, `bg-bm-soft`, `rounded-card`, `shadow-card`, `bg-side`, `bg-primary-fill`, `bg-wash`, `font-display`) and `authorHue()` from `src/lib/author-hues.ts`. No raw hex or new colors; add a token (in OKLCH, contrast-checked) if one is missing.

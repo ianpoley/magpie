@@ -2,7 +2,7 @@
 
 The corpus screen: every post you bookmarked or liked on X, in one list you can filter by category, collection, author, keyword, time range, and media.
 
-It reads the local store the sync job writes (`state/corpus.sqlite`, or the file `X_CORPUS_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask mode is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
+It reads the local store the sync job writes (`state/corpus.sqlite`, or the file `X_CORPUS_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
 
 ## Run it
 
@@ -28,11 +28,12 @@ The page reads the store on every request and again whenever you return to the w
   - Removed lists the posts you took out of the corpus, each with Restore.
   - Drag the sidebar's right edge to resize it, or focus the edge and use the arrow keys. Double-click resets it. The width is remembered in the browser.
   - Sync status shows when the last full sync finished. If a stage failed or the X export is stale, it names the problem.
-- **Main column:** title, Surprise me, search, time range, sort, the media switch, and the Posts / Resources toggle.
+- **Main column:** the title with a count line (posts, and how many of them are bookmarked and liked) and the Posts / Resources toggle; under it a tool row with search, time range, sort, the media switch, and Surprise (a random post from the list). The tool row stays pinned to the top as you scroll, and changing a filter from it jumps back to the top of the results.
+  - A murmuration of pixel magpies flies in each gutter beside the list, with one bird per post shown (up to 320). Filtering sends birds off and brings them back. While an ask is judging they wheel round the search field, then split back into the two gutters. With reduced motion on, the flock is drawn still.
   - Search matches post text, quoted text, author name and handle, and the titles of linked pages. Every word must appear somewhere in the post, in any order; put words in quotes to match them as a phrase. Addresses on X itself are not searched. Matches are highlighted.
   - Press `/` to jump to search.
   - Sort by Newest (when the post was written), Recently added (when a sync first found it), Oldest, or Most liked. X's export has no save time, so Recently added groups posts by sync.
-  - Ask mode sends a question to the model, which judges every saved post against it. Confident matches come first, then possible ones. Pin keeps the question as a pinned search in the sidebar, and later syncs score new posts against it.
+  - Ask sends what you typed in the search field to the model as a question: press the Ask button on the field or ⌘↵ (Ctrl ↵). Plain Enter never starts an ask, because each one costs money. The model judges every saved post against it. Confident matches come first, then possible ones. Pin keeps the question as a pinned search in the sidebar, and later syncs score new posts against it.
   - Resources shows the repos, packages, videos, and pages that the listed posts link to, most saved first. A second switch narrows it to one kind.
   - Each card shows its topics as chips. Pressing a chip filters to that topic. Pressing the author's name filters to that author.
   - Links read as where they lead (`github.com/owner/repo`), not as `t.co` addresses, and a card shows the title of the first page a post links to. Links to the post's own picture or video, or to the post it quotes, are left out, as on X.
@@ -49,16 +50,16 @@ The page reads the store on every request and again whenever you return to the w
 |---|---|
 | `src/app/page.tsx` | Loads the snapshot inside a Suspense boundary and renders the screen. |
 | `src/app/actions.ts` | One server action per category edit. |
-| `src/app/globals.css` | Grove tokens and the few component defaults that carry the look. |
+| `src/app/globals.css` | Murmur tokens, the pixel magpie's inks, and the few component defaults that carry the look. |
 | `src/components/corpus-screen.tsx` | The client component that holds filter state and lays out the screen. |
-| `src/components/` | Sidebar, category tree, toolbar, post card, post dialog, chips, empty states. |
+| `src/components/` | Sidebar, category tree, page header, flock, post card, post dialog, chips, empty states. |
 | `src/lib/` | The snapshot reader and the pure filter, search, and resource logic, with tests in `test/`. |
 
 Filtering runs in the browser over one snapshot of the store, so every control responds at once.
 
 ## Rules for changing it
 
-- `DESIGN.md` is the design system (Grove). Use its tokens; add a token in OKLCH with contrast checked before using a new color.
+- `DESIGN.md` is the design system (Murmur). Use its tokens; add a token in OKLCH with contrast checked before using a new color.
 - `AGENTS.md` covers the framework and component rules: read the bundled Next.js and UI SDK docs before using an API, and build controls from `@ui-sdk/react` wherever a component fits.
 - Engine code is loaded only through `src/lib/engine.ts`. A static import of `@x-corpus/engine` breaks the build.
 
