@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Every threshold and limit the engine, web app and skill share. */
@@ -85,6 +87,21 @@ export const SECRETS = {
   defaultKeychainService: 'x-corpus',
 } as const;
 
+export const X_SYNC = {
+  /** How long the whoami check, or the one-page bookmark probe after it, may run. */
+  preflightTimeoutMs: 2 * 60 * 1000,
+  /** How long an incremental sync of one collection may run. */
+  incrementalTimeoutMs: 30 * 60 * 1000,
+  /** How long the first, full-history sync of one collection may run. */
+  backfillTimeoutMs: 6 * 60 * 60 * 1000,
+  /** How long exporting one collection from the Birdclaw database may run. */
+  exportTimeoutMs: 10 * 60 * 1000,
+  /** Results per sync and export call: effectively all of them. */
+  limit: 100_000,
+  /** Page cap for an incremental sync. */
+  maxPages: 50,
+} as const;
+
 export const INGEST = {
   /** A collection whose export shrank by more than this share clears no flags. */
   shrinkGuard: 0.05,
@@ -95,6 +112,8 @@ export const STORE_BUSY_TIMEOUT_MS = 5_000;
 export type Paths = {
   repoRoot: string;
   dataDir: string;
+  markdownDir: string;
+  logsDir: string;
   bookmarksExport: string;
   likesExport: string;
   syncStatus: string;
@@ -110,6 +129,8 @@ export type Paths = {
   /** The X handle and connection generation. Not secret. */
   xConnection: string;
   claudeCli: string;
+  /** Birdclaw's database and cache. Kept at Birdclaw's own default so an existing install carries over. */
+  birdclawHome: string;
 };
 
 /**
@@ -119,6 +140,7 @@ export type Paths = {
  *   X_CORPUS_DATA_DIR export directory (default: <root>/data)
  *   X_CORPUS_STORE    store file (default: <root>/state/corpus.sqlite)
  *   X_CORPUS_CONFIG_DIR per-user config and secrets file (default: ~/.config/x-corpus)
+ *   BIRDCLAW_HOME     Birdclaw's own home (default: ~/.birdclaw)
  */
 export function paths(env: Record<string, string | undefined> = process.env): Paths {
   const repoRoot = resolve(env.X_CORPUS_ROOT || fileURLToPath(new URL('../../..', import.meta.url)));
@@ -129,6 +151,8 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
   return {
     repoRoot,
     dataDir,
+    markdownDir: join(repoRoot, 'markdown'),
+    logsDir: join(repoRoot, 'logs'),
     bookmarksExport: join(dataDir, 'bookmarks.json'),
     likesExport: join(dataDir, 'likes.json'),
     syncStatus: join(dataDir, 'sync-status.json'),
@@ -141,6 +165,36 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     secretBackend: join(configDir, 'secret-backend.json'),
     xConnection: join(configDir, 'x-connection.json'),
     claudeCli: join(homedir(), '.local', 'bin', 'claude'),
+    birdclawHome: resolve(env.BIRDCLAW_HOME || join(homedir(), '.birdclaw')),
+  };
+}
+
+/**
+ * A command-line tool: `pinned` is the entry file of the repo's own pinned
+ * package, run with this process's node; otherwise `path` is an executable.
+ */
+export type XTool = { path: string; pinned: boolean };
+
+const requireFromEngine = createRequire(import.meta.url);
+
+function pinnedBin(pkg: string, bin: string): XTool {
+  const manifest = requireFromEngine.resolve(`${pkg}/package.json`);
+  const bins = (JSON.parse(readFileSync(manifest, 'utf8')) as { bin?: Record<string, string> }).bin ?? {};
+  if (!bins[bin]) throw new Error(`${pkg} declares no "${bin}" command.`);
+  return { path: join(dirname(manifest), bins[bin]), pinned: true };
+}
+
+/**
+ * The bird and Birdclaw commands. Each defaults to the pinned engine
+ * dependency; X_CORPUS_BIRD_BIN and X_CORPUS_BIRDCLAW_BIN replace them with
+ * another executable, such as a test stub.
+ */
+export function xTools(env: Record<string, string | undefined> = process.env): { bird: XTool; birdclaw: XTool } {
+  return {
+    bird: env.X_CORPUS_BIRD_BIN ? { path: env.X_CORPUS_BIRD_BIN, pinned: false } : pinnedBin('@steipete/bird', 'bird'),
+    birdclaw: env.X_CORPUS_BIRDCLAW_BIN
+      ? { path: env.X_CORPUS_BIRDCLAW_BIN, pinned: false }
+      : pinnedBin('birdclaw', 'birdclaw'),
   };
 }
 
