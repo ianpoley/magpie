@@ -11,7 +11,8 @@ A launchd job (`com.ianpoley.birdclaw-nightly`, every 3h) runs
 ## Files
 
 ```
-bin/birdclaw-nightly.sh   # sync bookmarks + likes, export JSON, build markdown/jsonl, categorize
+bin/sync.mjs              # one whole sync under the run lock: X check, bookmarks + likes, export JSON, build markdown/jsonl, categorize
+bin/birdclaw-nightly.sh   # the legacy launchd job's script (same steps, no run lock around the X sync)
 bin/build-markdown.mjs    # birdclaw JSON -> per-post .md + index.md + normalized .jsonl
 bin/categorize.mjs        # ingest -> resolve links -> tag -> discover or evolve categories
 src/                      # the categorize pipeline (TypeScript, run directly by node)
@@ -80,8 +81,7 @@ logs/                         # per-run logs + launchd stdout/err
 ## Refreshing manually
 
 ```bash
-bun run sync                                         # from repo root
-bash ~/x-corpus/packages/engine/bin/birdclaw-nightly.sh   # equivalent
+bun run sync                                         # from repo root; X cookies come from the secret store
 bun run build:markdown                               # rebuild md/jsonl from existing JSON, no X calls
 ```
 

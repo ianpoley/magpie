@@ -100,6 +100,8 @@ export const X_SYNC = {
   limit: 100_000,
   /** Page cap for an incremental sync. */
   maxPages: 50,
+  /** After a failed full-history sync of a collection, the next try waits this long; incremental syncs run meanwhile. */
+  backfillRetryMs: 24 * 60 * 60 * 1000,
 } as const;
 
 export const INGEST = {
@@ -119,7 +121,10 @@ export type Paths = {
   syncStatus: string;
   stateDir: string;
   store: string;
+  /** Held for the whole of a sync or categorize run; its live owner means a run is in progress. */
   lock: string;
+  /** The scheduler's own state, including which collections have had their full-history sync. Not secret. */
+  schedulerState: string;
   configDir: string;
   /** The file fallback for secrets, and the legacy home of the Jev key. */
   secrets: string;
@@ -158,7 +163,8 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     syncStatus: join(dataDir, 'sync-status.json'),
     stateDir,
     store,
-    lock: join(stateDir, 'categorize.lock'),
+    lock: join(stateDir, 'run.lock'),
+    schedulerState: join(stateDir, 'scheduler.json'),
     configDir,
     secrets: join(configDir, 'secrets.env'),
     settings: join(configDir, 'settings.env'),

@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-
 import type { ClaudeAdapter } from './claude/cli.ts';
 import { runDiscovery } from './claude/discovery.ts';
 import { evolve } from './evolve/evolve.ts';
@@ -10,19 +8,14 @@ import type { TagResult } from './jev/tagger.ts';
 import type { HttpFetch } from './links/http.ts';
 import { resolveLinks } from './links/resolve.ts';
 import type { HostLookup } from './links/resolve.ts';
-import { acquireLock } from './lock.ts';
-import { openStore } from './store/db.ts';
 import type { Store } from './store/db.ts';
 import { syncBands } from './store/membership.ts';
-import { MESSAGE_MAX_CHARS, errorText, isRecord } from './util.ts';
+import { MESSAGE_MAX_CHARS, errorText } from './util.ts';
 
-/** Every file a run touches. None has a default, so a caller always says which corpus it means. */
-export type PipelineFiles = {
-  store: string;
-  lock: string;
+/** The exports the categorize stages load. */
+export type ExportFiles = {
   bookmarksExport: string;
   likesExport: string;
-  syncStatus: string;
 };
 
 export type PipelineDeps = {
@@ -31,6 +24,7 @@ export type PipelineDeps = {
   lookup?: HostLookup;
   jev: JevClient;
   claude: ClaudeAdapter;
+  /** The clock a run is stamped with: pass it to `startRun`, which hands it on to the stages. */
   now?: () => Date;
 };
 
@@ -43,11 +37,26 @@ export type PipelineOptions = {
 };
 
 /**
- * `tag` is the pass over what the run started with; `retag` is the pass that
- * scores posts against topics the same run created. A run records `discovery`
- * while no automatic topic exists and `evolve` once one does, never both.
+ * A whole sync records the X stages first: `x_auth` checks the session,
+ * `x_bookmarks` and `x_likes` sync each collection, `export` writes the JSON
+ * exports and `markdown` builds the browsable files from them. The categorize
+ * stages follow. `tag` is the pass over what the run started with; `retag` is
+ * the pass that scores posts against topics the same run created. A run
+ * records `discovery` while no automatic topic exists and `evolve` once one
+ * does, never both.
  */
-export type StageName = 'ingest' | 'links' | 'tag' | 'discovery' | 'evolve' | 'retag';
+export type StageName =
+  | 'x_auth'
+  | 'x_bookmarks'
+  | 'x_likes'
+  | 'export'
+  | 'markdown'
+  | 'ingest'
+  | 'links'
+  | 'tag'
+  | 'discovery'
+  | 'evolve'
+  | 'retag';
 
 /**
  * ok       the stage did its work
@@ -66,103 +75,43 @@ export type StageReport = {
 
 export type UpstreamSync = 'ok' | 'failed' | 'unknown';
 
-export type PipelineResult =
-  | { status: 'locked'; pid: number }
-  | { status: 'complete'; runId: number; upstreamSync: UpstreamSync; stages: StageReport[] };
+/** How the X sync before the categorize stages went, as recorded on the run row. */
+export type Upstream = { result: UpstreamSync; detail: string | null };
 
-type StageBody = Omit<StageReport, 'stage' | 'message'> & { message?: string | null };
+export type PipelineResult = { runId: number; upstreamSync: UpstreamSync; stages: StageReport[] };
 
-/**
- * How the X sync that ran before this went. The sync script writes one entry
- * per collection with the exit status of its `birdclaw sync` and when it ran:
- *
- *   { "bookmarks": { "exit": 0, "at": "<ISO time>" }, "likes": { "exit": 0, "at": "<ISO time>" } }
- *
- * Any nonzero exit means failed. It is ok only when both collections report
- * zero. A missing or unreadable file, or a missing collection, means unknown.
- */
-function readSyncStatus(path: string): { result: UpstreamSync; detail: string | null } {
-  let text: string;
-  try {
-    text = readFileSync(path, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { result: 'unknown', detail: null };
-    return { result: 'unknown', detail: errorText(error).slice(0, MESSAGE_MAX_CHARS) };
-  }
-  let status: unknown;
-  try {
-    status = JSON.parse(text);
-  } catch {
-    return { result: 'unknown', detail: 'The sync status file is not JSON.' };
-  }
-  const exits = ['bookmarks', 'likes'].map((collection) => {
-    const entry = isRecord(status) ? status[collection] : undefined;
-    return isRecord(entry) && typeof entry.exit === 'number' ? entry.exit : null;
-  });
-  const detail = JSON.stringify(status).slice(0, MESSAGE_MAX_CHARS);
-  if (exits.some((exit) => exit !== null && exit !== 0)) return { result: 'failed', detail };
-  return { result: exits.every((exit) => exit === 0) ? 'ok' : 'unknown', detail };
-}
+export type StageBody = Omit<StageReport, 'stage' | 'message'> & { message?: string | null };
+
+/** A run row being written: every stage recorded through it lands in `stages` and `run_stages`. */
+export type OpenRun = {
+  db: Store;
+  id: number;
+  now: () => Date;
+  stages: StageReport[];
+  /**
+   * Runs one stage and records it. A stage that throws is recorded as failed;
+   * one whose work returns null did not apply and leaves no record.
+   */
+  stage: (name: StageName, work: () => Promise<StageBody | null> | StageBody | null) => Promise<void>;
+};
 
 /**
- * One sync of the store: load the exports, resolve links, score posts against
- * topics, then let the category list grow (the first list when none exists,
- * new and split topics afterwards) and score posts against whatever was added.
- *
- * Each stage commits its own work and is recorded in `run_stages`. A stage
- * that fails does not stop the ones after it, with one exception: when no post
- * could be scored, the category list is left alone for that run. So the run
- * row ends `complete` whenever the run reached its end, and its message names
- * any stage that failed or warned. Only a run that was killed ends `failed`.
- *
- * Returns `locked`, having touched nothing, when another live run holds the
- * lock. Throws when the store cannot be opened.
+ * Closes any run row a killed run left `running`, then inserts this run's row.
+ * The caller must hold the run lock, which is what makes a `running` row stale.
  */
-export async function runPipeline(
-  files: PipelineFiles,
-  deps: PipelineDeps,
-  options: PipelineOptions = {},
-): Promise<PipelineResult> {
-  const lock = acquireLock(files.lock);
-  if (!lock.held) return { status: 'locked', pid: lock.pid };
-  let db: Store | null = null;
-  try {
-    db = openStore(files.store);
-    return await runStages(db, files, deps, options);
-  } finally {
-    if (db?.isOpen) db.close();
-    lock.release();
-  }
-}
-
-async function runStages(
-  db: Store,
-  files: PipelineFiles,
-  deps: PipelineDeps,
-  options: PipelineOptions,
-): Promise<PipelineResult> {
-  const now = deps.now ?? (() => new Date());
+export function startRun(db: Store, now: () => Date = () => new Date()): OpenRun {
   const stamp = (): string => now().toISOString();
-
-  // The lock is ours, so a run still marked running was killed before it could finish.
   db.prepare(
     `UPDATE runs SET status = 'failed', finished_at = ?, message = 'The run was interrupted.' WHERE status = 'running'`,
   ).run(stamp());
-
-  const upstream = readSyncStatus(files.syncStatus);
-  const runId = Number(
-    db
-      .prepare(`INSERT INTO runs (started_at, upstream_sync, upstream_sync_detail) VALUES (?, ?, ?)`)
-      .run(stamp(), upstream.result, upstream.detail).lastInsertRowid,
-  );
+  const id = Number(db.prepare(`INSERT INTO runs (started_at) VALUES (?)`).run(stamp()).lastInsertRowid);
 
   const stages: StageReport[] = [];
   const record = db.prepare(
     `INSERT INTO run_stages (run_id, stage, outcome, counts_json, message, started_at, finished_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
-  /** Runs one stage and records it. A stage that returns null did not apply and leaves no record. */
-  const stage = async (name: StageName, work: () => Promise<StageBody | null> | StageBody | null): Promise<void> => {
+  const stage: OpenRun['stage'] = async (name, work) => {
     const startedAt = stamp();
     let body: StageBody | null;
     try {
@@ -178,8 +127,39 @@ async function runStages(
       message: body.message ? body.message.slice(0, MESSAGE_MAX_CHARS) : null,
     };
     stages.push(report);
-    record.run(runId, name, report.outcome, JSON.stringify(report.counts), report.message, startedAt, stamp());
+    record.run(id, name, report.outcome, JSON.stringify(report.counts), report.message, startedAt, stamp());
   };
+  return { db, id, now, stages, stage };
+}
+
+/**
+ * The categorize stages of a run: load the exports, resolve links, score
+ * posts against topics, then let the category list grow (the first list when
+ * none exists, new and split topics afterwards) and score posts against
+ * whatever was added. Records `upstream` on the run row first and finishes
+ * the row last.
+ *
+ * Each stage commits its own work and is recorded in `run_stages`. A stage
+ * that fails does not stop the ones after it, with one exception: when no post
+ * could be scored, the category list is left alone for that run. So the run
+ * row ends `complete` whenever the run reached its end, and its message names
+ * any stage, from the whole run, that failed or warned. Only a run that was
+ * killed ends `failed`.
+ */
+export async function runPipeline(
+  run: OpenRun,
+  upstream: Upstream,
+  files: ExportFiles,
+  deps: PipelineDeps,
+  options: PipelineOptions = {},
+): Promise<PipelineResult> {
+  const { db, id: runId, now, stage, stages } = run;
+  const stamp = (): string => now().toISOString();
+  db.prepare(`UPDATE runs SET upstream_sync = ?, upstream_sync_detail = ? WHERE id = ?`).run(
+    upstream.result,
+    upstream.detail,
+    runId,
+  );
   const skipped = (message: string): StageBody => ({ outcome: 'skipped', counts: {}, message });
 
   await stage('ingest', () => ({
@@ -277,5 +257,5 @@ async function runStages(
     message,
     runId,
   );
-  return { status: 'complete', runId, upstreamSync: upstream.result, stages };
+  return { runId, upstreamSync: upstream.result, stages };
 }

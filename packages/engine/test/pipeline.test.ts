@@ -1,93 +1,44 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
-import type { ClaudeAdapter, ClaudeFailure, ClaudeRequest } from '../src/claude/cli.ts';
-import type { HttpFetch } from '../src/links/http.ts';
-import { runPipeline } from '../src/pipeline.ts';
-import type { PipelineDeps, PipelineFiles, PipelineOptions } from '../src/pipeline.ts';
+import { runPipeline, startRun } from '../src/pipeline.ts';
+import type { ExportFiles, PipelineDeps, PipelineOptions } from '../src/pipeline.ts';
 import { openStore } from '../src/store/db.ts';
 import type { Store } from '../src/store/db.ts';
 import { fakeJev, seedArea, seedTopic } from './fixtures/corpus.ts';
-import type { FakeJev } from './fixtures/corpus.ts';
 import { exportPost, tempDir, writeExports } from './fixtures/export.ts';
 import type { ExportPost } from './fixtures/export.ts';
+import { fakes } from './fixtures/pipeline.ts';
 
-type Fakes = PipelineDeps & {
-  jev: FakeJev;
-  httpCalls: string[];
-  claudeCalls: ClaudeRequest[];
-};
+type Files = ExportFiles & { store: string };
 
-const claudeDown: ClaudeFailure = { ok: false, reason: 'missing', message: 'The CLI is not installed.' };
-
-function fakes(options: { claude?: 'answers' | 'down'; jev?: FakeJev } = {}): Fakes {
-  const httpCalls: string[] = [];
-  const claudeCalls: ClaudeRequest[] = [];
-  const http: HttpFetch = async ({ url }) => {
-    httpCalls.push(url);
-    return {
-      status: 200,
-      headers: { 'content-type': 'text/html; charset=utf-8' },
-      body: `<!doctype html><html><head><title>Page at ${url}</title></head><body></body></html>`,
-    };
-  };
-  const claude: ClaudeAdapter = {
-    send: async (request) => {
-      claudeCalls.push(request);
-      if (options.claude === 'down') return claudeDown;
-      const wantsFinalList = request.schema.type === 'object' && 'areas' in request.schema.properties;
-      const value = wantsFinalList
-        ? {
-            areas: [
-              {
-                name: 'Frontend',
-                dev: true,
-                topics: [
-                  { name: 'Animations', definition: 'Posts about motion on the web.' },
-                  { name: 'Layout', definition: 'Posts about arranging a page.' },
-                ],
-              },
-            ],
-          }
-        : {
-            topics: [
-              { name: 'Animations', area: 'Frontend', definition: 'Posts about motion on the web.' },
-              { name: 'Layout', area: 'Frontend', definition: 'Posts about arranging a page.' },
-            ],
-          };
-      return { ok: true, value, session: null };
-    },
-  };
-  const lookup = async () => ['93.184.216.34'];
-  return { http, lookup, claude, jev: options.jev ?? fakeJev(() => 0.9), httpCalls, claudeCalls };
-}
-
-function setup(t: TestContext): { files: PipelineFiles; write: (bookmarks: ExportPost[], likes?: ExportPost[]) => void } {
+function setup(t: TestContext): { files: Files; write: (bookmarks: ExportPost[], likes?: ExportPost[]) => void } {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
   const dataDir = join(dir, 'data');
   mkdirSync(dataDir);
-  const files: PipelineFiles = {
+  const files: Files = {
     store: join(dir, 'state', 'corpus.sqlite'),
-    lock: join(dir, 'state', 'categorize.lock'),
     bookmarksExport: join(dataDir, 'bookmarks.json'),
     likesExport: join(dataDir, 'likes.json'),
-    syncStatus: join(dataDir, 'sync-status.json'),
   };
   return { files, write: (bookmarks, likes = []) => void writeExports(dataDir, { bookmarks, likes }) };
 }
 
-async function run(files: PipelineFiles, deps: PipelineDeps, options?: PipelineOptions) {
-  const result = await runPipeline(files, deps, options);
-  if (result.status !== 'complete') throw new Error(`the run did not start: ${JSON.stringify(result)}`);
-  return result;
+/** Opens a run row the way the sync and categorize commands do, then runs the categorize stages on it. */
+async function run(files: Files, deps: PipelineDeps, options?: PipelineOptions) {
+  const db = openStore(files.store);
+  try {
+    return await runPipeline(startRun(db, deps.now), { result: 'unknown', detail: null }, files, deps, options);
+  } finally {
+    db.close();
+  }
 }
 
-function read<T>(files: PipelineFiles, fn: (db: Store) => T): T {
+function read<T>(files: Files, fn: (db: Store) => T): T {
   const db = openStore(files.store, { readOnly: true });
   try {
     return fn(db);
@@ -152,7 +103,6 @@ test('a first run ingests, resolves links, builds categories, scores every post 
     );
     assert.equal(ingestCounts.posts.inserted, 3);
   });
-  assert.equal(existsSync(files.lock), false);
 });
 
 test('a post new in the export is ingested and scored in the same run', async (t) => {
@@ -210,54 +160,6 @@ test('a link stage that throws is recorded as failed and tagging still runs', as
   });
 });
 
-test('a run started while a live process holds the lock changes nothing', async (t) => {
-  const { files, write } = setup(t);
-  write([linked('1')]);
-  mkdirSync(dirname(files.lock), { recursive: true });
-  writeFileSync(files.lock, `${process.pid}\n`);
-  const deps = fakes();
-
-  const result = await runPipeline(files, deps);
-
-  assert.deepEqual(result, { status: 'locked', pid: process.pid });
-  assert.equal(existsSync(files.store), false);
-  assert.deepEqual([deps.httpCalls.length, deps.jev.requests.length, deps.claudeCalls.length], [0, 0, 0]);
-  assert.equal(readFileSync(files.lock, 'utf8').trim(), String(process.pid));
-});
-
-test('a lock left by a process that is gone is taken over', async (t) => {
-  const { files, write } = setup(t);
-  write([exportPost('1')]);
-  const gone = spawnSync(process.execPath, ['-e', '']).pid;
-  mkdirSync(dirname(files.lock), { recursive: true });
-  writeFileSync(files.lock, `${gone}\n`);
-
-  const result = await runPipeline(files, fakes());
-
-  assert.equal(result.status, 'complete');
-  read(files, (db) => assert.equal(count(db, `SELECT count(*) AS n FROM posts`), 1));
-  assert.equal(existsSync(files.lock), false);
-});
-
-test('the run records how the upstream X sync went', async (t) => {
-  const upstream = async (status: unknown): Promise<unknown> => {
-    const { files, write } = setup(t);
-    write([]);
-    if (status !== undefined) writeFileSync(files.syncStatus, JSON.stringify(status));
-    const result = await run(files, fakes());
-    return read(files, (db) => {
-      const row = db.prepare(`SELECT upstream_sync FROM runs WHERE id = ?`).get(result.runId);
-      assert.equal(row?.upstream_sync, result.upstreamSync);
-      return row?.upstream_sync;
-    });
-  };
-  const at = '2026-11-19T09:00:00.000Z';
-
-  assert.equal(await upstream({ bookmarks: { exit: 1, at }, likes: { exit: 0, at } }), 'failed');
-  assert.equal(await upstream({ bookmarks: { exit: 0, at }, likes: { exit: 0, at } }), 'ok');
-  assert.equal(await upstream(undefined), 'unknown');
-});
-
 test('when Claude cannot be reached the category stage warns and the run still completes', async (t) => {
   const { files, write } = setup(t);
   write([exportPost('1'), exportPost('2')]);
@@ -293,6 +195,11 @@ test('when no post could be scored the tag stage fails and categories are left a
     assert.equal(tag?.outcome, 'failed');
     assert.match(String(tag?.message), /TYPESAFE_API_KEY is not set/);
     assert.equal(stages(store, result.runId).evolve, 'skipped');
+    assert.equal(
+      store.prepare(`SELECT message FROM run_stages WHERE stage = 'evolve'`).get()?.message,
+      'No post could be scored, so the category list was left alone.',
+    );
+    assert.equal(store.prepare(`SELECT message FROM runs WHERE id = ?`).get(result.runId)?.message, 'failed: tag');
   });
   assert.equal(deps.claudeCalls.length, 0);
 });
@@ -351,4 +258,53 @@ test('a run row left running by a killed run is closed by the next run', async (
       'failed',
     );
   });
+});
+
+test('the categorize stages keep their order, messages and run summary', async (t) => {
+  const { files, write } = setup(t);
+  write([linked('1'), exportPost('2')]);
+  const db = openStore(files.store);
+  db.prepare(`INSERT INTO runs (started_at, status) VALUES ('2026-01-01T00:00:00.000Z', 'running')`).run();
+  db.exec(
+    `CREATE TRIGGER links_frozen BEFORE UPDATE ON links
+     BEGIN SELECT RAISE(ABORT, 'links cannot be written'); END`,
+  );
+  db.close();
+
+  const result = await run(files, fakes({ claude: 'down' }));
+
+  assert.deepEqual(
+    result.stages.map((stage) => [stage.stage, stage.outcome]),
+    [
+      ['ingest', 'ok'],
+      ['links', 'failed'],
+      ['tag', 'ok'],
+      ['discovery', 'warning'],
+    ],
+  );
+  assert.equal(
+    result.stages.find((stage) => stage.stage === 'discovery')?.message,
+    'Claude gave no category list (missing): The CLI is not installed.',
+  );
+  read(files, (store) => {
+    const rows = store.prepare(`SELECT id, status, message FROM runs ORDER BY id`).all();
+    assert.deepEqual(
+      rows.map((row) => [row.status, row.message]),
+      [
+        ['failed', 'The run was interrupted.'],
+        ['complete', 'failed: links; warning: discovery'],
+      ],
+    );
+  });
+
+  const skippedRun = await run(files, fakes(), { skipLinks: true, skipEvolve: true });
+  assert.deepEqual(
+    skippedRun.stages.map((stage) => [stage.stage, stage.outcome, stage.message]),
+    [
+      ['ingest', 'ok', null],
+      ['links', 'skipped', 'Skipped on request.'],
+      ['tag', 'ok', null],
+      ['evolve', 'skipped', 'Skipped on request.'],
+    ],
+  );
 });
