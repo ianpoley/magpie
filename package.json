@@ -5,6 +5,9 @@
     "apps/*",
     "packages/*"
   ],
+  "engines": {
+    "node": ">=25.8.1 <27"
+  },
   "scripts": {
     "dev": "bun --filter @x-corpus/web dev",
     "build": "bun --filter @x-corpus/web build",
