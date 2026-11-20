@@ -1,7 +1,3 @@
-// run-cli.mjs
-// What the sync and categorize commands share: their options, the clients
-// the categorize stages use, and the stage summary they print.
-
 import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -42,7 +38,6 @@ export function readRunOptions(usage) {
   };
 }
 
-/** The web, Jev and Claude clients the categorize stages use. */
 export async function categorizeDeps() {
   // launchd and systemd start jobs with a bare PATH; the Claude CLI lives in ~/.local/bin.
   process.env.PATH = [join(homedir(), '.local', 'bin'), process.env.PATH].filter(Boolean).join(delimiter);
@@ -52,9 +47,20 @@ export async function categorizeDeps() {
 
   // Built on first use: a missing API key then fails the tagging stage, not the whole run.
   // The pending client is shared, so concurrent first asks read the secret store once.
+  // A failed read is not kept: the worker lives for days, and a key added later
+  // with secrets:set-jev must be picked up by the next run without a restart.
   let jevClient;
   const jev = {
-    ask: async (request, askOptions) => (await (jevClient ??= createJevClient())).ask(request, askOptions),
+    ask: async (request, askOptions) => {
+      if (!jevClient) {
+        const pending = createJevClient();
+        jevClient = pending;
+        pending.catch(() => {
+          if (jevClient === pending) jevClient = undefined;
+        });
+      }
+      return (await jevClient).ask(request, askOptions);
+    },
   };
   return { http: fetchHttp, jev, claude: createClaudeCli() };
 }
@@ -66,7 +72,6 @@ const summarize = (value) =>
     )
     .join(' ');
 
-/** Prints one line per stage, and its message on the line after. */
 export function printStages(prefix, stages, nameWidth) {
   for (const stage of stages) {
     const line = [stage.stage.padEnd(nameWidth), stage.outcome.padEnd(7), summarize(stage.counts)].join(' ').trimEnd();
