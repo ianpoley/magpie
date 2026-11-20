@@ -110,12 +110,29 @@ function writeRecord(dir: string, path: string, backend: BackendName): { ok: tru
 }
 
 /** Write, read back and delete a random value: the OS store is usable only if all three work. */
-async function probe(backend: SecretBackend): Promise<boolean> {
+export async function probe(backend: SecretBackend): Promise<{ ok: true } | SecretFailure> {
   const value = randomBytes(16).toString('hex');
   const written = await backend.set('probe', value);
   const read = written.ok ? await backend.get('probe') : null;
   const deleted = await backend.delete('probe');
-  return written.ok && read !== null && read.ok && read.value === value && deleted.ok;
+  if (!written.ok) return written;
+  if (read !== null && !read.ok) return read;
+  if (read === null || read.value !== value) {
+    return { ok: false, reason: 'unavailable', message: 'The secret store did not return the value just written.' };
+  }
+  return deleted;
+}
+
+/** The OS secret store on `platform`, under the keychain service `service`, or null when the platform has none. */
+export function osBackend(
+  platform: NodeJS.Platform,
+  service: string,
+  options: Pick<SecretStoreOptions, 'securityPath' | 'secretToolPath'> & { timeoutMs: number },
+): SecretBackend | null {
+  const common = { service, timeoutMs: options.timeoutMs };
+  if (platform === 'darwin') return securityBackend({ ...common, path: options.securityPath ?? '/usr/bin/security' });
+  if (platform === 'linux') return secretToolBackend({ ...common, path: options.secretToolPath ?? 'secret-tool' });
+  return null;
 }
 
 /**
@@ -140,10 +157,7 @@ export function createSecretStore(options: SecretStoreOptions = {}): SecretStore
     if (!SERVICE_NAME.test(keychainService)) {
       return invalid('X_CORPUS_KEYCHAIN_SERVICE must be 1 to 128 letters, digits or the characters . _ -');
     }
-    const common = { service: keychainService, timeoutMs };
-    if (platform === 'darwin') return securityBackend({ ...common, path: options.securityPath ?? '/usr/bin/security' });
-    if (platform === 'linux') return secretToolBackend({ ...common, path: options.secretToolPath ?? 'secret-tool' });
-    return null;
+    return osBackend(platform, keychainService, { ...options, timeoutMs });
   };
 
   const recorded = (): BackendName | null => {
@@ -195,7 +209,7 @@ export function createSecretStore(options: SecretStoreOptions = {}): SecretStore
           os = keychain();
           if (os !== null && 'ok' in os) return os;
         }
-        backend = os !== null && (await probe(os)) ? 'keychain' : 'file';
+        backend = os !== null && (await probe(os)).ok ? 'keychain' : 'file';
         const saved = writeRecord(configDir, secretBackend, backend);
         if (!saved.ok) return saved;
       }
