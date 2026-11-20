@@ -1,16 +1,18 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { MIGRATION, SECRETS, paths, secretSettings } from '../config.ts';
 import { fileBackend } from '../secrets/backends.ts';
-import { createSecretStore, osBackend, probe } from '../secrets/store.ts';
+import { SECRET_NAMES, createSecretStore, osBackend, probe } from '../secrets/store.ts';
 import type { SecretName, SecretStoreOptions, Secrets, XSession } from '../secrets/store.ts';
 import { parseSecrets } from '../secrets.ts';
 import { installService, must, spawnRunner, uninstallService } from '../service/index.ts';
 import type { Runner } from '../service/index.ts';
 import { openStore } from '../store/db.ts';
 import { recordBackfill } from '../sync/backfill.ts';
+import { X_COLLECTION_STAGES } from '../sync/run.ts';
 import { readWorkerStatus, removeSyncRequest, writeConnection, writeSyncRequest } from '../sync/state.ts';
 import { errorText } from '../util.ts';
 import { createBirdclaw } from '../x/birdclaw.ts';
@@ -25,7 +27,7 @@ import type { XAdapter } from '../x/birdclaw.ts';
  */
 
 /** The label of the LaunchAgent that ran the old nightly script. */
-export const LEGACY_LABEL = 'com.ianpoley.birdclaw-nightly';
+const LEGACY_LABEL = 'com.ianpoley.birdclaw-nightly';
 
 /** The secrets.env keys the secret store can hold, and the names it keeps them under. */
 const SECRETS_ENV_KEYS: Record<string, SecretName> = { TYPESAFE_API_KEY: 'typesafe-api-key' };
@@ -35,19 +37,13 @@ export type MigrateOptions = {
   platform?: NodeJS.Platform;
   home?: string;
   uid?: number;
-  /** Runs launchctl. */
   run?: Runner;
-  /** The X auth check. */
   x?: Pick<XAdapter, 'whoami'>;
-  /** Where the OS secret tool is; the secret store's defaults otherwise. */
   secretStore?: Pick<SecretStoreOptions, 'securityPath' | 'secretToolPath' | 'timeoutMs'>;
-  /** Installs and starts both background services. */
   installServices?: () => Promise<void>;
-  /** Stops and removes both background services, leaving secrets alone. */
   uninstallServices?: () => Promise<void>;
   /** The old job's LaunchAgent label; its plist is `~/Library/LaunchAgents/<label>.plist`. */
   legacyLabel?: string;
-  /** How long to wait for the new worker's first sync. */
   timeoutMs?: number;
   pollMs?: number;
   log?: (line: string) => void;
@@ -56,12 +52,9 @@ export type MigrateOptions = {
 /** `state` says, one line each, what the machine was left with. */
 export type MigrateResult = { ok: true; handle: string | null } | { ok: false; message: string; state: string[] };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /** Why the migration cannot go on; the message never holds a secret value. */
 class Stop extends Error {}
 
-/** The file's text, or null when it does not exist. */
 function readIfPresent(path: string): string | null {
   try {
     return readFileSync(path, 'utf8');
@@ -94,7 +87,7 @@ function checkRun(store: string, runId: number): Wait | null {
     }[];
     const problems: string[] = [];
     if (run.status !== 'complete') problems.push(`run ${runId} is ${run.status}`);
-    for (const stage of ['x_bookmarks', 'x_likes']) {
+    for (const stage of X_COLLECTION_STAGES) {
       const row = rows.find((candidate) => candidate.stage === stage);
       if (row?.outcome !== 'ok') problems.push(`${stage} ${row ? `${row.outcome}${row.message ? ` (${row.message})` : ''}` : 'did not run'}`);
     }
@@ -127,7 +120,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
     return { ok: false, message, state: ['Nothing was changed: the old job and its files are as they were.'] };
   };
 
-  // Read both old files and check the cookies with X before writing anything.
   let session: XSession;
   const imports: { name: SecretName; value: string }[] = [];
   try {
@@ -172,7 +164,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
   }
   log('the OS secret store works');
 
-  // From here every change is undone on failure.
   const did = { secrets: false, connection: false, bootedOut: false, services: false, request: false };
   try {
     did.secrets = true;
@@ -230,7 +221,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
     return { ok: false, message, state: await rollBack() };
   }
 
-  // The new setup works: delete the old one.
   for (const path of [birdEnv, files.secrets, files.syncStatus, plist]) {
     try {
       rmSync(path, { force: true });
@@ -273,7 +263,7 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
         async () => {
           // Straight from the OS store and never through the secret store's delete,
           // which would also take the Jev key out of secrets.env.
-          for (const name of ['x-session', 'typesafe-api-key'] as const) {
+          for (const name of SECRET_NAMES) {
             const deleted = await keychain!.delete(name);
             if (!deleted.ok) throw new Stop(`${name}: ${deleted.message}`);
           }

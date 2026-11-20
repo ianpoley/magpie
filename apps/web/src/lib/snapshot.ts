@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { connection } from "next/server";
 
 import { engineConfig, engineStore } from "./engine.ts";
+import { errorName } from "./error-name.ts";
 import { emptySnapshot, readSnapshot } from "./read-snapshot.ts";
 import { readSyncState } from "./sync-state.ts";
 import type { Snapshot, SyncState } from "./types.ts";
@@ -24,7 +25,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
   try {
     db = openStore(store, { readOnly: true });
   } catch (error) {
-    console.error("snapshot: the store could not be opened:", error instanceof Error ? error.name : "unknown error");
+    console.error("snapshot: the store could not be opened:", errorName(error));
     return emptySnapshot(false);
   }
   try {
@@ -34,8 +35,13 @@ export async function loadSnapshot(): Promise<Snapshot> {
   }
 }
 
-/** The background sync's state, read on every request like the snapshot. Needs no store. */
-export async function loadSyncState(): Promise<SyncState> {
+/**
+ * Takes the last run from `snapshot` when it read the store; a store that is
+ * missing or could not be opened is checked here, as the status route does.
+ */
+export async function loadSyncState(snapshot: Snapshot): Promise<SyncState> {
   await connection();
-  return readSyncState();
+  if (!snapshot.storeExists) return readSyncState();
+  const { storeExists, lastRun, lastCompleteRunAt } = snapshot;
+  return readSyncState({ storeExists, lastRun, lastCompleteRunAt });
 }

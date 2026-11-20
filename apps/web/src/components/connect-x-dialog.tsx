@@ -26,7 +26,6 @@ export type ConnectXController = ReturnType<typeof createConnectXController>;
 
 const CONNECTED_PAUSE_MS = 1_200;
 
-/** Where pasted cookies end up, by the recorded secret backend. */
 const KEPT = { keychain: "in your keychain on this machine", file: "in an owner-only file on this machine", unknown: "on this machine" };
 
 type Failure = { code: ActionErrorCode; message: string };
@@ -35,11 +34,8 @@ type Failure = { code: ActionErrorCode; message: string };
 function failureText({ code, message }: Failure): string {
   switch (code) {
     case "x_rejected":
-      return "X didn't accept these cookies. Copy fresh ones from a tab where you're signed in to x.com.";
     case "x_unreachable":
-      return "X couldn't be reached. Check your connection and try again.";
     case "secret_store_locked":
-      return "Can't reach the keychain. Unlock it, then try again.";
     case "invalid_input":
       return message;
     default:
@@ -176,7 +172,7 @@ function DisconnectButton({ sync, onDone }: { sync: SyncController; onDone: () =
           value="confirm"
           action={async () => {
             const result = await disconnectX();
-            if (!result.ok) throw new Error(result.code === "secret_store_locked" ? "Can't reach the keychain. Unlock it, then try again." : result.message);
+            if (!result.ok) throw new Error(result.message);
             sync.update(result.sync);
             onDone();
           }}
@@ -207,7 +203,6 @@ function visibleSyncAction(): HTMLElement | null {
   return Array.from(actions).find((action) => action.offsetParent !== null) ?? null;
 }
 
-/** Connects X from pasted cookies; when connected, replaces them or disconnects. */
 export function ConnectXDialog({ controller, sync }: { controller: ConnectXController; sync: SyncController }) {
   const opener = useRef<Element | null>(null);
   return (

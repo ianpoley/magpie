@@ -158,21 +158,15 @@ export type Snapshot = {
  * a cookie value.
  */
 export type SyncState = {
-  /** When this was read, as epoch milliseconds. */
   readAt: number;
   /** "needs_reconnect" when X refused the stored session and scheduled syncs are paused. */
   connection: "connected" | "needs_reconnect" | "not_connected";
-  /** The X handle, without the @; null when not connected or not known yet. */
   handle: string | null;
   /** Where secrets are kept; "file" is the owner-only fallback file. Null before any secret was stored. */
   secretBackend: "keychain" | "file" | null;
-  /** The last sync could not read the X session from the secret store. */
   secretStoreLocked: boolean;
-  /** A live process, the worker or a command, holds the run lock. */
   running: boolean;
-  /** A Sync now request is waiting, and is recent enough that the worker will still run it. */
   requested: boolean;
-  /** The worker wrote its heartbeat recently. */
   workerAlive: boolean;
   /** The next scheduled run, from a live worker; null while paused, running or not connected. */
   nextRunAt: string | null;

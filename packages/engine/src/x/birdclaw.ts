@@ -12,7 +12,6 @@ import { MESSAGE_MAX_CHARS, errorText } from '../util.ts';
 export type Collection = 'bookmarks' | 'likes';
 /** `backfill` pulls a collection's whole history; `incremental` stops at posts already stored. */
 export type SyncMode = 'backfill' | 'incremental';
-/** The cookie pair as read or pasted; either half may be missing. */
 export type Cookies = Partial<XSession> | null;
 
 /**
@@ -38,7 +37,6 @@ export type SyncResult = { ok: true } | RunFailure;
 /** `dropped` counts posts left out because their id is not a numeric X status id. */
 export type ExportResult = { ok: true; kept: number; dropped: number } | RunFailure;
 
-/** Talks to X through bird and the local Birdclaw database. Implemented below and by fakes in tests. */
 export interface XAdapter {
   whoami(session: Cookies): Promise<WhoamiResult>;
   sync(session: Cookies, collection: Collection, mode: SyncMode): Promise<SyncResult>;
@@ -47,7 +45,6 @@ export interface XAdapter {
 }
 
 export type BirdclawOptions = {
-  /** Where tool overrides, HOME, PATH and BIRDCLAW_HOME are read from. */
   env?: Record<string, string | undefined>;
   timeouts?: Partial<{ preflightMs: number; incrementalMs: number; backfillMs: number; exportMs: number }>;
 };
@@ -75,7 +72,6 @@ function clean(text: string, pair: XSession): string {
 
 const missingCookies = { ok: false, reason: 'missing_cookies', message: 'Both X cookies (auth_token and ct0) are needed.' } as const;
 
-/** The Birdclaw adapter, plus a way to stop it at once. */
 export type Birdclaw = XAdapter & {
   /**
    * Kills every bird and Birdclaw child still running, with the children
@@ -85,7 +81,6 @@ export type Birdclaw = XAdapter & {
   killActive(): void;
 };
 
-/** Kills `child` and everything in its process group. */
 function killGroup(child: ChildProcess): void {
   try {
     if (child.pid) process.kill(-child.pid, 'SIGKILL');
@@ -103,6 +98,8 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
     exportMs: options.timeouts?.exportMs ?? X_SYNC.exportTimeoutMs,
   };
   const active = new Set<ChildProcess>();
+  // Resolved on first use, so a missing pinned tool fails that call, not construction.
+  let tools: ReturnType<typeof xTools> | undefined;
 
   // The cookies travel only in this environment, built from nothing so no
   // other secret in the parent's environment reaches the child. bird reads
@@ -129,7 +126,7 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
     stdoutFd?: number,
   ): Promise<Child> {
     return new Promise((resolve) => {
-      const tools = xTools(env);
+      tools ??= xTools(env);
       const { path, pinned } = tools[tool];
       const [command, argv] = pinned ? [process.execPath, [path, ...args]] : [path, args];
       const result: Child = { code: null, timedOut: false, stdout: '', stderr: '', spawnError: null };

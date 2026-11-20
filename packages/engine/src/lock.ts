@@ -4,7 +4,6 @@ import { dirname } from 'node:path';
 
 export type LockAttempt = { held: true; release: () => void } | { held: false; pid: number };
 
-/** What the lock file holds: the owner's pid and the boot it was taken in. */
 type LockRecord = { pid: number; boot: string | null };
 
 let thisBoot: string | null | undefined;
@@ -96,7 +95,6 @@ export function acquireLock(path: string): LockAttempt {
   return { held: true, release: () => releaseLock(path) };
 }
 
-/** Removes the lock file at `path` if this process holds it, as a process does before it exits mid-run. */
 export function releaseLock(path: string): void {
   if (readRecord(path)?.pid === process.pid) rmSync(path, { force: true });
 }

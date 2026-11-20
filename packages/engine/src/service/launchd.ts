@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
-import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './index.ts';
-import { must } from './index.ts';
+import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
+import { must } from './manager.ts';
 
 const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const unescape = (text: string) => text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');

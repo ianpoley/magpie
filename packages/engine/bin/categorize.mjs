@@ -3,7 +3,6 @@
 // categorize.mjs
 // Brings the local store up to date with the exported bookmarks and likes:
 // ingest, resolve links, score posts against topics, grow the category list.
-// Shares the run lock with a whole sync, so the two never overlap.
 //
 //     node packages/engine/bin/categorize.mjs [--limit-posts N] [--skip-links] [--skip-evolve]
 //
@@ -17,6 +16,7 @@ const options = readRunOptions(`Usage: categorize.mjs [options]\n\n${RUN_OPTIONS
 const deps = await categorizeDeps();
 const { paths } = await import('../src/config.ts');
 const { runCategorize } = await import('../src/sync/run.ts');
+const { errorText } = await import('../src/util.ts');
 
 try {
   const result = await runCategorize(paths(), deps, options);
@@ -27,6 +27,6 @@ try {
   console.log(`[categorize] run ${result.runId} complete; upstream X sync: ${result.upstreamSync}`);
   printStages('[categorize]', result.stages, 9);
 } catch (error) {
-  console.error(`[categorize] the run could not start: ${error instanceof Error ? error.message : error}`);
+  console.error(`[categorize] the run could not start: ${errorText(error)}`);
   process.exit(1);
 }

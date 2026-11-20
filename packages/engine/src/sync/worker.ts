@@ -6,6 +6,7 @@ import { lockHolder } from '../lock.ts';
 import type { BackendName } from '../secrets/store.ts';
 import { parseSecrets } from '../secrets.ts';
 import { MESSAGE_MAX_CHARS, errorText } from '../util.ts';
+import { xFailureDetail } from './run.ts';
 import type { SyncRunResult } from './run.ts';
 import { decide, intervalHours } from './scheduler.ts';
 import {
@@ -23,21 +24,17 @@ export type WorkerFiles = Pick<Paths, 'lock' | 'schedulerState' | 'workerStatus'
 
 export type WorkerOptions = {
   files: WorkerFiles;
-  /** One whole sync: the run orchestrator. */
   runSync: () => Promise<SyncRunResult>;
-  /** The recorded secret backend, reported in the status file. */
   secretBackend: () => BackendName | null;
   tickMs?: number;
   log?: (line: string) => void;
 };
 
 export type Worker = {
-  /** Stops ticking. Resolves once a run in progress has finished and been recorded. */
   stop(): Promise<void>;
 };
 
 type Complete = Extract<SyncRunResult, { status: 'complete' }>;
-/** A finished run, or the error it threw. */
 type Outcome = { run: SyncRunResult; error?: undefined } | { run?: undefined; error: unknown };
 
 function readSettings(path: string): Record<string, string> {
@@ -56,9 +53,7 @@ function classify(run: Complete | undefined, error: unknown): { result: AttemptR
   if (run === undefined) return { result: 'failed', runId: null, message: errorText(error).slice(0, MESSAGE_MAX_CHARS) };
   if (run.auth.status !== 'ok') return { result: run.auth.status, runId: run.runId, message: run.auth.message };
   if (run.xOk) return { result: 'ok', runId: run.runId, message: null };
-  const failed = run.stages.filter((stage) => stage.stage.startsWith('x_') && stage.outcome === 'failed');
-  const message = failed.map((stage) => `${stage.stage}: ${stage.message}`).join('; ').slice(0, MESSAGE_MAX_CHARS);
-  return { result: 'failed', runId: run.runId, message: message || null };
+  return { result: 'failed', runId: run.runId, message: xFailureDetail(run.stages) };
 }
 
 /**

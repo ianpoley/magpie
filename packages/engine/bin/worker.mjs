@@ -1,13 +1,5 @@
 #!/usr/bin/env node
 //
-// worker.mjs
-// The background sync worker the x-corpus-worker service runs. Every 30
-// seconds it writes its heartbeat to state/worker.json and starts a whole
-// sync when one is due, overdue or requested (state/sync-request), never
-// while another run holds the run lock. SYNC_INTERVAL_HOURS in
-// ~/.config/x-corpus/settings.env sets the interval (default 3), read on
-// every tick.
-//
 //     node packages/engine/bin/worker.mjs
 //
 // On SIGTERM or SIGINT it kills any bird or Birdclaw process a run started,
