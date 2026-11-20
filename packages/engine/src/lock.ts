@@ -93,10 +93,10 @@ export function acquireLock(path: string): LockAttempt {
   } finally {
     rmSync(draft, { force: true });
   }
-  return {
-    held: true,
-    release: () => {
-      if (readRecord(path)?.pid === process.pid) rmSync(path, { force: true });
-    },
-  };
+  return { held: true, release: () => releaseLock(path) };
+}
+
+/** Removes the lock file at `path` if this process holds it, as a process does before it exits mid-run. */
+export function releaseLock(path: string): void {
+  if (readRecord(path)?.pid === process.pid) rmSync(path, { force: true });
 }

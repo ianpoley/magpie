@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname } from 'node:path';
@@ -74,7 +75,26 @@ function clean(text: string, pair: XSession): string {
 
 const missingCookies = { ok: false, reason: 'missing_cookies', message: 'Both X cookies (auth_token and ct0) are needed.' } as const;
 
-export function createBirdclaw(options: BirdclawOptions = {}): XAdapter {
+/** The Birdclaw adapter, plus a way to stop it at once. */
+export type Birdclaw = XAdapter & {
+  /**
+   * Kills every bird and Birdclaw child still running, with the children
+   * they started. Each runs in its own process group, so a service manager
+   * stopping this process would not stop them.
+   */
+  killActive(): void;
+};
+
+/** Kills `child` and everything in its process group. */
+function killGroup(child: ChildProcess): void {
+  try {
+    if (child.pid) process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+}
+
+export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
   const env = options.env ?? process.env;
   const timeouts = {
     preflightMs: options.timeouts?.preflightMs ?? X_SYNC.preflightTimeoutMs,
@@ -82,6 +102,7 @@ export function createBirdclaw(options: BirdclawOptions = {}): XAdapter {
     backfillMs: options.timeouts?.backfillMs ?? X_SYNC.backfillTimeoutMs,
     exportMs: options.timeouts?.exportMs ?? X_SYNC.exportTimeoutMs,
   };
+  const active = new Set<ChildProcess>();
 
   // The cookies travel only in this environment, built from nothing so no
   // other secret in the parent's environment reaches the child. bird reads
@@ -118,22 +139,20 @@ export function createBirdclaw(options: BirdclawOptions = {}): XAdapter {
         stdio: ['ignore', stdoutFd ?? 'pipe', 'pipe'],
         detached: true,
       });
+      active.add(child);
       const keep = (text: string) => text.slice(-OUTPUT_KEEP_CHARS);
       child.stdout?.setEncoding('utf8').on('data', (chunk: string) => (result.stdout = keep(result.stdout + chunk)));
       child.stderr?.setEncoding('utf8').on('data', (chunk: string) => (result.stderr = keep(result.stderr + chunk)));
       const timer = setTimeout(() => {
         result.timedOut = true;
-        try {
-          if (child.pid) process.kill(-child.pid, 'SIGKILL');
-        } catch {
-          child.kill('SIGKILL');
-        }
+        killGroup(child);
       }, timeoutMs);
       child.on('error', (error) => {
         result.spawnError = errorText(error);
       });
       child.on('close', (code) => {
         clearTimeout(timer);
+        active.delete(child);
         result.code = code;
         resolve(result);
       });
@@ -150,6 +169,10 @@ export function createBirdclaw(options: BirdclawOptions = {}): XAdapter {
   const textOf = (child: Child) => (child.timedOut ? 'timed out' : `${child.spawnError ?? ''} ${child.stderr} ${child.stdout}`);
 
   return {
+    killActive() {
+      for (const child of active) killGroup(child);
+    },
+
     async whoami(session) {
       const pair = pairOf(session);
       if (!pair) return missingCookies;

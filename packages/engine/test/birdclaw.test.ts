@@ -299,6 +299,27 @@ test('a timed-out sync also stops the processes Birdclaw started', async (t) => 
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });
 
+test('killActive stops a running sync and the processes Birdclaw started', async (t) => {
+  const { dir, adapter } = setup(t, {
+    birdclaw: { sync: { script: 'sleep 30 &\necho $! > "$HOME/grandchild.pid"\nwait' } },
+  });
+  const pidFile = join(dir, 'grandchild.pid');
+
+  const started = Date.now();
+  const pending = adapter.sync(session, 'bookmarks', 'incremental');
+  while (!existsSync(pidFile) || readFileSync(pidFile, 'utf8').trim() === '') {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  adapter.killActive();
+  const result = await pending;
+
+  assert.equal(result.ok, false);
+  assert.ok(Date.now() - started < 5_000, 'the sync ran on after killActive');
+  const pid = Number(readFileSync(pidFile, 'utf8'));
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
+
 test('an export drops posts whose id is not a numeric X status id', async (t) => {
   const posts = [exportPost('1876543210987654321'), exportPost('tweet_006'), exportPost('42'), exportPost('tweet_001')];
   const { birdclaw, dir, adapter } = setup(t, { birdclaw: { search: { stdout: JSON.stringify(posts, null, 2) } } });
