@@ -86,6 +86,36 @@ function linkTargets(db: DatabaseSync): Map<string, Map<string, string>> {
 
 const NO_TARGETS: ReadonlyMap<string, string> = new Map();
 
+/** The newest run with its stages, and when the newest complete run finished. */
+export function readRuns(db: DatabaseSync): { lastRun: Run | null; lastCompleteRunAt: string | null } {
+  const runRow = db.prepare(`SELECT * FROM runs ORDER BY id DESC LIMIT 1`).get();
+  let lastRun: Run | null = null;
+  if (runRow) {
+    const stages: RunStage[] = db
+      .prepare(`SELECT stage, outcome, message, counts_json FROM run_stages WHERE run_id = ? ORDER BY id`)
+      .all(Number(runRow.id))
+      .map((row) => ({
+        stage: String(row.stage),
+        outcome: String(row.outcome),
+        message: text(row.message),
+        counts: counts(row.counts_json),
+      }));
+    lastRun = {
+      id: Number(runRow.id),
+      startedAt: String(runRow.started_at),
+      finishedAt: text(runRow.finished_at),
+      status: String(runRow.status),
+      upstreamSync: String(runRow.upstream_sync),
+      upstreamSyncDetail: text(runRow.upstream_sync_detail),
+      message: text(runRow.message),
+      stages,
+    };
+  }
+  const complete = db.prepare(`SELECT finished_at FROM runs WHERE status = 'complete' ORDER BY id DESC LIMIT 1`).get();
+
+  return { lastRun, lastCompleteRunAt: complete ? text(complete.finished_at) : null };
+}
+
 function read(db: DatabaseSync): Snapshot {
   const targets = linkTargets(db);
   const readable = (postId: string, value: unknown, quotedId: string | null = null): string =>
@@ -286,30 +316,7 @@ function read(db: DatabaseSync): Snapshot {
       undoneAt: text(row.undone_at),
     }));
 
-  const runRow = db.prepare(`SELECT * FROM runs ORDER BY id DESC LIMIT 1`).get();
-  let lastRun: Run | null = null;
-  if (runRow) {
-    const stages: RunStage[] = db
-      .prepare(`SELECT stage, outcome, message, counts_json FROM run_stages WHERE run_id = ? ORDER BY id`)
-      .all(Number(runRow.id))
-      .map((row) => ({
-        stage: String(row.stage),
-        outcome: String(row.outcome),
-        message: text(row.message),
-        counts: counts(row.counts_json),
-      }));
-    lastRun = {
-      id: Number(runRow.id),
-      startedAt: String(runRow.started_at),
-      finishedAt: text(runRow.finished_at),
-      status: String(runRow.status),
-      upstreamSync: String(runRow.upstream_sync),
-      upstreamSyncDetail: text(runRow.upstream_sync_detail),
-      message: text(runRow.message),
-      stages,
-    };
-  }
-  const complete = db.prepare(`SELECT finished_at FROM runs WHERE status = 'complete' ORDER BY id DESC LIMIT 1`).get();
+  const { lastRun, lastCompleteRunAt } = readRuns(db);
 
   return {
     storeExists: true,
@@ -320,7 +327,7 @@ function read(db: DatabaseSync): Snapshot {
     resources,
     changes,
     lastRun,
-    lastCompleteRunAt: complete ? text(complete.finished_at) : null,
+    lastCompleteRunAt,
   };
 }
 

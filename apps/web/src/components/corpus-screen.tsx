@@ -25,11 +25,12 @@ import { linkedQuery, parseLinked, type LinkedFilter } from "@/lib/filter-url";
 import { emitMagpie } from "@/lib/magpie-events";
 import { resourcesFor } from "@/lib/resources";
 import { similarPosts } from "@/lib/similar";
-import type { FilterResult, FilterState, Post, Snapshot } from "@/lib/types";
+import type { FilterResult, FilterState, Post, Snapshot, SyncState } from "@/lib/types";
 
 import { ActiveFilters } from "./active-filters";
 import { AskBar } from "./ask-bar";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
+import { ConnectXDialog, createConnectXController } from "./connect-x-dialog";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { Flock } from "./flock";
@@ -44,6 +45,7 @@ import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
 import { SidebarResizer } from "./sidebar-resizer";
+import { useSyncStatus } from "./sync-status";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
 import { createWhatChangedController, WhatChanged } from "./what-changed";
@@ -195,7 +197,7 @@ const selectionInAddress = (): LinkedFilter => {
 };
 
 /** `linked` is the selection the page was opened with; later changes are read from the address bar. */
-export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; now: number; linked: LinkedFilter }) {
+export function CorpusScreen({ snapshot, sync: initialSync, now, linked }: { snapshot: Snapshot; sync: SyncState; now: number; linked: LinkedFilter }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
   const [view, setView] = useState<View>("posts");
@@ -205,6 +207,8 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
   ]);
   const [postDialog] = useState(() => createDialogController<string>());
   const [whatChanged] = useState(createWhatChangedController);
+  const [connectX] = useState(createConnectXController);
+  const sync = useSyncStatus(initialSync);
   const [removedPosts] = useState(createRemovedPostsController);
   const [sidebarPanel] = useState(() => createDialogController());
   const [categoryEdits] = useState(createCategoryEdits);
@@ -369,7 +373,8 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
 
   const sidebar: SidebarProps = {
     snapshot,
-    now,
+    sync,
+    connectX,
     filter: applied,
     totals,
     authors,
@@ -577,6 +582,7 @@ export function CorpusScreen({ snapshot, now, linked }: { snapshot: Snapshot; no
         listed={new Set(result.posts.map((post) => post.id))}
       />
       <WhatChanged controller={whatChanged} changes={snapshot.changes} />
+      <ConnectXDialog controller={connectX} sync={sync} />
       <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} />
       <CategoryDialogs edits={categoryEdits} topics={snapshot.topics} areas={snapshot.areas} topicsById={topicsById} areasById={areasById} />
 

@@ -16,7 +16,8 @@ import { CategoryTree } from "./category-tree";
 import { formatCount } from "./format";
 import { MagpieMark } from "./magpie";
 import type { RemovedPostsController } from "./removed-posts";
-import { SyncStatus } from "./sync-status";
+import type { ConnectXController } from "./connect-x-dialog";
+import { SyncStatus, type SyncController } from "./sync-status";
 import type { WhatChangedController } from "./what-changed";
 
 const COLLECTIONS: { value: Collection; label: string; icon: LucideIcon }[] = [
@@ -39,7 +40,8 @@ function Eyebrow({ children, action }: { children: ReactNode; action?: ReactNode
 
 export type SidebarProps = {
   snapshot: Snapshot;
-  now: number;
+  sync: SyncController;
+  connectX: ConnectXController;
   filter: FilterState;
   totals: { everything: number; bookmarks: number; likes: number };
   authors: AuthorCount[];
@@ -60,7 +62,8 @@ export type SidebarProps = {
 
 export function Sidebar({
   snapshot,
-  now,
+  sync,
+  connectX,
   filter,
   totals,
   authors,
@@ -232,7 +235,7 @@ export function Sidebar({
       </ScrollArea>
 
       <div className="flex flex-col gap-1 border-t border-[color-mix(in_oklch,var(--color-side-ink)_12%,transparent)] px-3 pt-3 pb-4">
-        <SyncStatus snapshot={snapshot} now={now} />
+        <SyncStatus sync={sync} connectX={connectX} />
         <DialogTrigger controller={whatChanged} className={`${SIDE_ROW} justify-start bg-transparent font-medium hover:bg-side-hover`}>
           <History className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
           What changed

@@ -30,6 +30,17 @@ export function relativeTime(iso: string, now: number): string {
   return `on ${DATE.format(ms)}`;
 }
 
+/** How long until `iso`, as "in 2 hr"; "soon" once it has passed. */
+export function timeUntil(iso: string, now: number): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "at an unknown time";
+  const left = ms - now;
+  if (left < MINUTE) return "soon";
+  if (left < HOUR) return `in ${Math.floor(left / MINUTE)} min`;
+  if (left < DAY) return `in ${Math.floor(left / HOUR)} hr`;
+  return `on ${DATE.format(ms)}`;
+}
+
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   const letters = words.length > 1 ? [words[0], words[words.length - 1]] : words;
