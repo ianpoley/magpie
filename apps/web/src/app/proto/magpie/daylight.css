@@ -1,0 +1,229 @@
+/* Throwaway — riff "Daylight": Murmur's sky, following the clock. Dawn is the base; day, dusk and night override it. */
+
+/* ---------- dawn (Murmur) ---------- */
+html[data-proto="daylight"] {
+  --color-canvas: oklch(0.972 0.014 235);
+  --color-surface: oklch(1 0 0);
+  --color-sunken: oklch(0.955 0.018 60);
+  --color-ink: oklch(0.24 0.03 255);
+  --color-ink-muted: oklch(0.45 0.03 255);
+  --color-line: oklch(0.9 0.02 60);
+  --color-primary: oklch(0.46 0.14 38);
+  --color-primary-top: oklch(0.5 0.13 52);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.44 0.14 40);
+  --color-primary-soft: oklch(0.95 0.035 55);
+  --color-like: oklch(0.6 0.2 5);
+  --color-like-text: oklch(0.48 0.18 5);
+  --color-like-soft: oklch(0.945 0.03 5);
+  --color-chip: oklch(0.955 0.018 60);
+  --color-chip-text: oklch(0.36 0.03 255);
+  --color-chip-possible: oklch(0.975 0.01 60);
+  --color-chip-possible-text: oklch(0.45 0.03 255);
+  --color-side-0: oklch(0.27 0.05 262);
+  --color-side-1: oklch(0.31 0.045 250);
+  --color-side-2: oklch(0.36 0.04 235);
+  --color-side-ink: oklch(0.97 0.01 80);
+  --color-side-muted: oklch(0.86 0.035 70);
+  --dl-glow: oklch(0.55 0.11 50 / 0.22);
+  --dl-wash:
+    linear-gradient(in oklab 180deg, oklch(0.95 0.035 60), oklch(0.962 0.022 200) 420px, var(--color-canvas) 820px);
+  --dl-select: oklch(0.88 0.08 55 / 0.6);
+  --shadow-card:
+    0 0 0 1px oklch(0.24 0.03 255 / 0.07),
+    0 1px 2px oklch(0.24 0.03 255 / 0.05),
+    0 8px 18px -10px oklch(0.45 0.08 50 / 0.25);
+  --shadow-card-hover:
+    0 0 0 1px oklch(0.46 0.14 38 / 0.22),
+    0 2px 4px oklch(0.24 0.03 255 / 0.06),
+    0 14px 28px -14px oklch(0.46 0.14 38 / 0.38);
+  --shadow-primary:
+    0 1px 2px oklch(0.46 0.14 38 / 0.4),
+    0 4px 12px -4px oklch(0.46 0.14 38 / 0.5),
+    inset 0 1px 0 oklch(1 0 0 / 0.2);
+}
+
+/* ---------- day: clear high blue, crisp ---------- */
+html[data-proto="daylight"][data-sky="day"] {
+  --color-canvas: oklch(0.975 0.012 235);
+  --color-surface: oklch(1 0 0);
+  --color-sunken: oklch(0.955 0.016 235);
+  --color-ink: oklch(0.24 0.03 255);
+  --color-ink-muted: oklch(0.45 0.03 255);
+  --color-line: oklch(0.9 0.02 235);
+  /* Sky blue, held clear of the bookmark indigo (275). White on it 6.3:1. */
+  --color-primary: oklch(0.48 0.12 238);
+  --color-primary-top: oklch(0.53 0.11 225);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.46 0.12 240);
+  --color-primary-soft: oklch(0.95 0.03 230);
+  --color-like: oklch(0.6 0.2 5);
+  --color-like-text: oklch(0.48 0.18 5);
+  --color-like-soft: oklch(0.945 0.03 5);
+  --color-chip: oklch(0.955 0.016 235);
+  --color-chip-text: oklch(0.36 0.03 255);
+  --color-chip-possible: oklch(0.975 0.008 235);
+  --color-chip-possible-text: oklch(0.45 0.03 255);
+  --color-side-0: oklch(0.3 0.06 255);
+  --color-side-1: oklch(0.34 0.055 245);
+  --color-side-2: oklch(0.4 0.05 232);
+  --color-side-ink: oklch(0.98 0.005 230);
+  --color-side-muted: oklch(0.88 0.03 225);
+  --dl-glow: oklch(0.8 0.08 220 / 0.18);
+  --dl-wash: linear-gradient(in oklab 180deg, oklch(0.92 0.045 232), oklch(0.955 0.025 225) 360px, var(--color-canvas) 760px);
+  --dl-select: oklch(0.86 0.07 230 / 0.6);
+  --shadow-card:
+    0 0 0 1px oklch(0.24 0.03 255 / 0.07),
+    0 1px 2px oklch(0.24 0.03 255 / 0.05),
+    0 8px 18px -10px oklch(0.45 0.08 240 / 0.22);
+  --shadow-card-hover:
+    0 0 0 1px oklch(0.48 0.12 238 / 0.22),
+    0 2px 4px oklch(0.24 0.03 255 / 0.06),
+    0 14px 28px -14px oklch(0.48 0.12 238 / 0.36);
+  --shadow-primary:
+    0 1px 2px oklch(0.48 0.12 238 / 0.4),
+    0 4px 12px -4px oklch(0.48 0.12 238 / 0.5),
+    inset 0 1px 0 oklch(1 0 0 / 0.2);
+}
+
+/* ---------- dusk: low amber sun, rose sky, warm ink ---------- */
+html[data-proto="daylight"][data-sky="dusk"] {
+  --color-canvas: oklch(0.968 0.016 50);
+  --color-surface: oklch(0.997 0.004 60);
+  --color-sunken: oklch(0.95 0.022 45);
+  --color-ink: oklch(0.25 0.03 30);
+  --color-ink-muted: oklch(0.46 0.035 30);
+  --color-line: oklch(0.89 0.025 40);
+  /* Sunset red. White on it 7.7:1. */
+  --color-primary: oklch(0.46 0.14 22);
+  --color-primary-top: oklch(0.52 0.14 40);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.45 0.14 24);
+  --color-primary-soft: oklch(0.95 0.03 35);
+  /* Likes step to pink so they never read as the sunset primary. */
+  --color-like: oklch(0.6 0.19 345);
+  --color-like-text: oklch(0.47 0.17 345);
+  --color-like-soft: oklch(0.945 0.03 345);
+  --color-chip: oklch(0.95 0.022 45);
+  --color-chip-text: oklch(0.37 0.035 30);
+  --color-chip-possible: oklch(0.972 0.012 50);
+  --color-chip-possible-text: oklch(0.46 0.035 30);
+  --color-side-0: oklch(0.25 0.035 255);
+  --color-side-1: oklch(0.29 0.03 20);
+  --color-side-2: oklch(0.34 0.05 35);
+  --color-side-ink: oklch(0.97 0.012 70);
+  --color-side-muted: oklch(0.87 0.04 60);
+  --dl-glow: oklch(0.62 0.15 45 / 0.42);
+  --dl-wash: linear-gradient(in oklab 180deg, oklch(0.9 0.06 60), oklch(0.93 0.04 25) 380px, var(--color-canvas) 820px);
+  --dl-select: oklch(0.86 0.08 40 / 0.6);
+  --shadow-card:
+    0 0 0 1px oklch(0.25 0.03 30 / 0.07),
+    0 1px 2px oklch(0.25 0.03 30 / 0.05),
+    0 8px 18px -10px oklch(0.5 0.12 35 / 0.28);
+  --shadow-card-hover:
+    0 0 0 1px oklch(0.46 0.14 22 / 0.22),
+    0 2px 4px oklch(0.25 0.03 30 / 0.06),
+    0 14px 28px -14px oklch(0.46 0.14 22 / 0.4);
+  --shadow-primary:
+    0 1px 2px oklch(0.46 0.14 22 / 0.4),
+    0 4px 12px -4px oklch(0.46 0.14 22 / 0.5),
+    inset 0 1px 0 oklch(1 0 0 / 0.2);
+}
+
+/* ---------- night: a real dark theme ---------- */
+html[data-proto="daylight"][data-sky="night"] {
+  color-scheme: dark;
+  --color-canvas: oklch(0.17 0.025 265);
+  --color-surface: oklch(0.21 0.025 265);
+  --color-sunken: oklch(0.245 0.025 265);
+  --color-ink: oklch(0.95 0.01 250);
+  --color-ink-muted: oklch(0.76 0.02 250);
+  --color-line: oklch(0.31 0.025 265);
+  /* Moonlit blue. White on it 5.5:1. */
+  --color-primary: oklch(0.52 0.12 255);
+  --color-primary-top: oklch(0.58 0.1 240);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.83 0.08 240);
+  --color-primary-soft: oklch(0.29 0.05 250);
+  --color-bm: oklch(0.7 0.14 275);
+  --color-bm-text: oklch(0.83 0.09 275);
+  --color-bm-soft: oklch(0.29 0.06 275);
+  --color-like: oklch(0.7 0.16 5);
+  --color-like-text: oklch(0.83 0.09 5);
+  --color-like-soft: oklch(0.29 0.06 5);
+  --color-mark: oklch(0.82 0.15 110);
+  --color-chip: oklch(0.27 0.025 265);
+  --color-chip-text: oklch(0.87 0.015 250);
+  --color-chip-possible: oklch(0.23 0.02 265);
+  --color-chip-possible-text: oklch(0.74 0.02 250);
+  --color-success: oklch(0.78 0.1 195);
+  --color-success-soft: oklch(0.29 0.05 195);
+  --color-side-0: oklch(0.13 0.02 265);
+  --color-side-1: oklch(0.15 0.025 260);
+  --color-side-2: oklch(0.2 0.04 250);
+  --color-side-ink: oklch(0.95 0.01 250);
+  --color-side-muted: oklch(0.78 0.03 250);
+  --dl-glow: oklch(0.5 0.06 250 / 0.2);
+  --dl-wash: linear-gradient(in oklab 180deg, oklch(0.22 0.05 262), oklch(0.19 0.035 265) 420px, var(--color-canvas) 820px);
+  --dl-select: oklch(0.55 0.1 240 / 0.45);
+  /* Dark surfaces: depth collapses to light rings. */
+  --shadow-card: 0 0 0 1px oklch(1 0 0 / 0.08);
+  --shadow-card-hover: 0 0 0 1px oklch(0.83 0.08 240 / 0.4);
+  --shadow-primary:
+    0 0 0 1px oklch(1 0 0 / 0.1),
+    inset 0 1px 0 oklch(1 0 0 / 0.2);
+  --ui-input: oklch(0.4 0.025 260);
+  --ui-ring: oklch(1 0 0 / 0.18);
+  --ui-ring-border: oklch(0.72 0.02 250);
+  --ui-shadow:
+    0 0 0 1px oklch(1 0 0 / 0.1),
+    0 16px 32px -12px oklch(0 0 0 / 0.7);
+}
+html[data-proto="daylight"][data-sky="night"] mark { color: oklch(0.18 0.02 110); }
+/* authorHue() names are light-mode inks set inline: flip lightness, keep hue. */
+html[data-proto="daylight"][data-sky="night"] :is(p, h2)[style^="color"][style*="oklch(0.42"] { filter: invert(1) hue-rotate(180deg); }
+html[data-proto="daylight"][data-sky="night"] img { outline-color: oklch(1 0 0 / 0.1); }
+/* The mark and the empty-state birds catch moonlight too. */
+html[data-proto="daylight"][data-sky="night"] :is(.mm-flap, .mm-tiny) { filter: drop-shadow(0 0 1px oklch(0.86 0.04 245 / 0.8)); }
+
+/* Night sidebar: a few fixed pixel stars over the gradient. */
+html[data-proto="daylight"][data-sky="night"] .bg-side {
+  background:
+    radial-gradient(1.5px 1.5px at 22% 14%, oklch(0.93 0.03 90 / 0.7) 99%, transparent),
+    radial-gradient(1.5px 1.5px at 71% 9%, oklch(0.93 0.03 90 / 0.5) 99%, transparent),
+    radial-gradient(1px 1px at 86% 31%, oklch(0.93 0.03 90 / 0.5) 99%, transparent),
+    radial-gradient(1px 1px at 12% 47%, oklch(0.93 0.03 90 / 0.4) 99%, transparent),
+    radial-gradient(1.5px 1.5px at 58% 63%, oklch(0.93 0.03 90 / 0.35) 99%, transparent),
+    radial-gradient(1px 1px at 33% 82%, oklch(0.93 0.03 90 / 0.35) 99%, transparent),
+    radial-gradient(1px 1px at 79% 91%, oklch(0.93 0.03 90 / 0.3) 99%, transparent),
+    radial-gradient(120% 40% at 0% 100%, var(--dl-glow), transparent 70%),
+    linear-gradient(in oklab 172deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
+}
+
+/* ---------- shared across phases ---------- */
+html[data-proto="daylight"] .bg-side {
+  background:
+    radial-gradient(120% 40% at 0% 100%, var(--dl-glow), transparent 70%),
+    linear-gradient(in oklab 172deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
+}
+html[data-proto="daylight"] .bg-wash {
+  background: var(--dl-wash);
+  background-repeat: no-repeat;
+}
+html[data-proto="daylight"] .text-display {
+  font-family: var(--f-brico), var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+html[data-proto="daylight"] ::selection { background: var(--dl-select); }
+
+/* The clock crossing a boundary: a slow cross-fade of the whole page (View Transitions). */
+html[data-proto="daylight"]::view-transition-old(root),
+html[data-proto="daylight"]::view-transition-new(root) {
+  animation-duration: 1.6s;
+  animation-timing-function: ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-proto="daylight"]::view-transition-old(root),
+  html[data-proto="daylight"]::view-transition-new(root) { animation: none; }
+}

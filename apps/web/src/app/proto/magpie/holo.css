@@ -1,0 +1,176 @@
+/* Throwaway — Direction 7 "Holo": pearl canvas, graphite binder sidebar, prismatic foil.
+ * Usability rules: foil lives in a 5px frame inside the card padding (text is inset 16px+), so it never sits under text;
+ * tilt is ≤2.5° with no easing while tracking and a 150ms settle; nothing shows or hides on hover. */
+
+html[data-proto="holo"] {
+  --color-canvas: oklch(0.972 0.006 230);
+  --color-surface: oklch(1 0 0);
+  --color-sunken: oklch(0.95 0.008 230);
+  --color-ink: oklch(0.2 0.01 250);
+  --color-ink-muted: oklch(0.47 0.015 250);
+  --color-line: oklch(0.9 0.008 230);
+  --color-primary: oklch(0.5 0.16 258);
+  --color-primary-top: oklch(0.5 0.1 195);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.48 0.15 255);
+  --color-primary-soft: oklch(0.95 0.03 230);
+  --color-chip: oklch(0.95 0.008 230);
+  --color-chip-text: oklch(0.36 0.015 250);
+  --color-chip-possible: oklch(0.975 0.004 230);
+  --color-chip-possible-text: oklch(0.47 0.015 250);
+  /* Graphite binder: every stop keeps side ink ≥ 7:1. */
+  --color-side-0: oklch(0.2 0.008 250);
+  --color-side-1: oklch(0.235 0.01 245);
+  --color-side-2: oklch(0.28 0.016 232);
+  --color-side-ink: oklch(0.97 0.004 240);
+  --color-side-muted: oklch(0.8 0.012 240);
+  --radius-card: 18px;
+  --radius-inner: 12px;
+  --radius-avatar: 12px;
+  --shadow-card:
+    0 0 0 1px oklch(0.2 0.01 250 / 0.06),
+    0 1px 2px oklch(0.2 0.01 250 / 0.05),
+    0 8px 20px -12px oklch(0.4 0.05 250 / 0.22);
+  --shadow-card-hover:
+    0 0 0 1px oklch(0.5 0.12 230 / 0.25),
+    0 2px 4px oklch(0.2 0.01 250 / 0.06),
+    0 14px 30px -14px oklch(0.4 0.08 250 / 0.35);
+  --shadow-primary:
+    0 1px 2px oklch(0.4 0.1 250 / 0.35),
+    0 6px 16px -6px oklch(0.5 0.14 250 / 0.5),
+    inset 0 1px 0 oklch(1 0 0 / 0.25);
+  /* Prismatic accents. The fill stays at L ≈ 0.5 so white labels hold ≥ 4.5:1 across every stop. */
+  --holo-fill: linear-gradient(in oklab 100deg, oklch(0.5 0.1 195), oklch(0.5 0.16 258) 50%, oklch(0.5 0.17 350));
+  --holo-edge: conic-gradient(from 210deg, oklch(0.82 0.12 195), oklch(0.76 0.14 258), oklch(0.8 0.13 350), oklch(0.9 0.12 95), oklch(0.85 0.12 150), oklch(0.82 0.12 195));
+}
+html[data-proto="holo"] .text-display {
+  font-family: var(--f-brico), var(--font-sans);
+  font-weight: 760;
+  letter-spacing: -0.035em;
+}
+html[data-proto="holo"] ::selection { background: oklch(0.86 0.08 230 / 0.6); }
+
+/* ---- prismatic primary fill: solid buttons and the view switch in main -------------------- */
+html[data-proto="holo"] :is([data-slot="button"], [data-slot="dialog-close"], [data-slot="toggle"])[data-variant="solid"],
+html[data-proto="holo"] .bg-primary-fill,
+html[data-proto="holo"] :is(main, [data-slot="dialog-content"]) [data-slot="segmented-control-indicator"]:not(.side-scope *) {
+  background-image: var(--holo-fill);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  transition: background-position 300ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 150ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  html[data-proto="holo"] :is([data-slot="button"], [data-slot="dialog-close"], [data-slot="toggle"])[data-variant="solid"]:hover:not([data-disabled]),
+  html[data-proto="holo"] .bg-primary-fill:hover {
+    background-image: var(--holo-fill);
+    background-position: 100% 50%;
+  }
+}
+
+/* ---- the mark: a foil tile holding the turning bird ---------------------------------------- */
+.holo-tile {
+  display: inline-grid;
+  place-items: center;
+  padding: 2px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 100% at 20% 0%, oklch(0.995 0.008 200), oklch(0.93 0.02 245)) padding-box,
+    var(--holo-edge) border-box;
+  box-shadow: 0 6px 16px -8px oklch(0 0 0 / 0.55);
+  flex-shrink: 0;
+}
+.holo-word {
+  font-family: var(--f-brico), var(--font-sans);
+  font-size: 27px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  /* Solid ink: the prism lives in the 3D bird's tile, not in the letters. */
+  color: var(--color-side-ink);
+}
+
+/* ---- a soft light leak behind the page header ---------------------------------------------- */
+.holo-backdrop {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 520px;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 300px at 94% 0%, oklch(0.88 0.08 200 / 0.45), transparent 70%),
+    radial-gradient(30% 240px at 74% 0%, oklch(0.9 0.07 350 / 0.32), transparent 70%),
+    radial-gradient(34% 280px at 100% 12%, oklch(0.93 0.08 95 / 0.3), transparent 70%);
+}
+
+/* ---- cards: foil frame + tilt ---------------------------------------------------------------- */
+html[data-proto="holo"] main article {
+  --foil-h: 220;
+  transition: box-shadow 150ms ease-out;
+}
+/* A 5px prismatic frame in the card's padding. Inset text never sits under it. */
+html[data-proto="holo"] main article::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+      115deg,
+      oklch(0.86 0.1 calc(var(--foil-h) + 0)) 0%,
+      oklch(0.86 0.11 calc(var(--foil-h) + 70)) 6%,
+      oklch(0.86 0.11 calc(var(--foil-h) + 150)) 12%,
+      oklch(0.88 0.1 calc(var(--foil-h) + 230)) 18%,
+      oklch(0.86 0.1 calc(var(--foil-h) + 300)) 24%,
+      oklch(0.86 0.1 calc(var(--foil-h) + 360)) 30%
+    )
+    0 0 / 260% 260%;
+  background-position: var(--mx, 30%) var(--my, 30%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0.5;
+  transition: opacity 150ms ease-out;
+}
+html[data-proto="holo"] main article[data-holo="on"]::after { opacity: 1; }
+html[data-proto="holo"] main article[data-holo="on"] {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  box-shadow:
+    0 0 0 1px oklch(0.6 0.12 var(--foil-h) / 0.3),
+    calc(var(--tx, 0) * -8px) calc(var(--ty, 0) * -8px + 14px) 30px -16px oklch(0.4 0.1 var(--foil-h) / 0.4);
+}
+html[data-proto="holo"] main article[data-holo="settle"] {
+  transform: perspective(900px) rotateX(0deg) rotateY(0deg);
+  transition:
+    transform 150ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 150ms ease-out;
+}
+
+/* ---- dialogs: a card flip in, with a foil edge ---------------------------------------------- */
+html[data-proto="holo"] [data-slot="dialog-content"]:not([class*="h-dvh"]) {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+    var(--holo-edge) border-box;
+  transition:
+    opacity 150ms ease-out,
+    translate 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    scale 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+html[data-proto="holo"] [data-slot="dialog-content"]:not([class*="h-dvh"])[data-starting-style] {
+  transform: perspective(1200px) rotateY(-14deg);
+}
+html[data-proto="holo"] [data-slot="dialog-content"]:not([class*="h-dvh"])[data-ending-style] {
+  transform: perspective(1200px) rotateY(8deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-proto="holo"] main article,
+  html[data-proto="holo"] main article::after,
+  html[data-proto="holo"] [data-slot="dialog-content"],
+  .holo-word {
+    transition: none !important;
+    transform: none !important;
+  }
+}

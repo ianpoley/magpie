@@ -1,0 +1,108 @@
+/* Throwaway — Direction 8 "Window": walnut sidebar, warm paper, magpie-wing blue; bookmarks are leaf green.
+ * Every text pair ≥ 4.5:1, including side-ink and side-muted on each walnut stop. */
+
+html[data-proto="window"] {
+  --color-canvas: oklch(0.972 0.012 80);
+  --color-surface: oklch(0.996 0.004 85);
+  --color-sunken: oklch(0.95 0.015 80);
+  --color-ink: oklch(0.24 0.02 55);
+  --color-ink-muted: oklch(0.47 0.02 60);
+  --color-line: oklch(0.9 0.016 78);
+  --color-primary: oklch(0.5 0.15 255);
+  --color-primary-top: oklch(0.56 0.13 245);
+  --color-on-primary: oklch(1 0 0);
+  --color-primary-text: oklch(0.47 0.15 255);
+  --color-primary-soft: oklch(0.94 0.035 250);
+  --color-bm: oklch(0.58 0.12 150);
+  --color-bm-text: oklch(0.44 0.1 150);
+  --color-bm-soft: oklch(0.94 0.04 150);
+  --color-chip: oklch(0.95 0.015 80);
+  --color-chip-text: oklch(0.36 0.02 60);
+  --color-chip-possible: oklch(0.975 0.008 80);
+  --color-chip-possible-text: oklch(0.47 0.02 60);
+  --color-side-0: oklch(0.29 0.035 55);
+  --color-side-1: oklch(0.33 0.042 50);
+  --color-side-2: oklch(0.37 0.048 45);
+  --color-side-ink: oklch(0.97 0.018 85);
+  --color-side-muted: oklch(0.84 0.04 75);
+  --shadow-card:
+    0 0 0 1px oklch(0.24 0.02 55 / 0.07),
+    0 1px 2px oklch(0.24 0.02 55 / 0.05),
+    0 4px 12px -6px oklch(0.35 0.05 55 / 0.18);
+  --shadow-card-hover:
+    0 0 0 1px oklch(0.5 0.15 255 / 0.22),
+    0 2px 4px oklch(0.24 0.02 55 / 0.06),
+    0 10px 24px -10px oklch(0.4 0.08 255 / 0.3);
+}
+
+/* Walnut: the gradient plus a faint grain. */
+html[data-proto="window"] .bg-side {
+  background:
+    repeating-linear-gradient(97deg, oklch(1 0 0 / 0.022) 0 1px, transparent 1px 7px, oklch(0 0 0 / 0.03) 7px 8px, transparent 8px 13px),
+    radial-gradient(120% 50% at 0% 100%, color-mix(in oklch, var(--color-side-2) 70%, transparent), transparent 70%),
+    linear-gradient(in oklch 170deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
+}
+
+/* The hour, faintly, behind the page heading. */
+html[data-proto="window"] .bg-wash {
+  background:
+    radial-gradient(70% 280px at 30% 0%, var(--win-tint, transparent), transparent),
+    var(--color-canvas);
+  background-repeat: no-repeat;
+}
+
+.win-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.win-unit {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.win-frame {
+  padding: 3px;
+  border-radius: 12px;
+  background: linear-gradient(in oklch 180deg, oklch(0.5 0.05 62), oklch(0.4 0.045 55));
+  box-shadow:
+    inset 0 1px 0 oklch(0.66 0.05 72 / 0.55),
+    0 1px 0 oklch(0 0 0 / 0.25),
+    0 6px 14px -6px oklch(0 0 0 / 0.5);
+}
+.win-glass {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9px; /* 12 − 3 */
+}
+.win-glass canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+/* A glass sheen that never moves. */
+.win-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(125deg, oklch(1 0 0 / 0.12) 0 14%, transparent 14% 24%, oklch(1 0 0 / 0.07) 24% 28%, transparent 28%);
+  box-shadow: inset 0 0 0 1px oklch(0 0 0 / 0.25);
+  pointer-events: none;
+}
+.win-sill {
+  height: 6px;
+  margin: -1px -5px 0;
+  border-radius: 2px 2px 4px 4px;
+  background: linear-gradient(in oklch 180deg, oklch(0.58 0.055 66), oklch(0.45 0.05 56));
+  box-shadow:
+    inset 0 1px 0 oklch(0.72 0.05 76 / 0.6),
+    0 3px 6px -2px oklch(0 0 0 / 0.45);
+}
+.win-word {
+  font-family: var(--f-brico), var(--font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  color: var(--color-side-ink);
+}
