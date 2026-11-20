@@ -30,10 +30,10 @@ export async function POST(request: Request): Promise<Response> {
   const { store } = paths();
   if (!existsSync(store)) return refuse(503, "Nothing has been synced yet.");
 
-  let jev: ReturnType<typeof createJevClient>;
+  let jev: Awaited<ReturnType<typeof createJevClient>>;
   let posts: AskPost[];
   try {
-    jev = createJevClient();
+    jev = await createJevClient();
     // Read everything first, so no store handle is held while the answers stream.
     const db = openStore(store, { readOnly: true });
     try {
