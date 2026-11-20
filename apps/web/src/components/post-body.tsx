@@ -21,21 +21,56 @@ export function Marked({ text, keyword, phrase = false }: { text: string; keywor
   return parts;
 }
 
+/** Handles in post text that can filter the list: those of authors the corpus has posts from. */
+export type Mentions = { known: (handle: string) => boolean; select: (handle: string) => void };
+
+const MENTION = /(?<![\w@])@(\w{1,15})\b/g;
+
+/** Text between addresses, with @mentions of saved authors as buttons when `mentions` is given. */
+function Words({ text, keyword, mentions }: { text: string; keyword: string; mentions?: Mentions }) {
+  if (!mentions) return <Marked text={text} keyword={keyword} />;
+  const parts: React.ReactNode[] = [];
+  let at = 0;
+  for (const match of text.matchAll(MENTION)) {
+    const handle = match[1];
+    if (!mentions.known(handle)) continue;
+    if (match.index > at) parts.push(<Marked key={`t${at}`} text={text.slice(at, match.index)} keyword={keyword} />);
+    parts.push(
+      <button
+        key={`m${match.index}`}
+        type="button"
+        title={`Show posts by @${handle}`}
+        onClick={() => mentions.select(handle)}
+        className="focus-ring cursor-pointer rounded-[4px] border-0 bg-transparent p-0 font-medium text-primary-text decoration-current/40 underline-offset-2 hover:underline"
+      >
+        <Marked text={match[0]} keyword={keyword} />
+      </button>,
+    );
+    at = match.index + match[0].length;
+  }
+  if (at === 0) return <Marked text={text} keyword={keyword} />;
+  if (at < text.length) parts.push(<Marked key={`t${at}`} text={text.slice(at)} keyword={keyword} />);
+  return parts;
+}
+
 /**
  * Post text with search matches marked and addresses shortened the way X shows
  * them. With `links`, addresses become links; a card leaves them plain because
- * the whole card opens the post.
+ * the whole card opens the post. With `mentions`, @handles of saved authors
+ * filter to that author.
  */
 export function PostText({
   text,
   keyword,
   links = false,
+  mentions,
   id,
   className = "",
 }: {
   text: string;
   keyword: string;
   links?: boolean;
+  mentions?: Mentions;
   id?: string;
   className?: string;
 }) {
@@ -43,7 +78,7 @@ export function PostText({
   let at = 0;
   for (const match of text.matchAll(URL_PATTERN)) {
     const url = trimUrl(match[0]);
-    if (match.index > at) parts.push(<Marked key={`t${at}`} text={text.slice(at, match.index)} keyword={keyword} />);
+    if (match.index > at) parts.push(<Words key={`t${at}`} text={text.slice(at, match.index)} keyword={keyword} mentions={mentions} />);
     const label = <Marked text={displayUrl(url)} keyword={keyword} />;
     parts.push(
       links ? (
@@ -62,7 +97,7 @@ export function PostText({
     );
     at = match.index + url.length;
   }
-  if (at < text.length) parts.push(<Marked key={`t${at}`} text={text.slice(at)} keyword={keyword} />);
+  if (at < text.length) parts.push(<Words key={`t${at}`} text={text.slice(at)} keyword={keyword} mentions={mentions} />);
   return <p id={id} className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
 }
 
