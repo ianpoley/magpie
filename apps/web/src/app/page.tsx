@@ -9,7 +9,8 @@ import { loadSnapshot, loadSyncState } from "@/lib/snapshot";
 const requestTime = (): number => Date.now();
 
 async function Corpus({ query }: { query: Promise<QueryValues> }) {
-  const [snapshot, sync, values] = await Promise.all([loadSnapshot(), loadSyncState(), query]);
+  const [snapshot, values] = await Promise.all([loadSnapshot(), query]);
+  const sync = await loadSyncState(snapshot);
   return <CorpusScreen snapshot={snapshot} sync={sync} now={requestTime()} linked={parseLinked(values)} />;
 }
 

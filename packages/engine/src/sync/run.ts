@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { Paths } from '../config.ts';
 import { acquireLock } from '../lock.ts';
 import { runPipeline, startRun } from '../pipeline.ts';
-import type { OpenRun, PipelineDeps, PipelineOptions, PipelineResult, StageBody, Upstream } from '../pipeline.ts';
+import type { OpenRun, PipelineDeps, PipelineOptions, PipelineResult, StageBody, StageName, StageReport, Upstream } from '../pipeline.ts';
 import type { SecretStore, XSession } from '../secrets/store.ts';
 import { openStore } from '../store/db.ts';
 import type { Store } from '../store/db.ts';
@@ -39,7 +39,6 @@ export type XAuth = { status: XAuthStatus; handle: string | null; message: strin
 
 export type Locked = { status: 'locked'; pid: number };
 
-/** `xOk` is true only when both the bookmarks and the likes sync succeeded. */
 export type SyncRunResult = Locked | (PipelineResult & { status: 'complete'; xOk: boolean; auth: XAuth });
 export type CategorizeResult = Locked | (PipelineResult & { status: 'complete' });
 
@@ -47,6 +46,17 @@ const COLLECTIONS = [
   { collection: 'bookmarks', stage: 'x_bookmarks', label: 'bookmark' },
   { collection: 'likes', stage: 'x_likes', label: 'like' },
 ] as const;
+
+export const X_COLLECTION_STAGES: readonly StageName[] = COLLECTIONS.map((collection) => collection.stage);
+const X_STAGES: readonly StageName[] = ['x_auth', ...X_COLLECTION_STAGES];
+
+/** The failed X stages as one message, or null when none failed. */
+export const xFailureDetail = (stages: StageReport[]): string | null =>
+  stages
+    .filter((report) => X_STAGES.includes(report.stage) && report.outcome === 'failed')
+    .map((report) => `${report.stage}: ${report.message}`)
+    .join('; ')
+    .slice(0, MESSAGE_MAX_CHARS) || null;
 
 const skipped = (message: string): StageBody => ({ outcome: 'skipped', counts: {}, message });
 
@@ -81,10 +91,7 @@ export function runSync(files: SyncFiles, deps: SyncDeps, options: PipelineOptio
   return underLock(files, deps, async (run) => {
     const { auth, upstream } = await xStages(run, files, deps);
     const result = await runPipeline(run, upstream, files, deps, options);
-    const synced = result.stages.filter(
-      (stage) => (stage.stage === 'x_bookmarks' || stage.stage === 'x_likes') && stage.outcome === 'ok',
-    );
-    return { status: 'complete', ...result, xOk: synced.length === 2, auth };
+    return { status: 'complete', ...result, xOk: upstream.result === 'ok', auth };
   });
 }
 
@@ -157,15 +164,8 @@ async function xStages(run: OpenRun, files: SyncFiles, deps: SyncDeps): Promise<
         : { outcome: 'failed', counts: { mode, reason: result.reason }, message: result.message };
     });
   }
-  const xReports = run.stages.filter((report) => ['x_auth', 'x_bookmarks', 'x_likes'].includes(report.stage));
-  const synced = xReports.filter((report) => report.stage !== 'x_auth' && report.outcome === 'ok').length === 2;
-  const failures = xReports.filter((report) => report.outcome === 'failed');
-  const upstream: Upstream = synced
-    ? { result: 'ok', detail: null }
-    : {
-        result: 'failed',
-        detail: failures.map((report) => `${report.stage}: ${report.message}`).join('; ').slice(0, MESSAGE_MAX_CHARS) || null,
-      };
+  const synced = run.stages.filter((report) => X_COLLECTION_STAGES.includes(report.stage) && report.outcome === 'ok').length === 2;
+  const upstream: Upstream = synced ? { result: 'ok', detail: null } : { result: 'failed', detail: xFailureDetail(run.stages) };
 
   await run.stage('export', async () => {
     if (session === null) return skipped('Skipped because the X session could not be read.');
@@ -186,7 +186,6 @@ async function xStages(run: OpenRun, files: SyncFiles, deps: SyncDeps): Promise<
 const exportFile = (files: SyncFiles, collection: Collection): string =>
   collection === 'bookmarks' ? files.bookmarksExport : files.likesExport;
 
-/** Builds the browsable markdown and the normalized JSONL from each export on disk. */
 function markdownStage(run: OpenRun, files: SyncFiles): Promise<void> {
   return run.stage('markdown', async () => {
     const built: string[] = [];
@@ -206,7 +205,6 @@ function markdownStage(run: OpenRun, files: SyncFiles): Promise<void> {
   });
 }
 
-/** Runs `bin/build-markdown.mjs` on this node. Resolves to null on success, else why it failed. */
 function buildMarkdown(args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
     let stderr = '';

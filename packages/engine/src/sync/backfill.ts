@@ -32,7 +32,6 @@ export function backfillMode(path: string, collection: Collection, now: Date): S
   return now.getTime() - failedAt < X_SYNC.backfillRetryMs ? 'incremental' : 'backfill';
 }
 
-/** Records how a backfill of `collection` ended. Written to a `.tmp` file, then renamed into place. */
 export function recordBackfill(path: string, collection: Collection, outcome: 'completed' | 'failed', now: Date): void {
   const at = now.toISOString();
   const entry: BackfillEntry = outcome === 'completed' ? { completedAt: at } : { failedAt: at };

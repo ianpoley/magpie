@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 
 import { askPosts, cleanQuery, isSameOriginJson, readAskPosts, type AskPost, type AskRecord } from "@/lib/ask";
 import { engineConfig, engineJev, engineQuestions, engineStore } from "@/lib/engine";
+import { errorName } from "@/lib/error-name";
 
 const refuse = (status: number, message: string): Response => Response.json({ message }, { status });
 
@@ -42,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
       db.close();
     }
   } catch (error) {
-    console.error("ask: could not start:", error instanceof Error ? error.name : "unknown error");
+    console.error("ask: could not start:", errorName(error));
     return refuse(503, "Asking is not available right now.");
   }
 
@@ -57,7 +58,7 @@ export async function POST(request: Request): Promise<Response> {
       chunkSize: ASK.chunkSize,
       concurrency: ASK.concurrency,
       bands: BANDS,
-      onChunkError: (error) => console.error("ask: a request failed:", error instanceof Error ? error.name : "unknown error"),
+      onChunkError: (error) => console.error("ask: a request failed:", errorName(error)),
     },
     query,
     posts,

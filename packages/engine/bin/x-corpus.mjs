@@ -1,10 +1,5 @@
 #!/usr/bin/env node
 //
-// x-corpus.mjs
-// The x-corpus command line: check the machine, install or remove the two
-// background services (the web app and the sync worker), store the Jev key,
-// run a sync by hand, and move an install off the old nightly job.
-//
 //     node packages/engine/bin/x-corpus.mjs <command>   (or: bun run setup, bun run service:install, ...)
 //
 // Exits 0 on success, 1 when the command failed and 2 for a bad argument.
@@ -35,6 +30,7 @@ try {
   console.error(`x-corpus needs Node ${range}; this is Node ${process.version}.`);
   process.exit(1);
 }
+const { errorText } = await import('../src/util.ts');
 
 function usage(message) {
   if (message) console.error(`${message}\n`);
@@ -43,7 +39,7 @@ function usage(message) {
 }
 
 const fail = (prefix, error) => {
-  console.error(`${prefix} ${error instanceof Error ? error.message : error}`);
+  console.error(`${prefix} ${errorText(error)}`);
   process.exit(1);
 };
 

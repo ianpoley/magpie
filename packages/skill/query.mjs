@@ -35,8 +35,7 @@ import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// This file lives at <clone>/packages/skill/query.mjs.
-const CLONE = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '..', '..');
+const CLONE_ROOT = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '..', '..');
 
 const SUBCOMMANDS = ['categories', 'topic', 'resources'];
 const args = process.argv.slice(2);
@@ -84,7 +83,7 @@ Examples:
 const STORE = process.env.X_CORPUS_STORE
   || (process.env.X_CORPUS_DIR
     ? join(process.env.X_CORPUS_DIR, '..', 'state', 'corpus.sqlite')
-    : join(CLONE, 'state', 'corpus.sqlite'));
+    : join(CLONE_ROOT, 'state', 'corpus.sqlite'));
 const KNOWN_SCHEMA_VERSION = 3;
 const CATEGORIES_SCHEMA_VERSION = 2;
 const REMOVAL_SCHEMA_VERSION = 3;
@@ -344,7 +343,7 @@ if (command) {
   process.exit(0);
 }
 
-const DIR = process.env.X_CORPUS_DIR || join(CLONE, 'data');
+const DIR = process.env.X_CORPUS_DIR || join(CLONE_ROOT, 'data');
 
 function load(file) {
   const p = join(DIR, file);

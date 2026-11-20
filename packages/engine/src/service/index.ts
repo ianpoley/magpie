@@ -1,26 +1,21 @@
-import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SCHEDULE, SECRETS, SERVICE, paths, secretSettings, xTools } from '../config.ts';
-import { createSecretStore, osBackend, probe } from '../secrets/store.ts';
+import { SECRET_NAMES, createSecretStore, osBackend, probe } from '../secrets/store.ts';
 import type { BackendName } from '../secrets/store.ts';
 import { readWorkerStatus } from '../sync/state.ts';
 import type { WorkerStatus } from '../sync/state.ts';
 import { errorText } from '../util.ts';
 import { launchd } from './launchd.ts';
+import { SERVICE_NAMES, spawnRunner } from './manager.ts';
+import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
 import { systemd } from './systemd.ts';
 
-/**
- * The two user-level background services: the web app and the sync worker.
- * Each runs the node that installed it directly, with no shell in between.
- * On macOS they are LaunchAgents and on Linux systemd user units; both use
- * these names as their label or unit name.
- */
-export const SERVICE_NAMES = ['x-corpus-web', 'x-corpus-worker'] as const;
-export type ServiceName = (typeof SERVICE_NAMES)[number];
+export { must, spawnRunner } from './manager.ts';
+export type { CommandResult, Runner } from './manager.ts';
 
 // The code's own clone, which holds the web app and the worker. The data
 // root (X_CORPUS_ROOT) is the same directory unless that variable moves it.
@@ -29,62 +24,6 @@ const webDir = (codeRoot: string) => join(codeRoot, 'apps', 'web');
 // The workspace link, not the resolved file: bun's store path changes with every reinstall.
 const nextBin = (codeRoot: string) => join(webDir(codeRoot), 'node_modules', 'next', 'dist', 'bin', 'next');
 
-export type ServiceSpec = {
-  name: ServiceName;
-  description: string;
-  /** The program and its arguments; the first is the captured node. */
-  program: string[];
-  workingDirectory: string;
-  environment: Record<string, string>;
-  stdoutPath: string;
-  stderrPath: string;
-};
-
-export type CommandResult = { code: number; stdout: string; stderr: string };
-/** Runs a command. `showOutput` passes its output through to the user instead of capturing it. */
-export type Runner = (command: string, args: string[], options?: { cwd?: string; showOutput?: boolean }) => Promise<CommandResult>;
-
-/** What launchd or systemd must do for each step of an install, uninstall or status. */
-export interface ServiceManager {
-  unitPath(name: ServiceName): string;
-  render(spec: ServiceSpec): string;
-  /** The node an installed unit runs, read back from its file. */
-  nodePathOf(text: string): string | null;
-  /** Stops the service if it is running. */
-  stop(name: ServiceName): Promise<void>;
-  /** Once the unit files are written: loads them and starts or restarts every one. */
-  start(names: readonly ServiceName[]): Promise<void>;
-  /** Stops and unloads the services, before their files are removed. */
-  remove(names: readonly ServiceName[]): Promise<void>;
-  afterRemove(): Promise<void>;
-  state(name: ServiceName): Promise<{ loaded: boolean; running: boolean }>;
-}
-
-/** Runs a command and throws, with its stderr, when it exits nonzero. */
-export async function must(run: Runner, command: string, args: string[]): Promise<CommandResult> {
-  const result = await run(command, args);
-  if (result.code !== 0) {
-    const detail = result.stderr.trim() || result.stdout.trim();
-    throw new Error(`${[command, ...args].join(' ')} exited ${result.code}${detail ? `: ${detail}` : ''}`);
-  }
-  return result;
-}
-
-/** Runs the real command. */
-export const spawnRunner: Runner = (command, args, options = {}) =>
-  new Promise((resolve) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      stdio: options.showOutput ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout?.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk));
-    child.stderr?.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
-    child.on('error', (error) => resolve({ code: -1, stdout, stderr: error.message }));
-    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }));
-  });
-
 /**
  * The web and worker services for a clone. The PATH starts with the captured
  * node's directory, so anything the services spawn with `node` gets the same
@@ -92,7 +31,6 @@ export const spawnRunner: Runner = (command, args, options = {}) =>
  */
 export function serviceSpecs(input: {
   nodePath: string;
-  /** The clone the web app and the worker run from. */
   codeRoot: string;
   /** Where data, state and logs live. */
   repoRoot: string;
@@ -121,11 +59,8 @@ export function serviceSpecs(input: {
   ];
 }
 
-// ---------------------------------------------------------------------------
-// The Node range the repo declares in package.json `engines`.
-
 /** The `engines.node` range from the repo's package.json, such as `>=25.8.1 <27`. */
-export function nodeRange(): string {
+function nodeRange(): string {
   const manifest = JSON.parse(readFileSync(join(CODE_ROOT, 'package.json'), 'utf8')) as { engines?: { node?: string } };
   const range = manifest.engines?.node;
   if (!range) throw new Error('package.json declares no engines.node range.');
@@ -166,16 +101,12 @@ export function inRange(version: string, range: string): boolean {
     });
 }
 
-// ---------------------------------------------------------------------------
-// Setup checks.
-
 /** `fail` stops an install; `warn` is a supported but degraded setup. */
 export type SetupCheck = { name: string; level: 'ok' | 'warn' | 'fail'; detail: string };
 
 export type SetupOptions = {
   env?: Record<string, string | undefined>;
   platform?: NodeJS.Platform;
-  /** The version of the node being checked; this process's by default. */
   nodeVersion?: string;
 };
 
@@ -253,15 +184,11 @@ export async function setupChecks(options: SetupOptions = {}): Promise<SetupChec
 
 export const formatCheck = (check: SetupCheck) => `${check.level.padEnd(4)}  ${check.name.padEnd(12)}  ${check.detail}`;
 
-// ---------------------------------------------------------------------------
-// Install, uninstall and status.
-
 export type ServiceOptions = {
   platform?: NodeJS.Platform;
   env?: Record<string, string | undefined>;
   home?: string;
   uid?: number;
-  /** The node the services run; the one running this, by default. */
   nodePath?: string;
   /** That node's version; this process's by default. */
   nodeVersion?: string;
@@ -349,7 +276,7 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
   if (!options.purgeSecrets) return;
 
   const store = createSecretStore({ env, platform });
-  for (const name of ['x-session', 'typesafe-api-key'] as const) {
+  for (const name of SECRET_NAMES) {
     const deleted = await store.delete(name);
     if (!deleted.ok) throw new Error(`${name} could not be deleted: ${deleted.message}`);
   }

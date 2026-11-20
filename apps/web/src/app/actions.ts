@@ -6,7 +6,8 @@ import { refresh } from "next/cache";
 
 import { MAX_QUERY_CHARS } from "@/lib/ask";
 import { engineBirdclaw, engineConfig, engineEdits, engineSecrets, engineStore, engineSyncState } from "@/lib/engine";
-import { readSyncState } from "@/lib/sync-state";
+import { errorName } from "@/lib/error-name";
+import { readSyncFiles, readSyncState } from "@/lib/sync-state";
 import type { ActionErrorCode, ActionResult, SyncState, UndoStep } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
@@ -184,9 +185,8 @@ export async function undoChange(changeId: number) {
   return withStore(WRITE, () => id(changeId, "The change"), (db, edits, change) => edits.undoChange(db, change));
 }
 
-// ---------------------------------------------------------------------------
-// X connection and Sync now. None of these needs the store. Cookie values are
-// never logged or sent back: errors are logged by name only.
+// None of the X connection and Sync now actions needs the store. Cookie values
+// are never logged or sent back: errors are logged by name only.
 
 // What X sets as cookie values, and all the secret store accepts.
 const COOKIE = /^[A-Za-z0-9%._-]{1,512}$/;
@@ -211,7 +211,7 @@ async function guarded<T extends object>(what: string, work: () => Promise<Actio
     return await work();
   } catch (error) {
     if (error instanceof InvalidInput) return refused("invalid_input", error.message);
-    console.error(`${what}:`, error instanceof Error ? error.name : "unknown error");
+    console.error(`${what}:`, errorName(error));
     return refused("failed", "That did not work. Try again.");
   }
 }
@@ -232,7 +232,7 @@ export async function connectX(authToken: string, ct0: string): Promise<ActionRe
     ]);
     const who = await createBirdclaw().whoami(session);
     if (!who.ok) {
-      if (who.reason === "rejected") return refused("x_rejected", "X didn't accept these cookies. Copy fresh ones from a signed-in x.com tab.");
+      if (who.reason === "rejected") return refused("x_rejected", "X didn't accept these cookies. Copy fresh ones from a tab where you're signed in to x.com.");
       if (who.reason === "transient") return refused("x_unreachable", "X couldn't be reached. Check your connection and try again.");
       return refused("invalid_input", "Both auth_token and ct0 are needed.");
     }
@@ -245,7 +245,6 @@ export async function connectX(authToken: string, ct0: string): Promise<ActionRe
   });
 }
 
-/** Deletes the stored cookies, then the connection record. */
 export async function disconnectX(): Promise<ActionResult<{ sync: SyncState }>> {
   return guarded("disconnect X", async () => {
     const [{ createSecretStore }, { paths }] = await Promise.all([engineSecrets(), engineConfig()]);
@@ -256,11 +255,10 @@ export async function disconnectX(): Promise<ActionResult<{ sync: SyncState }>> 
   });
 }
 
-/** Asks the background worker to sync now. It refuses when the worker could not or would not run it. */
 export async function requestSync(): Promise<ActionResult<{ sync: SyncState }>> {
   return guarded("request a sync", async () => {
     const [{ paths }, state] = await Promise.all([engineConfig(), engineSyncState()]);
-    const current = await readSyncState();
+    const current = await readSyncFiles();
     if (current.connection === "not_connected") return refused("not_connected", "Connect X first, then sync.");
     if (current.running) return refused("run_in_progress", "A sync is already running.");
     if (!current.workerAlive) {

@@ -2,14 +2,12 @@ import { SCHEDULE } from '../config.ts';
 import { needsReconnect } from './state.ts';
 import type { ScheduleStatus, SchedulerState, SyncRequest, XConnection } from './state.ts';
 
-/** Everything the schedule depends on, read fresh on every tick. */
 export type ScheduleInput = {
   now: Date;
   intervalHours: number;
   scheduler: SchedulerState;
   connection: XConnection | null;
   request: SyncRequest | null;
-  /** A run is in progress: this worker's own, or another command's holding the run lock. */
   running: boolean;
   /** The last time a run was seen in progress. A request that waited behind it is fresh for its full time after. */
   lastBusyAt: Date | null;
@@ -33,7 +31,6 @@ export function intervalHours(settings: Record<string, string>): number {
   return Number.isFinite(hours) && hours > 0 ? hours : SCHEDULE.defaultIntervalHours;
 }
 
-/** When the next scheduled run is due, and what it is waiting for. */
 function nextRun(input: ScheduleInput): { schedule: ScheduleStatus; nextRunAt: Date | null } {
   if (input.connection === null) return { schedule: 'not_connected', nextRunAt: null };
   if (needsReconnect(input.connection)) return { schedule: 'paused', nextRunAt: null };

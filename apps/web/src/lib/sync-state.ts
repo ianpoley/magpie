@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 
 import { engineConfig, engineLock, engineSecrets, engineStore, engineSyncState } from "./engine.ts";
+import { errorName } from "./error-name.ts";
 import { readRuns } from "./read-snapshot.ts";
 import type { Run, SyncState } from "./types.ts";
 
@@ -13,7 +14,10 @@ const freshWithin = (iso: string | null | undefined, maxAgeMs: number, now: numb
   return !Number.isNaN(ms) && now - ms < maxAgeMs;
 };
 
-function lastRunOf(store: string, openStore: Awaited<ReturnType<typeof engineStore>>["openStore"]) {
+type Runs = Pick<SyncState, "storeExists" | "lastRun" | "lastCompleteRunAt">;
+type SyncFiles = Omit<SyncState, "secretStoreLocked" | keyof Runs>;
+
+function lastRunOf(store: string, openStore: Awaited<ReturnType<typeof engineStore>>["openStore"]): Runs {
   if (!existsSync(store)) return { storeExists: false, lastRun: null, lastCompleteRunAt: null };
   try {
     const db = openStore(store, { readOnly: true });
@@ -24,7 +28,7 @@ function lastRunOf(store: string, openStore: Awaited<ReturnType<typeof engineSto
     }
   } catch (error) {
     // Mid-way through the first sync the store can exist before it can be read.
-    console.error("sync status: the store could not be read:", error instanceof Error ? error.name : "unknown error");
+    console.error("sync status: the store could not be read:", errorName(error));
     return { storeExists: true, lastRun: null, lastCompleteRunAt: null };
   }
 }
@@ -33,15 +37,10 @@ const sessionUnreadable = (run: Run | null): boolean =>
   run?.stages.some((stage) => stage.stage === "x_auth" && stage.outcome === "failed" && stage.message?.startsWith(SESSION_UNREADABLE)) ===
   true;
 
-/**
- * Reads the sync state from the small files the worker and the CLI share,
- * plus the store's last run. Nothing here reads a secret: the backend name
- * comes from its record file.
- */
-export async function readSyncState(): Promise<SyncState> {
-  const [{ paths, SCHEDULE }, { openStore }, { createSecretStore }, state, { lockHolder }] = await Promise.all([
+/** The sync state the small files the worker and the CLI share hold, and the run lock. Does not open the store. */
+export async function readSyncFiles(): Promise<SyncFiles> {
+  const [{ paths, SCHEDULE }, { createSecretStore }, state, { lockHolder }] = await Promise.all([
     engineConfig(),
-    engineStore(),
     engineSecrets(),
     engineSyncState(),
     engineLock(),
@@ -52,17 +51,38 @@ export async function readSyncState(): Promise<SyncState> {
   const worker = state.readWorkerStatus(files.workerStatus);
   const workerAlive = freshWithin(worker?.heartbeatAt, SCHEDULE.heartbeatStaleMs, now);
   const request = state.readSyncRequest(files.syncRequest);
-  const runs = lastRunOf(files.store, openStore);
   return {
     readAt: now,
     connection: connection === null ? "not_connected" : state.needsReconnect(connection) ? "needs_reconnect" : "connected",
     handle: connection?.handle ?? null,
     secretBackend: createSecretStore().backend(),
-    secretStoreLocked: sessionUnreadable(runs.lastRun),
     running: lockHolder(files.lock) !== null,
     requested: freshWithin(request?.createdAt, SCHEDULE.requestTtlMs, now),
     workerAlive,
     nextRunAt: workerAlive && typeof worker?.nextRunAt === "string" ? worker.nextRunAt : null,
-    ...runs,
+  };
+}
+
+/**
+ * Reads the sync state from the small files the worker and the CLI share,
+ * plus the store's last run, unless the caller passes the `runs` it already
+ * read. Nothing here reads a secret: the backend name comes from its record
+ * file.
+ */
+export async function readSyncState(runs?: Runs): Promise<SyncState> {
+  const [{ paths }, { openStore }] = await Promise.all([engineConfig(), engineStore()]);
+  const read = runs ?? lastRunOf(paths().store, openStore);
+  const { readAt, connection, handle, secretBackend, running, requested, workerAlive, nextRunAt } = await readSyncFiles();
+  return {
+    readAt,
+    connection,
+    handle,
+    secretBackend,
+    secretStoreLocked: sessionUnreadable(read.lastRun),
+    running,
+    requested,
+    workerAlive,
+    nextRunAt,
+    ...read,
   };
 }

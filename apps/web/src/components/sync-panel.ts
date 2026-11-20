@@ -36,11 +36,9 @@ export type PanelIcon = "ok" | "warning" | "syncing" | "offline";
 export type SyncPanel = {
   kind: PanelKind;
   icon: PanelIcon;
-  /** Shown on a tinted background. */
   warning: boolean;
   title: string;
   detail: string | null;
-  /** False when the detail must be read in full. */
   clamp: boolean;
   /** When the last full sync finished, unless the title already says it. */
   synced: string | null;
@@ -57,7 +55,6 @@ function currentStage(run: Run | null): string {
   if (run === null || run.status !== "running") return "Starting";
   const last = run.stages.at(-1);
   if (last === undefined) return "Checking X";
-  // Without an X session the run goes straight to the markdown build.
   if (last.stage === "x_auth" && last.outcome === "skipped") return "Building markdown";
   return DOING_AFTER[last.stage] ?? "Syncing";
 }

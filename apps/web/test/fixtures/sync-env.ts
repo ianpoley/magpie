@@ -52,10 +52,8 @@ exit 99
 );
 chmodSync(bird, 0o755);
 
-/** The bird commands run since the last reset, by first argument. */
 export const birdCalls = (): string[] => (existsSync(birdLog) ? readFileSync(birdLog, "utf8").split("\n").filter(Boolean) : []);
 
-/** Starts a test from a clean install: no secrets, connection, state or bird calls. */
 export function freshInstall(t: TestContext): void {
   for (const path of [configDir, root, birdLog]) rmSync(path, { recursive: true, force: true });
   mkdirSync(stateDir, { recursive: true });

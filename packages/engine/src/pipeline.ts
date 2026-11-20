@@ -12,7 +12,6 @@ import type { Store } from './store/db.ts';
 import { syncBands } from './store/membership.ts';
 import { MESSAGE_MAX_CHARS, errorText } from './util.ts';
 
-/** The exports the categorize stages load. */
 export type ExportFiles = {
   bookmarksExport: string;
   likesExport: string;

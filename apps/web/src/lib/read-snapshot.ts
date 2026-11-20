@@ -86,7 +86,6 @@ function linkTargets(db: DatabaseSync): Map<string, Map<string, string>> {
 
 const NO_TARGETS: ReadonlyMap<string, string> = new Map();
 
-/** The newest run with its stages, and when the newest complete run finished. */
 export function readRuns(db: DatabaseSync): { lastRun: Run | null; lastCompleteRunAt: string | null } {
   const runRow = db.prepare(`SELECT * FROM runs ORDER BY id DESC LIMIT 1`).get();
   let lastRun: Run | null = null;

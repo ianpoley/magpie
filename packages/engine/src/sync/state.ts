@@ -11,7 +11,6 @@ import { isRecord } from '../util.ts';
  * file reads as empty, never as an error.
  */
 
-/** The file at `path` as a JSON object; `{}` when it is missing, unreadable or not an object. */
 export function readJsonObject(path: string): Record<string, unknown> {
   try {
     const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
@@ -21,7 +20,7 @@ export function readJsonObject(path: string): Record<string, unknown> {
   }
 }
 
-export function writeJson(path: string, value: unknown): void {
+function writeJson(path: string, value: unknown): void {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
@@ -35,7 +34,6 @@ export function updateJson(path: string, change: (current: Record<string, unknow
 
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
-// ---------------------------------------------------------------------------
 // The X connection record: who is connected and since when. `connectedAt` is
 // the connection generation; a rejection counts only for the generation it
 // names, so a run that used older cookies can never pause a newer connection.
@@ -43,7 +41,6 @@ const text = (value: unknown): string | null => (typeof value === 'string' ? val
 export type XRejection = { generation: string; at: string; message: string | null };
 export type XConnection = { handle: string | null; connectedAt: string; rejection?: XRejection };
 
-/** The connection record, or null when X is not connected. */
 export function readConnection(path: string): XConnection | null {
   const record = readJsonObject(path);
   const connectedAt = text(record.connectedAt);
@@ -65,7 +62,6 @@ export function writeConnection(path: string, connection: XConnection): void {
 export const needsReconnect = (connection: XConnection | null): boolean =>
   connection?.rejection !== undefined && connection.rejection.generation === connection.connectedAt;
 
-// ---------------------------------------------------------------------------
 // A sync request: present from a Sync now click (or a new connection) until
 // the worker starts the run it asked for.
 
@@ -99,7 +95,6 @@ export function removeSyncRequest(path: string): void {
   rmSync(path, { force: true });
 }
 
-// ---------------------------------------------------------------------------
 // The scheduler's part of the scheduler state file. The `backfill` key in the
 // same file belongs to the sync run and is left alone.
 
@@ -155,7 +150,6 @@ export function writeSchedulerState(path: string, scheduler: SchedulerState): vo
   updateJson(path, (current) => ({ ...current, ...scheduler }));
 }
 
-// ---------------------------------------------------------------------------
 // The worker's status, rewritten every tick. A heartbeat older than a couple
 // of ticks means no worker is running.
 
@@ -177,7 +171,6 @@ export type WorkerStatus = {
   /** The next scheduled run; null while running, paused or not connected. */
   nextRunAt: string | null;
   lastAttempt: LastAttempt | null;
-  /** Where the secrets are kept; null before the first one is stored. */
   secretBackend: BackendName | null;
 };
 
@@ -185,7 +178,6 @@ export function writeWorkerStatus(path: string, status: WorkerStatus): void {
   writeJson(path, status);
 }
 
-/** The last status the worker wrote, or null when there is none. */
 export function readWorkerStatus(path: string): WorkerStatus | null {
   const status = readJsonObject(path);
   if (text(status.heartbeatAt) === null) return null;

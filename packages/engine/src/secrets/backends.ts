@@ -13,7 +13,6 @@ import { parseSecrets } from '../secrets.ts';
  */
 export type SecretFailure = { ok: false; reason: 'locked' | 'unavailable' | 'invalid'; message: string };
 
-/** A stored value, or null when nothing is stored under that account. */
 export type BackendRead = { ok: true; value: string | null } | SecretFailure;
 export type BackendWrite = { ok: true } | SecretFailure;
 
@@ -112,7 +111,6 @@ export function securityBackend(options: { service: string; path: string; timeou
     async delete(account) {
       const result = await runTool(path, ['delete-generic-password', '-a', account, '-s', service], '', timeoutMs);
       if (result.kind === 'done' && (result.code === 0 || result.code === SECURITY_NOT_FOUND)) return { ok: true };
-      // Nothing can have been stored by a tool that is not installed.
       if (result.kind === 'missing') return { ok: true };
       return failure(result);
     },
@@ -180,7 +178,6 @@ export function fileBackend(options: { path: string }): SecretBackend {
     message: `${path} could not be ${verb} (${(error as NodeJS.ErrnoException).code}).`,
   });
 
-  /** The parsed file; empty when there is none. */
   const load = (checkMode: boolean): { ok: true; secrets: Record<string, string> } | SecretFailure => {
     let mode: number;
     try {

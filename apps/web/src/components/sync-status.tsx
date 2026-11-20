@@ -29,7 +29,6 @@ async function fetchSyncState(): Promise<SyncState | null> {
   }
 }
 
-/** A run that has just finished: the posts and the run record on the page are out of date. */
 const finished = (before: SyncState, after: SyncState): boolean =>
   !after.running &&
   (before.running || before.lastRun?.id !== after.lastRun?.id || before.lastRun?.status !== after.lastRun?.status);

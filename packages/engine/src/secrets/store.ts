@@ -13,6 +13,7 @@ export type XSession = { authToken: string; ct0: string };
 
 export type Secrets = { 'x-session': XSession; 'typesafe-api-key': string };
 export type SecretName = keyof Secrets;
+export const SECRET_NAMES = ['x-session', 'typesafe-api-key'] as const satisfies readonly SecretName[];
 
 /** `keychain` is the OS secret store: the macOS keychain or the Linux Secret Service. */
 export type BackendName = 'keychain' | 'file';
@@ -23,11 +24,9 @@ export type SecretWrite = { ok: true; backend: BackendName } | SecretFailure;
 export type SecretDelete = { ok: true } | SecretFailure;
 
 export interface SecretStore {
-  /** The backend the first write chose, or null before any write. */
   backend(): BackendName | null;
   get<N extends SecretName>(name: N): Promise<SecretRead<Secrets[N]>>;
   set<N extends SecretName>(name: N, value: Secrets[N]): Promise<SecretWrite>;
-  /** Removes the secret from the OS store and from the fallback file. */
   delete(name: SecretName): Promise<SecretDelete>;
 }
 
@@ -36,7 +35,6 @@ export type SecretStoreOptions = {
   platform?: NodeJS.Platform;
   /** Defaults to Apple's `/usr/bin/security`, the binary the keychain items trust. */
   securityPath?: string;
-  /** Defaults to `secret-tool` on PATH. */
   secretToolPath?: string;
   timeoutMs?: number;
 };
@@ -152,7 +150,6 @@ export function createSecretStore(options: SecretStoreOptions = {}): SecretStore
   const { keychainService, forceFileBackend } = secretSettings(env);
   const file = fileBackend({ path: secrets });
 
-  /** The OS store for this platform, or null when there is none. */
   const keychain = (): SecretBackend | null | SecretFailure => {
     if (!SERVICE_NAME.test(keychainService)) {
       return invalid('X_CORPUS_KEYCHAIN_SERVICE must be 1 to 128 letters, digits or the characters . _ -');
@@ -165,7 +162,6 @@ export function createSecretStore(options: SecretStoreOptions = {}): SecretStore
     return backend && forceFileBackend ? 'file' : backend;
   };
 
-  /** The recorded backend's implementation. */
   const active = (backend: BackendName): SecretBackend | SecretFailure => {
     if (backend === 'file') return file;
     const os = keychain();
