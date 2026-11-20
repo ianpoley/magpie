@@ -113,6 +113,15 @@ export const SCHEDULE = {
   backoffMs: [60_000, 5 * 60_000, 15 * 60_000] as readonly number[],
   /** A sync request older than this is dropped unrun, counted from when it was made or the last run it waited behind ended. */
   requestTtlMs: 10 * 60_000,
+  /** A worker heartbeat older than this means no worker is running. */
+  heartbeatStaleMs: 2 * 60_000,
+} as const;
+
+export const SERVICE = {
+  /** The web service's port unless X_CORPUS_PORT says otherwise; clear of `next dev` on 3000. */
+  defaultPort: 3030,
+  /** The keychain service the setup check writes, reads and deletes a random value under. Never holds a real secret. */
+  probeKeychainService: 'x-corpus-setup-probe',
 } as const;
 
 export const INGEST = {
