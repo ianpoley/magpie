@@ -3,7 +3,7 @@
 // x-corpus.mjs
 // The x-corpus command line: check the machine, install or remove the two
 // background services (the web app and the sync worker), store the Jev key,
-// and run a sync by hand.
+// run a sync by hand, and move an install off the old nightly job.
 //
 //     node packages/engine/bin/x-corpus.mjs <command>   (or: bun run setup, bun run service:install, ...)
 //
@@ -20,7 +20,10 @@ Commands:
                                        X cookies and Jev key and disconnects X
   service status                       show both services, the worker's heartbeat, the secret backend and the node they run
   secrets set-jev                      store the Jev (TypeSafe) API key, read from stdin (typed hidden at a terminal)
-  sync [options]                       run one whole sync now (sync --help lists the options)`;
+  sync [options]                       run one whole sync now (sync --help lists the options)
+  migrate [--timeout-minutes N]        move an install run by the old nightly LaunchAgent onto the secret store
+                                       and these services; nothing old is deleted until the new worker finishes
+                                       one good sync, and any failure puts the old job back (default wait 15 min)`;
 
 // A Node too old to run TypeScript would fail with a loader error; name the range instead.
 let service;
@@ -150,6 +153,31 @@ async function setJev() {
   console.log(`[secrets] the Jev key is stored in ${where}`);
 }
 
+async function migrateCommand(args) {
+  let timeoutMs;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--help' || args[i] === '-h') {
+      console.log(USAGE);
+      return;
+    }
+    if (args[i] === '--timeout-minutes' && /^\d+(\.\d+)?$/.test(args[i + 1] ?? '') && Number(args[i + 1]) > 0) {
+      timeoutMs = Number(args[++i]) * 60_000;
+    } else {
+      usage(`unknown migrate argument: ${args[i]}`);
+    }
+  }
+  const { migrate } = await import('../src/migrate/legacy.ts');
+  const result = await migrate({ timeoutMs, log: (line) => console.log(`[migrate] ${line}`) }).catch((error) =>
+    fail('[migrate] the migration stopped unexpectedly; check the old job and the services by hand:', error),
+  );
+  if (!result.ok) {
+    console.error(`[migrate] the migration did not complete: ${result.message}`);
+    console.error('[migrate] this machine is now in this state:');
+    for (const line of result.state) console.error(`[migrate]   ${line}`);
+    process.exit(1);
+  }
+}
+
 const [command, sub, ...rest] = process.argv.slice(2);
 switch (command) {
   case 'setup':
@@ -168,7 +196,9 @@ switch (command) {
     process.argv.splice(2, 1);
     await import('./sync.mjs');
     break;
-  // Moving an existing install onto the secret store and these services gets its own `migrate` command here.
+  case 'migrate':
+    await migrateCommand([sub, ...rest].filter((arg) => arg !== undefined));
+    break;
   case undefined:
   case '--help':
   case 'help':

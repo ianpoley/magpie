@@ -19,6 +19,7 @@
     "service:uninstall": "node packages/engine/bin/x-corpus.mjs service uninstall",
     "service:status": "node packages/engine/bin/x-corpus.mjs service status",
     "secrets:set-jev": "node packages/engine/bin/x-corpus.mjs secrets set-jev",
+    "migrate": "node packages/engine/bin/x-corpus.mjs migrate",
     "build:markdown": "bun --filter @x-corpus/engine build:markdown",
     "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs' 'apps/web/test/**/*.test.ts'",
     "typecheck": "bun --filter @x-corpus/engine typecheck && bun --filter @x-corpus/web typecheck",
