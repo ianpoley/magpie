@@ -70,7 +70,8 @@ export async function must(run: Runner, command: string, args: string[]): Promis
   return result;
 }
 
-const spawnRunner: Runner = (command, args, options = {}) =>
+/** Runs the real command. */
+export const spawnRunner: Runner = (command, args, options = {}) =>
   new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd: options.cwd,

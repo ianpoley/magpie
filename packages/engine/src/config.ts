@@ -124,6 +124,13 @@ export const SERVICE = {
   probeKeychainService: 'x-corpus-setup-probe',
 } as const;
 
+export const MIGRATION = {
+  /** How long moving an existing install waits for the new worker's first sync to finish. */
+  waitTimeoutMs: 15 * 60_000,
+  /** How often it checks for that sync while waiting. */
+  pollMs: 5_000,
+} as const;
+
 export const INGEST = {
   /** A collection whose export shrank by more than this share clears no flags. */
   shrinkGuard: 0.05,
