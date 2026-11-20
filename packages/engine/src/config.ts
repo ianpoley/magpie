@@ -104,6 +104,17 @@ export const X_SYNC = {
   backfillRetryMs: 24 * 60 * 60 * 1000,
 } as const;
 
+export const SCHEDULE = {
+  /** Hours between scheduled syncs unless SYNC_INTERVAL_HOURS in the settings file says otherwise. */
+  defaultIntervalHours: 3,
+  /** How often the worker wakes to write its heartbeat and decide whether to run. */
+  tickMs: 30_000,
+  /** Waits before the retries after the first, second and third failed attempt in a row; later ones wait the normal interval. */
+  backoffMs: [60_000, 5 * 60_000, 15 * 60_000] as readonly number[],
+  /** A sync request older than this is dropped unrun, counted from when it was made or the last run it waited behind ended. */
+  requestTtlMs: 10 * 60_000,
+} as const;
+
 export const INGEST = {
   /** A collection whose export shrank by more than this share clears no flags. */
   shrinkGuard: 0.05,
@@ -125,6 +136,10 @@ export type Paths = {
   lock: string;
   /** The scheduler's own state, including which collections have had their full-history sync. Not secret. */
   schedulerState: string;
+  /** The worker's heartbeat and what it is doing, written every tick. Not secret. */
+  workerStatus: string;
+  /** Present while a sync is requested and not yet started. */
+  syncRequest: string;
   configDir: string;
   /** The file fallback for secrets, and the legacy home of the Jev key. */
   secrets: string;
@@ -165,6 +180,8 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     store,
     lock: join(stateDir, 'run.lock'),
     schedulerState: join(stateDir, 'scheduler.json'),
+    workerStatus: join(stateDir, 'worker.json'),
+    syncRequest: join(stateDir, 'sync-request'),
     configDir,
     secrets: join(configDir, 'secrets.env'),
     settings: join(configDir, 'settings.env'),
