@@ -1,6 +1,6 @@
 ---
 name: x-corpus
-description: Search the user's own saved X (Twitter) bookmarks and likes — a local, auto-updating corpus of posts they curated as insightful — for ideas, inspiration, techniques, tools, libraries, or prior art relevant to the current work. Use when building or improving a feature and it would help to draw on what the user has already vouched for (e.g. "any bookmarks about animations?", "what have I saved about auth?", "pull inspiration from my likes for this UI"), or proactively when a coding task overlaps a topic the user likely bookmarked. Machine-local; reads ~/x-corpus. Not for general web research — only the user's saved posts.
+description: Search the user's own saved X (Twitter) bookmarks and likes — a local, auto-updating corpus of posts they curated as insightful — for ideas, inspiration, techniques, tools, libraries, or prior art relevant to the current work. Use when building or improving a feature and it would help to draw on what the user has already vouched for (e.g. "any bookmarks about animations?", "what have I saved about auth?", "pull inspiration from my likes for this UI"), or proactively when a coding task overlaps a topic the user likely bookmarked. Machine-local; reads the x-corpus clone this skill is linked from. Not for general web research — only the user's saved posts.
 ---
 
 # x-corpus — the user's saved X bookmarks & likes
@@ -85,13 +85,14 @@ Ranking: posts hitting more of your **distinct** query terms rank first, then by
 3. Extract the concrete idea, tool, or technique and fold it into the work. **Cite the `@handle` + URL** so the user can trace where it came from.
 
 ## Where the data lives
-- **Search-ready:** `~/x-corpus/data/{bookmarks,likes}.normalized.jsonl` — one `{type,id,handle,name,created,url,text}` record per line. This is what `query.mjs` reads.
-- **Browsable:** `~/x-corpus/markdown/{bookmarks,likes}/` — one `.md` per post (YAML frontmatter + quoted text) plus `index.md`.
-- **Categories:** `~/x-corpus/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts.
-- Set `X_CORPUS_DIR` to override the base data dir if the corpus ever moves. The store is then looked for at `<X_CORPUS_DIR>/../state/corpus.sqlite`; set `X_CORPUS_STORE` to point at it directly.
+- `<clone>` is the x-corpus checkout this skill is installed from. The skill finds it from its own real path, following the `~/.claude/skills/x-corpus` symlink, so the clone can be anywhere on disk.
+- **Search-ready:** `<clone>/data/{bookmarks,likes}.normalized.jsonl` — one `{type,id,handle,name,created,url,text}` record per line. This is what `query.mjs` reads.
+- **Browsable:** `<clone>/markdown/{bookmarks,likes}/` — one `.md` per post (YAML frontmatter + quoted text) plus `index.md`.
+- **Categories:** `<clone>/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts.
+- Set `X_CORPUS_DIR` to override the base data dir. The store is then looked for at `<X_CORPUS_DIR>/../state/corpus.sqlite`; set `X_CORPUS_STORE` to point at it directly.
 - The category commands need node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store and no command runs, keyword search included: tell the user to update it.
 - This skill's source is `packages/skill/` in the x-corpus repo, installed as a symlink by `packages/skill/install.sh`.
 
 Notes:
 - **Bookmarks** are a complete backfill (~1000+). **Likes** may be partial — X rate-limits that endpoint, so the archive fills in over time.
-- Corpus freshness: auto-synced every ~3 hours via launchd (`com.ianpoley.birdclaw-nightly`).
+- Corpus freshness: synced in the background every few hours (default 3) by the x-corpus worker service.

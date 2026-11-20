@@ -5,7 +5,8 @@
  * Reads the normalized JSONL exported by the birdclaw nightly/3-hourly job:
  *   $X_CORPUS_DIR/bookmarks.normalized.jsonl
  *   $X_CORPUS_DIR/likes.normalized.jsonl
- * X_CORPUS_DIR defaults to ~/x-corpus/data.
+ * X_CORPUS_DIR defaults to <clone>/data, where <clone> is found from the real
+ * path of this file (the ~/.claude/skills symlink points back into the clone).
  *
  * Each record: {type,id,handle,name,created,url,text}
  * Ranks by how many DISTINCT query terms a post hits, then total frequency,
@@ -14,7 +15,7 @@
  *
  * Category commands read the store the sync job keeps, read-only:
  *   $X_CORPUS_STORE, else $X_CORPUS_DIR/../state/corpus.sqlite,
- *   else ~/x-corpus/state/corpus.sqlite.
+ *   else <clone>/state/corpus.sqlite.
  * Posts in areas or topics the user hides by default are left out of every
  * command unless --include-hidden is given. Posts the user removed from the
  * corpus are left out of every command, and no flag brings them back.
@@ -30,9 +31,12 @@
  *   node query.mjs topic <name> [--limit N] [--full] [--json] [--include-hidden]
  *   node query.mjs resources <name> [--limit N] [--json] [--include-hidden]
  */
-import { readFileSync, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync, existsSync, realpathSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// This file lives at <clone>/packages/skill/query.mjs.
+const CLONE = join(dirname(realpathSync(fileURLToPath(import.meta.url))), '..', '..');
 
 const SUBCOMMANDS = ['categories', 'topic', 'resources'];
 const args = process.argv.slice(2);
@@ -80,7 +84,7 @@ Examples:
 const STORE = process.env.X_CORPUS_STORE
   || (process.env.X_CORPUS_DIR
     ? join(process.env.X_CORPUS_DIR, '..', 'state', 'corpus.sqlite')
-    : join(homedir(), 'x-corpus/state/corpus.sqlite'));
+    : join(CLONE, 'state', 'corpus.sqlite'));
 const KNOWN_SCHEMA_VERSION = 3;
 const CATEGORIES_SCHEMA_VERSION = 2;
 const REMOVAL_SCHEMA_VERSION = 3;
@@ -340,7 +344,7 @@ if (command) {
   process.exit(0);
 }
 
-const DIR = process.env.X_CORPUS_DIR || join(homedir(), 'x-corpus/data');
+const DIR = process.env.X_CORPUS_DIR || join(CLONE, 'data');
 
 function load(file) {
   const p = join(DIR, file);
