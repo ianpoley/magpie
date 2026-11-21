@@ -10,6 +10,7 @@
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white)
 
 [Overview](#overview) •
+[What you need](#what-you-need) •
 [Quick start](#quick-start) •
 [Get started with an agent](#get-started-with-an-agent) •
 [Manual setup](#manual-setup) •
@@ -41,6 +42,20 @@ flowchart LR
 
 > [!CAUTION]
 > Birdclaw syncs with your X browser session cookies (`auth_token` and `ct0`). X's terms do not allow this, and X could limit or suspend your account. The cookies give full access to your account, so treat them like a password. By connecting X you accept that risk.
+
+## What you need
+
+Magpie depends on these outside services and tools. Have the required ones ready before you start.
+
+| Service or tool | Required? | What Magpie uses it for |
+|---|---|---|
+| An X account, signed in on a browser | Required | Its session cookies (`auth_token`, `ct0`) let Magpie read your bookmarks and likes. See the caution above. |
+| A [Jev (TypeSafe)](https://docs.typesafe.ai) API key | Required | Scores each post against each topic, and answers **Ask** questions. The web app shows nothing until the key is saved. |
+| [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Proposes and updates the categories. Without it, sync and search still work, but no categories are created. |
+| macOS or Linux | Required | The background services run as LaunchAgents or `systemd --user` units. |
+| [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. Setup finds Node 26, or tells you how to install it. |
+
+What leaves your machine: post text goes to Jev for tagging and Ask, and to Claude through your CLI login for categories. Each page your posts link to is requested once to read its title. Browsing sends nothing.
 
 ## Quick start
 
