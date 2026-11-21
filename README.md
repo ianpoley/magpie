@@ -177,7 +177,7 @@ bun run service:uninstall -- --purge-secrets  # also delete the cookies and Jev 
 ```
 
 > [!NOTE]
-> If you upgrade Node and the old Node path disappears, the services stay stopped until you rerun `bun run service:install`. `service:status` tells you when this happens.
+> With Homebrew's Node, the services run it through `/opt/homebrew/opt/node`, so `brew upgrade` keeps them running. With another version manager, if the old Node path disappears the services stay stopped until you rerun `bun run service:install`. `service:status` tells you when this happens.
 
 ## Usage
 

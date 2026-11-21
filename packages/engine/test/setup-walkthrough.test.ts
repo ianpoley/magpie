@@ -56,7 +56,7 @@ function machine(state: {
     services: async () => services,
     install: async () => {
       did.push('install');
-      services = { ...services, installed: true, running: true, dataRoot: services.here };
+      services = { ...services, installed: true, running: true, dataRoot: services.here, upgradeSafeNode: null };
     },
     migrate: async () => {
       did.push('migrate');
@@ -108,6 +108,19 @@ test('a machine that is already set up asks nothing and does nothing', async () 
   assert.deepEqual(m.did, []);
   assert.deepEqual(result.todo, []);
   assert.equal(result.done.length, 4);
+});
+
+test('running services pinned to a Node path Homebrew deletes are reinstalled on yes, and listed to do on no', async () => {
+  const pinned = { installed: true, running: true, dataRoot: '/clone', upgradeSafeNode: '/opt/homebrew/opt/node/bin/node' };
+  const yes = machine({ services: pinned, connected: true, jev: true, skill: 'linked' });
+  const fixed = await walkthrough(yes.deps);
+  assert.deepEqual(yes.did, ['install']);
+  assert.deepEqual(fixed.todo, []);
+
+  const no = machine({ services: pinned, connected: true, jev: true, skill: 'linked', answer: () => false });
+  const left = await walkthrough(no.deps);
+  assert.deepEqual(no.did, []);
+  assert.ok(left.todo.some((line) => line.includes('bun run service:install')));
 });
 
 test('declined and skipped steps end up on the still-to-do list with the command for each', async () => {

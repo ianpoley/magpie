@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +49,17 @@ export function serviceSpecs(input: {
     service('magpie-web', 'magpie web app', [nextBin(codeRoot), 'start', '-H', '127.0.0.1', '-p', String(port)], webDir(codeRoot)),
     service('magpie-worker', 'magpie sync worker', [join(codeRoot, 'packages', 'engine', 'bin', 'worker.mjs')], repoRoot),
   ];
+}
+
+export function upgradeSafeNodePath(nodePath: string): string {
+  const keg = /^(.+)\/Cellar\/([^/]+)\/[^/]+\/bin\/node$/.exec(nodePath);
+  if (!keg) return nodePath;
+  const linked = join(keg[1], 'opt', keg[2], 'bin', 'node');
+  try {
+    return realpathSync(linked) === realpathSync(nodePath) ? linked : nodePath;
+  } catch {
+    return nodePath;
+  }
 }
 
 function nodeRange(): string {
@@ -220,7 +231,7 @@ function context(options: ServiceOptions) {
     run,
     manager,
     files: paths(env),
-    nodePath: options.nodePath ?? process.execPath,
+    nodePath: options.nodePath ?? upgradeSafeNodePath(process.execPath),
     nodeVersion: options.nodeVersion ?? process.version,
     log: options.log ?? (() => {}),
   };
@@ -399,7 +410,7 @@ export type ServiceStatus = {
   units: { name: UnitName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
   worker: (Pick<WorkerStatus, 'heartbeatAt' | 'state' | 'schedule' | 'nextRunAt'> & { heartbeatAgeMs: number; fresh: boolean }) | null;
   secretBackend: BackendName | null;
-  node: { path: string | null; exists: boolean; version: string | null; inRange: boolean | null; range: string };
+  node: { path: string | null; exists: boolean; version: string | null; inRange: boolean | null; range: string; upgradeSafePath: string | null };
   dataRoot: string | null;
   here: string;
   legacyUnits: string[];
@@ -445,7 +456,14 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     units,
     worker,
     secretBackend: createSecretStore({ env, platform }).backend(),
-    node: { path, exists, version, inRange: version === null ? null : inRange(version, range), range },
+    node: {
+      path,
+      exists,
+      version,
+      inRange: version === null ? null : inRange(version, range),
+      range,
+      upgradeSafePath: exists && upgradeSafeNodePath(path) !== path ? upgradeSafeNodePath(path) : null,
+    },
     dataRoot,
     here: files.repoRoot,
     legacyUnits,

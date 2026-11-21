@@ -106,6 +106,7 @@ async function setup(args) {
         dataRoot: status.dataRoot,
         here: status.here,
         legacy: status.legacyUnits.length > 0 || usesLegacyNames(),
+        upgradeSafeNode: status.node.upgradeSafePath,
       };
     },
     install: () => service.installService({ log: (line) => log(`  ${line}`) }),
@@ -180,6 +181,9 @@ async function status() {
   else {
     const verdict = node.inRange ? `within ${node.range}` : `outside ${node.range}: run bun run service:install with a Node in range`;
     console.log(`[status] node              ${node.path} (${node.version}, ${verdict})`);
+  }
+  if (node.upgradeSafePath) {
+    console.log(`[status]                   Homebrew deletes this path when it upgrades Node, and the services stop: run bun run service:install to use ${node.upgradeSafePath}`);
   }
 }
 
