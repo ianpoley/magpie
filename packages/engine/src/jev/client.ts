@@ -1,4 +1,4 @@
-import { TypeSafeClient } from '@typesafe-ai/sdk';
+import { AuthenticationError, PermissionDeniedError, TypeSafeClient } from '@typesafe-ai/sdk';
 import type { SystemOneRequest } from '@typesafe-ai/sdk';
 
 import { paths } from '../config.ts';
@@ -24,6 +24,21 @@ export interface JevClient {
 }
 
 const KEY_NAME = 'TYPESAFE_API_KEY';
+
+/**
+ * Asks TypeSafe whether it accepts `apiKey`, by listing the account's models,
+ * which costs nothing. One try with a short timeout, so a form waiting on it
+ * never hangs on retries.
+ */
+export async function checkJevKey(apiKey: string): Promise<{ ok: true } | { ok: false; reason: 'rejected' | 'unreachable' }> {
+  try {
+    await new TypeSafeClient({ apiKey, retry: { maxRetries: 0 }, timeout: 10_000 }).models.list();
+    return { ok: true };
+  } catch (error) {
+    const rejected = error instanceof AuthenticationError || error instanceof PermissionDeniedError;
+    return { ok: false, reason: rejected ? 'rejected' : 'unreachable' };
+  }
+}
 
 /**
  * The client that calls the live API. The key comes from `options.apiKey`,

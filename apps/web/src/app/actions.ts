@@ -5,7 +5,7 @@ import { existsSync, rmSync } from "node:fs";
 import { refresh } from "next/cache";
 
 import { MAX_QUERY_CHARS } from "@/lib/ask";
-import { engineBirdclaw, engineConfig, engineEdits, engineSecrets, engineStore, engineSyncState } from "@/lib/engine";
+import { engineBirdclaw, engineConfig, engineEdits, engineJev, engineSecrets, engineStore, engineSyncState } from "@/lib/engine";
 import { errorName } from "@/lib/error-name";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
 import type { ActionErrorCode, ActionResult, SyncState, UndoStep } from "@/lib/types";
@@ -236,12 +236,41 @@ export async function connectX(authToken: string, ct0: string): Promise<ActionRe
       if (who.reason === "transient") return refused("x_unreachable", "X couldn't be reached. Check your connection and try again.");
       return refused("invalid_input", "Both auth_token and ct0 are needed.");
     }
-    const saved = await createSecretStore().set("x-session", session);
+    const store = createSecretStore();
+    const saved = await store.set("x-session", session);
     if (!saved.ok) return storeFailure(saved.reason);
     const files = paths();
     state.writeConnection(files.xConnection, { handle: who.handle, connectedAt: new Date().toISOString() });
-    state.writeSyncRequest(files.syncRequest);
+    // The first sync waits for the Jev key too: setup asks for it next.
+    const jev = await store.get("typesafe-api-key");
+    if (!jev.ok || jev.value) state.writeSyncRequest(files.syncRequest);
     return { ok: true, handle: who.handle, sync: await readSyncState() };
+  });
+}
+
+// What the secret store accepts as an API key.
+const API_KEY = /^[\x21\x23-\x26\x28-\x5b\x5d-\x7e]{1,512}$/;
+
+/**
+ * Checks the pasted Jev key with TypeSafe and stores it only if TypeSafe
+ * accepts it. With X already connected, that completes setup, so it asks for
+ * a sync. The key is never logged or sent back.
+ */
+export async function saveJevKey(key: string): Promise<ActionResult<{ sync: SyncState }>> {
+  return guarded("save the Jev key", async () => {
+    if (typeof key !== "string" || !API_KEY.test(key)) {
+      throw new InvalidInput("The key is 1 to 512 characters with no spaces, quotes or backslashes. Copy it again.");
+    }
+    const [{ checkJevKey }, { createSecretStore }, state, { paths }] = await Promise.all([engineJev(), engineSecrets(), engineSyncState(), engineConfig()]);
+    const checked = await checkJevKey(key);
+    if (!checked.ok) {
+      if (checked.reason === "rejected") return refused("jev_rejected", "Jev didn't accept this key. Check that you copied all of it.");
+      return refused("jev_unreachable", "Jev couldn't be reached. Check your connection and try again.");
+    }
+    const saved = await createSecretStore().set("typesafe-api-key", key);
+    if (!saved.ok) return saved.reason === "invalid" ? refused("invalid_input", saved.message) : refused("secret_store_locked", LOCKED_MESSAGE);
+    if ((await readSyncFiles()).connection !== "not_connected") state.writeSyncRequest(paths().syncRequest);
+    return { ok: true, sync: await readSyncState() };
   });
 }
 
