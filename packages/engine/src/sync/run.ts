@@ -19,7 +19,15 @@ const STDERR_KEEP_CHARS = 4 * 1024;
 
 export type SyncFiles = Pick<
   Paths,
-  'store' | 'lock' | 'dataDir' | 'markdownDir' | 'bookmarksExport' | 'likesExport' | 'syncStatus' | 'schedulerState'
+  | 'store'
+  | 'lock'
+  | 'dataDir'
+  | 'markdownDir'
+  | 'bookmarksExport'
+  | 'likesExport'
+  | 'syncStatus'
+  | 'schedulerState'
+  | 'categoryFocus'
 >;
 
 export type SyncDeps = PipelineDeps & {

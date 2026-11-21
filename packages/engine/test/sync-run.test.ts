@@ -8,6 +8,7 @@ import type { TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { paths } from '../src/config.ts';
+import { writeFocus } from '../src/focus/setting.ts';
 import type { Paths } from '../src/config.ts';
 import { acquireLock } from '../src/lock.ts';
 import type { XSession } from '../src/secrets/store.ts';
@@ -66,8 +67,9 @@ const secretsWith = (session: XSession | null): SyncDeps['secrets'] =>
 function setup(t: TestContext): { dir: string; files: Paths } {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
-  const files = paths({ MAGPIE_ROOT: dir });
+  const files = paths({ MAGPIE_ROOT: dir, MAGPIE_CONFIG_DIR: join(dir, 'config') });
   mkdirSync(files.dataDir);
+  writeFocus(files.categoryFocus, { mode: 'all', focus: '' });
   return { dir, files };
 }
 

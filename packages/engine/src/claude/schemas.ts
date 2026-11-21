@@ -55,34 +55,36 @@ export const candidateTopicsSchema: JsonSchema = {
 };
 
 export type CategoryList = {
-  areas: { name: string; dev: boolean; topics: { name: string; definition: string }[] }[];
+  areas: { name: string; in_focus?: boolean; topics: { name: string; definition: string }[] }[];
 };
 
-export const categoryListSchema: JsonSchema = {
-  type: 'object',
-  properties: {
-    areas: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          name: { type: 'string' },
-          dev: { type: 'boolean' },
-          topics: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: { name: { type: 'string' }, definition: { type: 'string' } },
-              required: ['name', 'definition'],
-              additionalProperties: false,
+export function categoryListSchema(judgeFocus: boolean): JsonSchema {
+  return {
+    type: 'object',
+    properties: {
+      areas: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            ...(judgeFocus ? { in_focus: { type: 'boolean' } } : {}),
+            topics: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { name: { type: 'string' }, definition: { type: 'string' } },
+                required: ['name', 'definition'],
+                additionalProperties: false,
+              },
             },
           },
+          required: judgeFocus ? ['name', 'in_focus', 'topics'] : ['name', 'topics'],
+          additionalProperties: false,
         },
-        required: ['name', 'dev', 'topics'],
-        additionalProperties: false,
       },
     },
-  },
-  required: ['areas'],
-  additionalProperties: false,
-};
+    required: ['areas'],
+    additionalProperties: false,
+  };
+}

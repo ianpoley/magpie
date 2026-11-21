@@ -153,10 +153,10 @@ export async function newTopicRound(
           ? existing.id
           : db
               .prepare(
-                `INSERT INTO areas (name, kind, is_dev, hidden, position, created_at)
-                 VALUES (?, 'auto', ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM areas), ?)`,
+                `INSERT INTO areas (name, kind, hidden, position, created_at)
+                 VALUES (?, 'auto', ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM areas), ?)`,
               )
-              .run(proposal.area, proposal.areaIsDev ? 1 : 0, proposal.areaIsDev ? 0 : 1, now).lastInsertRowid,
+              .run(proposal.area, proposal.areaHidden ? 1 : 0, now).lastInsertRowid,
       );
       db.prepare(`UPDATE topics SET state = 'active', area_id = ?, position = ? WHERE id = ?`).run(
         areaId,

@@ -1,28 +1,32 @@
 import { askJson } from '../claude/cli.ts';
 import type { ClaudeAdapter, ClaudeAnswer } from '../claude/cli.ts';
+import { IN_FOCUS_RULE, focusSection } from '../claude/focus.ts';
 import { UNTRUSTED_NOTICE, cleanLabel } from '../claude/sanitize.ts';
 import type { JsonSchema } from '../claude/schemas.ts';
 import { DISCOVERY } from '../config.ts';
+import type { FocusSetting } from '../focus/setting.ts';
 import { readPostContent } from '../jev/questions.ts';
 import type { Store } from '../store/db.ts';
 
-export type TopicProposal = { name: string; area: string; areaIsDev: boolean; definition: string };
+export type TopicProposal = { name: string; area: string; areaHidden: boolean; definition: string };
 export type SubtopicProposal = { name: string; definition: string };
 
-type NewTopicAnswer = { name: string; area: string; area_is_dev: boolean; definition: string };
+type NewTopicAnswer = { name: string; area: string; in_focus?: boolean; definition: string };
 type SplitAnswer = { subtopics: { name: string; definition: string }[] };
 
-const newTopicSchema: JsonSchema = {
-  type: 'object',
-  properties: {
-    name: { type: 'string' },
-    area: { type: 'string' },
-    area_is_dev: { type: 'boolean' },
-    definition: { type: 'string' },
-  },
-  required: ['name', 'area', 'area_is_dev', 'definition'],
-  additionalProperties: false,
-};
+function newTopicSchema(judgeFocus: boolean): JsonSchema {
+  return {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      area: { type: 'string' },
+      ...(judgeFocus ? { in_focus: { type: 'boolean' } } : {}),
+      definition: { type: 'string' },
+    },
+    required: judgeFocus ? ['name', 'area', 'in_focus', 'definition'] : ['name', 'area', 'definition'],
+    additionalProperties: false,
+  };
+}
 
 const splitSchema: JsonSchema = {
   type: 'object',
@@ -85,15 +89,19 @@ export async function proposeNewTopic(
   db: Store,
   claude: ClaudeAdapter,
   postIds: string[],
+  focus: FocusSetting,
 ): Promise<ClaudeAnswer<TopicProposal>> {
+  const judgeFocus = focus.mode === 'focus';
   const prompt = [
     `Below are posts one person saved on X that fit none of their existing topics, ${POSTS_INTRO}.`,
     UNTRUSTED_NOTICE,
     '',
+    ...focusSection(db, focus),
     'Propose the one new topic that the largest group of these posts shares.',
     '- A topic is a specific subject several posts share, such as "Evals" or "Animations", not a single post.',
     '- Give it a short name and a one-line definition that says which posts belong.',
-    '- Put it in the existing area it fits. Name a new area only when none fits, and set "area_is_dev" to true when that area is about software development, engineering, design, or building products, false otherwise.',
+    '- Put it in the existing area it fits. Name a new area only when none fits.',
+    ...(judgeFocus ? [`- ${IN_FOCUS_RULE}`] : []),
     '- Do not repeat an existing topic, and do not propose anything the person removed.',
     '',
     'Existing topics:',
@@ -105,14 +113,14 @@ export async function proposeNewTopic(
     'Posts:',
     ...postLines(db, postIds),
   ].join('\n');
-  const answer = await askJson<NewTopicAnswer>(claude, { prompt, schema: newTopicSchema });
+  const answer = await askJson<NewTopicAnswer>(claude, { prompt, schema: newTopicSchema(judgeFocus) });
   if (!answer.ok) return answer;
   return {
     ok: true,
     value: {
       name: cleanLabel(answer.value.name, DISCOVERY.nameMaxChars),
       area: cleanLabel(answer.value.area, DISCOVERY.nameMaxChars),
-      areaIsDev: answer.value.area_is_dev,
+      areaHidden: judgeFocus && !answer.value.in_focus,
       definition: cleanLabel(answer.value.definition, DISCOVERY.definitionMaxChars),
     },
   };

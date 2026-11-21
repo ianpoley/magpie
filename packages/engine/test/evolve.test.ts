@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import type { ClaudeAdapter, ClaudeFailure, ClaudeRequest } from '../src/claude/cli.ts';
 import { evolve } from '../src/evolve/evolve.ts';
+import type { FocusSetting } from '../src/focus/setting.ts';
 import { tagPosts } from '../src/jev/tagger.ts';
 import type { Store } from '../src/store/db.ts';
 import {
@@ -14,6 +15,7 @@ import {
   pinQuery,
   removePostTopic,
   renameTopic,
+  setAreaHidden,
   setTopicHidden,
   undoChange,
 } from '../src/store/edits.ts';
@@ -38,10 +40,12 @@ function fakeClaude(reply: (request: ClaudeRequest, call: number) => Reply): Cla
   };
 }
 
-const newTopic = (name: string, area = 'Tools', dev = true): Reply => ({
+const SHOW_ALL: FocusSetting = { mode: 'all', focus: '' };
+
+const newTopic = (name: string, area = 'Tools', inFocus?: boolean): Reply => ({
   name,
   area,
-  area_is_dev: dev,
+  ...(inFocus === undefined ? {} : { in_focus: inFocus }),
   definition: `Posts about ${name}.`,
 });
 
@@ -117,7 +121,7 @@ test('enough similar Unfiled posts create a topic, the log shows the change, and
   const claude = fakeClaude(() => newTopic('Zeta'));
   const jev = jevBy({ Zeta: has('zeta') });
 
-  const result = await evolve(db, { claude, jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev });
 
   assert.deepEqual(result, { newTopics: 1, splits: 0, rejected: 0, dropped: 0, skipped: null });
   const topic = topicNamed(db, 'Zeta');
@@ -146,28 +150,64 @@ test('enough similar Unfiled posts create a topic, the log shows the change, and
   assert.notEqual(changes(db)[0].undone_at, null);
 
   const askedBefore = jev.requests.length;
-  const again = await evolve(db, { claude, jev });
+  const again = await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(again.newTopics, 0);
   assert.equal(again.rejected, 1);
   assert.equal(jev.requests.length, askedBefore);
   assert.equal(count(db, 'topics', `state = 'active'`), 0);
 });
 
-test('a new non-development area starts hidden and an existing area is reused whatever its letter case', async (t) => {
+test('in show-everything mode a new area starts visible and a reused area of any letter case keeps its hidden state', async (t) => {
   const { db } = tempStore(t);
-  const existing = seedArea(db, 'Tools');
+  const existing = seedArea(db, 'Tools', { hidden: true });
   seedPosts(db, 'zeta', 10, 'zeta');
   seedPosts(db, 'vote', 10, 'vote');
   seedPosts(db, 'misc', 40, 'misc');
   const claude = fakeClaude((_, call) =>
-    call === 1 ? newTopic('Zeta', 'tools') : call === 2 ? newTopic('Elections', 'Politics', false) : newTopic('Nothing'),
+    call === 1 ? newTopic('Zeta', 'tools') : call === 2 ? newTopic('Elections', 'Politics') : newTopic('Nothing'),
   );
 
-  await evolve(db, { claude, jev: jevBy({ Zeta: has('zeta'), Elections: has('vote') }) });
+  await evolve(db, { focus: SHOW_ALL, claude, jev: jevBy({ Zeta: has('zeta'), Elections: has('vote') }) });
 
   assert.equal(topicNamed(db, 'Zeta')?.area_id, existing);
-  const politics = db.prepare(`SELECT hidden, is_dev FROM areas WHERE name = 'Politics'`).get();
-  assert.deepEqual({ ...politics }, { hidden: 1, is_dev: 0 });
+  const hidden = (name: string) => db.prepare(`SELECT hidden FROM areas WHERE name = ?`).get(name)?.hidden;
+  assert.equal(hidden('Tools'), 1);
+  assert.equal(hidden('Politics'), 0);
+  assert.ok(!claude.requests[0].prompt.includes('chose to show'));
+});
+
+test('in focus mode the request lists the areas the person showed and hid, and new areas start as Claude judged them', async (t) => {
+  const { db } = tempStore(t);
+  const trail = seedArea(db, 'Trail running', { hidden: true });
+  setAreaHidden(db, trail, false);
+  setAreaHidden(db, seedArea(db, 'AI tools'), true);
+  const gear = seedArea(db, 'Gear');
+  seedPosts(db, 'boulder', 10, 'boulder');
+  seedPosts(db, 'evals', 10, 'evals');
+  seedPosts(db, 'rope', 10, 'rope');
+  seedPosts(db, 'misc', 50, 'misc');
+  const replies = [
+    newTopic('Bouldering', 'Bouldering', true),
+    newTopic('LLM evals', 'LLM evals', false),
+    newTopic('Ropes', 'gear', false),
+  ];
+  const claude = fakeClaude((_, call) => replies[call - 1] ?? newTopic('Nothing', 'Tools', true));
+
+  await evolve(db, {
+    focus: { mode: 'focus', focus: 'climbing' },
+    claude,
+    jev: jevBy({ Bouldering: has('boulder'), 'LLM evals': has('evals'), Ropes: has('rope') }),
+  });
+
+  const prompt = claude.requests[0].prompt;
+  assert.match(prompt, /"climbing"/);
+  assert.match(prompt, /chose to show[^\n]*\n"Trail running"\n/);
+  assert.match(prompt, /chose to hide[^\n]*\n"AI tools"\n/);
+  const hidden = (name: string) => db.prepare(`SELECT hidden FROM areas WHERE name = ?`).get(name)?.hidden;
+  assert.equal(hidden('Bouldering'), 0);
+  assert.equal(hidden('LLM evals'), 1);
+  assert.equal(topicNamed(db, 'Ropes')?.area_id, gear);
+  assert.equal(hidden('Gear'), 0);
 });
 
 test('a proposed topic matching too few Unfiled posts is rejected and logged as an attempt, not a change', async (t) => {
@@ -175,7 +215,7 @@ test('a proposed topic matching too few Unfiled posts is rejected and logged as 
   seedPosts(db, 'zeta', 5, 'zeta tool');
   seedPosts(db, 'misc', 20, 'misc');
 
-  const result = await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
 
   assert.deepEqual(result, { newTopics: 0, splits: 0, rejected: 1, dropped: 0, skipped: null });
   assert.equal(count(db, 'topics'), 0);
@@ -190,15 +230,15 @@ test('after a round that created nothing, no new round runs until Unfiled has gr
   const claude = fakeClaude(() => newTopic('Zeta'));
   const jev = jevBy({});
 
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 1);
 
   seedPosts(db, 'second', 49, 'misc');
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 1);
 
   seedPosts(db, 'third', 1, 'misc');
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 2);
 });
 
@@ -208,13 +248,13 @@ test('after a round that created nothing, a new round also needs 25 Unfiled post
   const claude = fakeClaude(() => newTopic('Zeta'));
   const jev = jevBy({});
 
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   seedPosts(db, 'second', 24, 'misc');
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 1);
 
   seedPosts(db, 'third', 1, 'misc');
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 2);
 });
 
@@ -224,7 +264,7 @@ test('posts still waiting on a link do not count toward the new-topic trigger', 
   for (const id of seedPosts(db, 'waiting', 5, 'zeta')) seedLink(db, id, `https://t.co/${id}`, { status: 'new' });
   const claude = fakeClaude(() => newTopic('Zeta'));
 
-  const result = await evolve(db, { claude, jev: jevBy({ Zeta: has('zeta') }) });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev: jevBy({ Zeta: has('zeta') }) });
 
   assert.equal(claude.requests.length, 0);
   assert.deepEqual(result, { newTopics: 0, splits: 0, rejected: 0, dropped: 0, skipped: null });
@@ -238,14 +278,14 @@ test('a round that created a topic runs again in the same run while 25 eligible 
   const claude = fakeClaude((_, call) => newTopic(['Alpha', 'Beta', 'Gamma'][call - 1]));
   const jev = jevBy({ Alpha: has('alpha'), Beta: has('beta') });
 
-  const result = await evolve(db, { claude, jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev });
 
   assert.deepEqual(result, { newTopics: 2, splits: 0, rejected: 1, dropped: 0, skipped: null });
   assert.equal(claude.requests.length, 3);
   assert.equal(unfiled(db).length, 40);
   assert.equal(count(db, 'areas'), 1);
 
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 3);
 });
 
@@ -258,11 +298,11 @@ test('when Claude fails after a topic was created, the next run carries on with 
   const claude = fakeClaude((_, call) => (call === 1 ? newTopic('Alpha') : call === 2 ? failure : newTopic('Beta')));
   const jev = jevBy({ Alpha: has('alpha'), Beta: has('beta') });
 
-  const first = await evolve(db, { claude, jev });
+  const first = await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(first.newTopics, 1);
   assert.equal(first.skipped?.reason, 'claude');
 
-  const second = await evolve(db, { claude, jev });
+  const second = await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(second.newTopics, 1);
   assert.equal(topicNamed(db, 'Beta')?.state, 'active');
 });
@@ -273,7 +313,7 @@ test('evolution with Claude failing changes nothing and reports the skip', async
   const claude = fakeClaude(() => ({ ok: false, reason: 'missing', message: 'no CLI' }));
   const jev = jevBy({ Zeta: has('zeta') });
 
-  const result = await evolve(db, { claude, jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev });
 
   assert.deepEqual(result, {
     newTopics: 0,
@@ -295,7 +335,7 @@ test('a failed scoring request skips the round instead of rejecting the proposal
     throw new Error('rate limited');
   });
 
-  const result = await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('Zeta')), jev });
 
   assert.equal(result.skipped?.reason, 'jev');
   assert.equal(result.rejected, 0);
@@ -310,7 +350,7 @@ test('a deleted topic is not created again under the same name', async (t) => {
   deleteTopic(db, old);
   const jev = jevBy({ Zeta: has('zeta') });
 
-  const result = await evolve(db, { claude: fakeClaude(() => newTopic('zeta')), jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('zeta')), jev });
 
   assert.equal(result.rejected, 1);
   assert.equal(jev.requests.length, 0);
@@ -327,7 +367,7 @@ test('a proposal under a new name is rejected when most of its matches are a del
   deleteTopic(db, old);
   const fresh = (text: string) => (text.includes('legacy') || /number [12]$/.test(text) ? 0.9 : 0.05);
 
-  const result = await evolve(db, { claude: fakeClaude(() => newTopic('Fresh name')), jev: jevBy({ 'Fresh name': fresh }) });
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('Fresh name')), jev: jevBy({ 'Fresh name': fresh }) });
 
   assert.equal(result.newTopics, 0);
   assert.equal(result.rejected, 1);
@@ -343,7 +383,7 @@ test('a topic over the size limit splits into subtopics that hold its posts, and
     return subtopics('Animations', 'CSS');
   });
 
-  const result = await evolve(db, { claude, jev: jevBy(splitRules) });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev: jevBy(splitRules) });
 
   assert.deepEqual(result, { newTopics: 0, splits: 1, rejected: 0, dropped: 0, skipped: null });
   assert.equal(db.prepare(`SELECT state FROM topics WHERE id = ?`).get(parent)?.state, 'split');
@@ -370,7 +410,7 @@ test('undoing a split restores the parent with its earlier posts and locks it', 
   const { parent, posts } = seedBroadTopic(db);
   const claude = fakeClaude(() => subtopics('Animations', 'CSS'));
   const jev = jevBy(splitRules);
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
 
   undoChange(db, Number(changes(db)[0].id));
 
@@ -381,14 +421,14 @@ test('undoing a split restores the parent with its earlier posts and locks it', 
   assert.equal(count(db, 'suppressed_proposals'), 2);
 
   const before = claude.requests.length;
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, before);
 });
 
 test('undoing a split after the user deleted its area leaves the posts Unfiled', async (t) => {
   const { db } = tempStore(t);
   const { area } = seedBroadTopic(db);
-  await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+  await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
   deleteArea(db, area);
 
   undoChange(db, Number(changes(db)[0].id));
@@ -406,7 +446,7 @@ test('per-post fixes on a split topic carry to its subtopics', async (t) => {
   addPostTopic(db, added, parent);
 
   const jev = jevBy(splitRules);
-  const result = await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev });
   await tagPosts(db, { jev });
 
   assert.equal(result.splits, 1);
@@ -425,7 +465,7 @@ test('a split whose subtopics do not hold enough of the parent is rejected and n
   const claude = fakeClaude(() => subtopics('Animations', 'Typography'));
   const jev = jevBy(splitRules);
 
-  const result = await evolve(db, { claude, jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev });
 
   assert.deepEqual(result, { newTopics: 0, splits: 0, rejected: 1, dropped: 0, skipped: null });
   assert.equal(db.prepare(`SELECT state FROM topics WHERE id = ?`).get(parent)?.state, 'active');
@@ -433,7 +473,7 @@ test('a split whose subtopics do not hold enough of the parent is rejected and n
   assert.equal(count(db, 'changes'), 0);
   assert.deepEqual(attempts(db), ['split:rejected']);
 
-  await evolve(db, { claude, jev });
+  await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.equal(claude.requests.length, 1);
 });
 
@@ -453,7 +493,7 @@ test('topics the user merged into, renamed, hid, or pinned are never split', asy
   const pinned = pinQuery(db, { query: 'motion', scores: posts.map((postId) => ({ postId, probability: 0.9 })) });
   const claude = fakeClaude(() => subtopics('Animations', 'CSS'));
 
-  const result = await evolve(db, { claude, jev: jevBy(splitRules) });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev: jevBy(splitRules) });
 
   assert.equal(claude.requests.length, 0);
   assert.deepEqual(result, { newTopics: 0, splits: 0, rejected: 0, dropped: 0, skipped: null });
@@ -473,7 +513,7 @@ test('a topic the user locks while its split is being scored is left alone, and 
     renameTopic(db, parent, 'My frontend');
   });
 
-  const result = await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev });
 
   assert.deepEqual(result, { newTopics: 0, splits: 0, rejected: 0, dropped: 1, skipped: null });
   const row = db.prepare(`SELECT state, name FROM topics WHERE id = ?`).get(parent);
@@ -492,7 +532,7 @@ test('a failure midway through applying a change leaves the store as it was befo
   );
 
   await assert.rejects(
-    evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) }),
+    evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) }),
     /disk full/,
   );
 
@@ -512,7 +552,7 @@ test('undoing a topic\'s creation after that topic was split undoes the split fi
   const claude = fakeClaude((request) => (isSplitRequest(request) ? subtopics('Animations', 'CSS') : newTopic('Big', 'Frontend')));
   const jev = jevBy({ ...splitRules, Big: (text) => (/anim|css|frontend/.test(text) ? 0.9 : 0.05) });
 
-  const result = await evolve(db, { claude, jev });
+  const result = await evolve(db, { focus: SHOW_ALL, claude, jev });
   assert.deepEqual(result, { newTopics: 1, splits: 1, rejected: 0, dropped: 0, skipped: null });
   const [creation, split] = changes(db);
   assert.deepEqual([creation.kind, split.kind], ['new_topic', 'split']);
@@ -550,7 +590,7 @@ test('undoing a topic\'s creation brings back a topic the user merged into it, w
   seedScore(db, 'mine-2', mine, 0.9);
   seedScore(db, 'mine-3', mine, 0.1);
   seedOverride(db, 'mine-3', mine, 'add');
-  await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
+  await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
   const created = topicId(db, 'Zeta');
   mergeTopics(db, mine, created);
   addPostTopic(db, 'misc-001', created);
@@ -581,7 +621,7 @@ test('undoing a split brings back a topic the user merged into one of its subtop
   seedScore(db, 'mine-1', mine, 0.9);
   seedScore(db, 'mine-1', parent, 0.05);
   for (const id of posts) seedScore(db, id, mine, 0.05);
-  await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+  await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
   const animations = topicId(db, 'Animations');
   mergeTopics(db, mine, animations);
   addPostTopic(db, 'css-001', animations);
@@ -608,7 +648,7 @@ test('a created topic the user merged into another is left alone by the undo, an
     seedScore(db, id, first, 0.05);
     seedScore(db, id, second, 0.05);
   }
-  await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
+  await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
   const created = topicId(db, 'Zeta');
   mergeTopics(db, first, created);
   mergeTopics(db, created, second);
@@ -626,7 +666,7 @@ for (const direction of ['lower-numbered into the higher', 'higher-numbered into
   test(`undoing a split whose subtopics the user merged, ${direction}, takes both out of use`, async (t) => {
     const { db } = tempStore(t);
     const { parent, posts } = seedBroadTopic(db);
-    await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+    await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
     const [lower, higher] = [topicId(db, 'Animations'), topicId(db, 'CSS')].sort((a, b) => a - b);
     if (direction.startsWith('lower')) mergeTopics(db, lower, higher);
     else mergeTopics(db, higher, lower);
@@ -654,7 +694,7 @@ test('undoing a split still brings back the user\'s own topic when its subtopic 
   seedScore(db, 'mine-1', mine, 0.9);
   seedScore(db, 'mine-1', parent, 0.05);
   for (const id of posts) seedScore(db, id, mine, 0.05);
-  await evolve(db, { claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
+  await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev: jevBy(splitRules) });
   const animations = topicId(db, 'Animations');
   mergeTopics(db, mine, animations);
   mergeTopics(db, animations, topicId(db, 'CSS'));

@@ -7,6 +7,7 @@ import type { TestContext } from 'node:test';
 import type { ClaudeAdapter, ClaudeRequest, ClaudeSendResult } from '../src/claude/cli.ts';
 import { runDiscovery } from '../src/claude/discovery.ts';
 import { DISCOVERY } from '../src/config.ts';
+import type { FocusSetting } from '../src/focus/setting.ts';
 import { ingest } from '../src/ingest.ts';
 import { openStore } from '../src/store/db.ts';
 import { exportPost, tempDir, writeExports } from './fixtures/export.ts';
@@ -45,18 +46,17 @@ const merged = ok({
   areas: [
     {
       name: 'AI',
-      dev: true,
       topics: [
         { name: 'Evals', definition: 'Measuring model quality with test suites.' },
         { name: 'Agents', definition: 'Building autonomous LLM agents.' },
       ],
     },
-    { name: 'Politics', dev: false, topics: [{ name: 'Elections', definition: 'Election news and commentary.' }] },
+    { name: 'Politics', topics: [{ name: 'Elections', definition: 'Election news and commentary.' }] },
   ],
 });
 
 const areas = (db: DatabaseSync) =>
-  db.prepare('SELECT name, is_dev, hidden, kind, state FROM areas ORDER BY position').all();
+  db.prepare('SELECT name, hidden, kind, state FROM areas ORDER BY position').all();
 const topics = (db: DatabaseSync) =>
   db
     .prepare(
@@ -67,20 +67,22 @@ const topics = (db: DatabaseSync) =>
 const count = (db: DatabaseSync, table: string) =>
   Number(db.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n);
 
+const SHOW_ALL: FocusSetting = { mode: 'all', focus: '' };
+
 const posts = (n: number) => Array.from({ length: n }, (_, i) => exportPost(String(i + 1)));
 
-test('a valid merged proposal creates areas and topics, with non-dev areas hidden', async (t) => {
+test('in show-everything mode every merged area starts visible and no prompt asks about a focus', async (t) => {
   const db = setup(t, posts(3));
   const claude = fakeClaude([candidates('Evals', 'Agents', 'Elections'), merged]);
 
-  const result = await runDiscovery(db, { claude });
+  const result = await runDiscovery(db, { focus: SHOW_ALL, claude });
 
   assert.equal(result.status, 'created');
   assert.deepEqual(
     areas(db).map((row) => ({ ...row })),
     [
-      { name: 'AI', is_dev: 1, hidden: 0, kind: 'auto', state: 'active' },
-      { name: 'Politics', is_dev: 0, hidden: 1, kind: 'auto', state: 'active' },
+      { name: 'AI', hidden: 0, kind: 'auto', state: 'active' },
+      { name: 'Politics', hidden: 0, kind: 'auto', state: 'active' },
     ],
   );
   assert.deepEqual(
@@ -91,12 +93,39 @@ test('a valid merged proposal creates areas and topics, with non-dev areas hidde
       { name: 'Elections', definition: 'Election news and commentary.', area: 'Politics', kind: 'auto', state: 'active', locked: 0, hidden: 0 },
     ],
   );
+  assert.ok(!claude.prompts[0].includes('software development'));
+  assert.ok(!/focus/i.test(claude.prompts[1]));
+});
+
+test('in focus mode an area Claude judges outside the focus starts hidden and the others start visible', async (t) => {
+  const db = setup(t, posts(3));
+  const judged = ok({
+    areas: [
+      { name: 'Cooking', in_focus: true, topics: [{ name: 'Bread', definition: 'Baking bread at home.' }] },
+      { name: 'Gardening', in_focus: true, topics: [{ name: 'Tomatoes', definition: 'Growing tomatoes.' }] },
+      { name: 'AI tools', in_focus: false, topics: [{ name: 'Agents', definition: 'Building LLM agents.' }] },
+    ],
+  });
+  const claude = fakeClaude([candidates('Bread', 'Tomatoes', 'Agents'), judged]);
+
+  await runDiscovery(db, { focus: { mode: 'focus', focus: 'cooking and gardening' }, claude });
+
+  assert.deepEqual(
+    areas(db).map((row) => [row.name, row.hidden]),
+    [
+      ['Cooking', 0],
+      ['Gardening', 0],
+      ['AI tools', 1],
+    ],
+  );
+  assert.match(claude.prompts[1], /"cooking and gardening"/);
+  assert.match(claude.prompts[1], /in_focus/);
 });
 
 test('the first pass is logged as one change that cannot be undone', async (t) => {
   const db = setup(t, posts(3));
 
-  await runDiscovery(db, { claude: fakeClaude([candidates('Evals'), merged]) });
+  await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([candidates('Evals'), merged]) });
 
   const changes = db.prepare('SELECT summary, source, undoable, post_count FROM changes').all();
   assert.deepEqual(
@@ -107,9 +136,9 @@ test('the first pass is logged as one change that cannot be undone', async (t) =
 
 test('merged output that fails the schema is rejected and nothing is written', async (t) => {
   const db = setup(t, posts(3));
-  const bad = ok({ areas: [{ name: 'AI', dev: 'yes', topics: [{ name: 'Evals' }] }] });
+  const bad = ok({ areas: [{ name: 'AI', topics: [{ name: 'Evals' }] }] });
 
-  const result = await runDiscovery(db, { claude: fakeClaude([candidates('Evals'), bad]) });
+  const result = await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([candidates('Evals'), bad]) });
 
   assert.equal(result.status, 'failed');
   assert.equal(result.status === 'failed' && result.failure.reason, 'schema');
@@ -122,7 +151,6 @@ test('a name with markup or control characters is stored stripped and length-cap
     areas: [
       {
         name: '<script>alert(1)</script>AI\u0000 **Tools**',
-        dev: true,
         topics: [
           {
             name: `<b>Evals</b>\u0007‮ \`and\`\n[benchmarks](https://evil.example) ${'x'.repeat(200)}`,
@@ -133,7 +161,7 @@ test('a name with markup or control characters is stored stripped and length-cap
     ],
   });
 
-  await runDiscovery(db, { claude: fakeClaude([candidates('Evals'), dirty]) });
+  await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([candidates('Evals'), dirty]) });
 
   const [area] = areas(db);
   const [topic] = topics(db);
@@ -149,8 +177,8 @@ test('a failed Claude call writes nothing and reports the failure', async (t) =>
     const db = setup(t, posts(3));
     const failure = { ok: false, reason, message: 'boom' } as const;
 
-    const atBatch = await runDiscovery(db, { claude: fakeClaude([failure]) });
-    const atMerge = await runDiscovery(db, { claude: fakeClaude([candidates('Evals'), failure]) });
+    const atBatch = await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([failure]) });
+    const atMerge = await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([candidates('Evals'), failure]) });
 
     assert.deepEqual(atBatch, { status: 'failed', failure });
     assert.deepEqual(atMerge, { status: 'failed', failure });
@@ -160,10 +188,10 @@ test('a failed Claude call writes nothing and reports the failure', async (t) =>
 
 test('discovery does not run when topics already exist', async (t) => {
   const db = setup(t, posts(3));
-  await runDiscovery(db, { claude: fakeClaude([candidates('Evals'), merged]) });
+  await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([candidates('Evals'), merged]) });
   const second = fakeClaude([]);
 
-  const result = await runDiscovery(db, { claude: second });
+  const result = await runDiscovery(db, { focus: SHOW_ALL, claude: second });
 
   assert.deepEqual(result, { status: 'skipped', reason: 'topics_exist' });
   assert.equal(second.prompts.length, 0);
@@ -175,7 +203,7 @@ test('discovery does not run on an empty store', async (t) => {
   const db = setup(t, []);
   const claude = fakeClaude([]);
 
-  assert.deepEqual(await runDiscovery(db, { claude }), { status: 'skipped', reason: 'no_posts' });
+  assert.deepEqual(await runDiscovery(db, { focus: SHOW_ALL, claude }), { status: 'skipped', reason: 'no_posts' });
   assert.equal(claude.prompts.length, 0);
 });
 
@@ -183,7 +211,7 @@ test('the corpus is read in batches and same-named candidates merge into one', a
   const db = setup(t, posts(DISCOVERY.batchSize + 1));
   const claude = fakeClaude([candidates('Evals', 'Agents'), candidates('evals ', 'Elections'), merged]);
 
-  await runDiscovery(db, { claude });
+  await runDiscovery(db, { focus: SHOW_ALL, claude });
 
   assert.equal(claude.prompts.length, 3);
   const mergePrompt = claude.prompts[2];
@@ -196,13 +224,13 @@ test('a topic the merged list names twice is stored once', async (t) => {
   const db = setup(t, posts(1));
   const twice = ok({
     areas: [
-      { name: 'AI', dev: true, topics: [{ name: 'Evals', definition: 'First definition.' }] },
-      { name: 'ai', dev: true, topics: [{ name: 'Agents', definition: 'Agents.' }] },
-      { name: 'Testing', dev: true, topics: [{ name: '<i>evals</i>', definition: 'Second definition.' }] },
+      { name: 'AI', topics: [{ name: 'Evals', definition: 'First definition.' }] },
+      { name: 'ai', topics: [{ name: 'Agents', definition: 'Agents.' }] },
+      { name: 'Testing', topics: [{ name: '<i>evals</i>', definition: 'Second definition.' }] },
     ],
   });
 
-  await runDiscovery(db, { claude: fakeClaude([candidates('Evals'), twice]) });
+  await runDiscovery(db, { focus: SHOW_ALL, claude: fakeClaude([candidates('Evals'), twice]) });
 
   assert.deepEqual(
     topics(db).map((row) => `${row.area}/${row.name}: ${row.definition}`),
@@ -228,7 +256,7 @@ test('each post reaches Claude as truncated text with its quoted text and resolv
   );
   const claude = fakeClaude([candidates('Evals'), merged]);
 
-  await runDiscovery(db, { claude });
+  await runDiscovery(db, { focus: SHOW_ALL, claude });
 
   const batchPrompt = claude.prompts[0];
   assert.ok(!batchPrompt.includes('Just a moment'));
@@ -244,7 +272,7 @@ test('posts that left both collections are not sent', async (t) => {
   db.prepare(`UPDATE posts SET bookmarked = 0, liked = 0 WHERE id = '2'`).run();
   const claude = fakeClaude([candidates('Evals'), merged]);
 
-  await runDiscovery(db, { claude });
+  await runDiscovery(db, { focus: SHOW_ALL, claude });
 
   assert.match(claude.prompts[0], /still saved/);
   assert.ok(!claude.prompts[0].includes('GONE_POST'));
@@ -255,7 +283,7 @@ test('posts removed from the corpus are not sent', async (t) => {
   db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = '2'`).run();
   const claude = fakeClaude([candidates('Evals'), merged]);
 
-  await runDiscovery(db, { claude });
+  await runDiscovery(db, { focus: SHOW_ALL, claude });
 
   assert.match(claude.prompts[0], /still saved/);
   assert.ok(!claude.prompts[0].includes('REMOVED_POST'));
