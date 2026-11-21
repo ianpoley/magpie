@@ -15,6 +15,7 @@ import type { CategoryEdits } from "./category-menu";
 import { CategoryTree } from "./category-tree";
 import { formatCount } from "./format";
 import { MagpieMark } from "./magpie";
+import { SidebarSection } from "./sidebar-section";
 import type { RemovedPostsController } from "./removed-posts";
 import type { ConnectXController } from "./connect-x-dialog";
 import { SIDE_FOOTER_ROW, SyncStatus, type SyncController } from "./sync-status";
@@ -28,15 +29,6 @@ const COLLECTIONS: { value: Collection; label: string; icon: LucideIcon }[] = [
 
 const SIDE_ROW =
   "focus-ring-side pressable flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-0 px-2.5 text-left text-[13px] text-side-ink";
-
-function Eyebrow({ children, action }: { children: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="mb-1.5 flex h-7 items-center justify-between pr-1 pl-2.5">
-      <h2 className="text-eyebrow text-side-muted">{children}</h2>
-      {action}
-    </div>
-  );
-}
 
 export type SidebarProps = {
   snapshot: Snapshot;
@@ -120,25 +112,25 @@ export function Sidebar({
       <ScrollArea type="hover" className="min-h-0 flex-1 rounded-none border-0">
         <ScrollAreaViewport>
           <ScrollAreaContent className="flex flex-col gap-5 px-3 pt-2 pb-5">
-            <section aria-label="Categories">
-              <Eyebrow
-                action={
-                  hasHidden ? (
-                    <Toggle
-                      pressed={filter.revealHidden}
-                      onPressedChange={onRevealHidden}
-                      className="focus-ring-side pressable h-6 gap-1 rounded-full border-0 bg-transparent px-2 text-[11px] font-semibold text-side-muted hover:bg-side-hover data-pressed:bg-side-wash data-pressed:text-side-ink"
-                    >
-                      <ToggleIcon>
-                        <Eye className="size-3.5" />
-                      </ToggleIcon>
-                      Show hidden
-                    </Toggle>
-                  ) : null
-                }
-              >
-                Categories
-              </Eyebrow>
+            <SidebarSection
+              id="categories"
+              title="Categories"
+              label="Categories"
+              action={
+                hasHidden ? (
+                  <Toggle
+                    pressed={filter.revealHidden}
+                    onPressedChange={onRevealHidden}
+                    className="focus-ring-side pressable h-6 gap-1 rounded-full border-0 bg-transparent px-2 text-[11px] font-semibold text-side-muted hover:bg-side-hover data-pressed:bg-side-wash data-pressed:text-side-ink"
+                  >
+                    <ToggleIcon>
+                      <Eye className="size-3.5" />
+                    </ToggleIcon>
+                    Show hidden
+                  </Toggle>
+                ) : null
+              }
+            >
               {hasCategories ? (
                 <InputGroup className="mx-0.5 mb-2 h-9 w-auto items-center gap-2 rounded-full border-0 bg-side-hover pr-1 pl-3 transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-side-ink)]">
                   <Search className="size-3.5 shrink-0 text-side-muted" aria-hidden="true" />
@@ -198,11 +190,10 @@ export function Sidebar({
                   <span className="ml-auto text-[12px] font-medium tabular-nums">{formatCount(removedCount)}</span>
                 </DialogTrigger>
               ) : null}
-            </section>
+            </SidebarSection>
 
             {authors.length > 0 ? (
-              <section aria-label="Most saved authors">
-                <Eyebrow>Most saved</Eyebrow>
+              <SidebarSection id="most-saved" title="Most saved" label="Most saved authors">
                 <ul className="flex flex-col gap-0.5">
                   {authors.map((author) => {
                     const active = filter.author?.toLowerCase() === author.handle.toLowerCase();
@@ -222,7 +213,7 @@ export function Sidebar({
                     );
                   })}
                 </ul>
-              </section>
+              </SidebarSection>
             ) : null}
           </ScrollAreaContent>
         </ScrollAreaViewport>
