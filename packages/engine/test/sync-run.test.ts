@@ -406,6 +406,27 @@ test('the categorize command records an unknown upstream sync when there is no s
   read(files, (db) => assert.equal(db.prepare(`SELECT upstream_sync FROM runs`).get()?.upstream_sync, 'unknown'));
 });
 
+test('without a status file the categorize command keeps the X sync result of the run before it', async (t) => {
+  const { dir, files } = setup(t);
+  writeExports(files.dataDir, { bookmarks: [], likes: [] });
+  const store = openStore(files.store);
+  store.prepare(`INSERT INTO runs (started_at, status, upstream_sync, upstream_sync_detail) VALUES (?, 'complete', 'failed', ?)`).run(
+    '2026-11-21T09:00:00.000Z',
+    'x_likes: bird timed out',
+  );
+  store.close();
+
+  const cli = runCli(dir, 'categorize.mjs', '--skip-links', '--skip-evolve');
+
+  assert.equal(cli.status, 0, cli.stderr);
+  read(files, (db) =>
+    assert.deepEqual(
+      { ...db.prepare(`SELECT upstream_sync, upstream_sync_detail FROM runs ORDER BY id DESC LIMIT 1`).get() },
+      { upstream_sync: 'failed', upstream_sync_detail: 'x_likes: bird timed out' },
+    ),
+  );
+});
+
 test('the categorize command waits its turn behind a whole sync run', async (t) => {
   const { dir, files } = setup(t);
   writeExports(files.dataDir, { bookmarks: [], likes: [] });
