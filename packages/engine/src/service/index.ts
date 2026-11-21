@@ -201,6 +201,18 @@ export type ServiceOptions = {
 };
 
 /**
+ * The old nightly job's plist when `migrate` can move it: on macOS, with the
+ * plist and its cookie file both present. Without the cookie file migrate has
+ * nothing to move and refuses, so nobody is sent there. Null otherwise.
+ */
+export function legacyInstall(options: Pick<ServiceOptions, 'platform' | 'home'> = {}): string | null {
+  const platform = options.platform ?? process.platform;
+  const home = options.home ?? homedir();
+  const plist = join(home, 'Library', 'LaunchAgents', `${MIGRATION.legacyLabel}.plist`);
+  return platform === 'darwin' && existsSync(plist) && existsSync(join(home, '.birdclaw', 'bird.env')) ? plist : null;
+}
+
+/**
  * Why installing the services from here would be wrong, or null when it is
  * fine. `setup` prints it as the next step and `service:install` refuses with it.
  */
@@ -212,10 +224,8 @@ export function installBlocker(options: Pick<ServiceOptions, 'platform' | 'home'
   if (main !== codeRoot) {
     return `This is a git worktree. Services installed from it would run this worktree's code and stop when it is removed. Run bun run service:install from the main checkout, ${main}. Worktrees already share its corpus and worker.`;
   }
-  const legacyPlist = join(home, 'Library', 'LaunchAgents', `${MIGRATION.legacyLabel}.plist`);
-  // Without the old job's cookie file migrate has nothing to move and refuses, so only send people there when it can run.
-  const legacyCookies = join(home, '.birdclaw', 'bird.env');
-  if (platform === 'darwin' && !options.migrating && existsSync(legacyPlist) && existsSync(legacyCookies)) {
+  const legacyPlist = legacyInstall({ platform, home });
+  if (legacyPlist && !options.migrating) {
     return `The old ${MIGRATION.legacyLabel} job is still installed (${legacyPlist}). Run bun run migrate instead: it moves that job's X cookies and Jev key into the secret store, installs the services, and removes the old job after one good sync.`;
   }
   return null;
@@ -243,7 +253,8 @@ function context(options: ServiceOptions) {
   };
 }
 
-function webPort(env: Record<string, string | undefined>): number {
+/** The web service's port: 3030 unless X_CORPUS_PORT says otherwise. */
+export function webPort(env: Record<string, string | undefined> = process.env): number {
   const text = env.X_CORPUS_PORT;
   if (!text) return SERVICE.defaultPort;
   const port = Number(text);
@@ -320,6 +331,10 @@ export type ServiceStatus = {
   secretBackend: BackendName | null;
   /** The node the installed services run. `version` and `inRange` are null when it cannot be run. */
   node: { path: string | null; exists: boolean; version: string | null; inRange: boolean | null; range: string };
+  /** The data root the installed worker runs against; null when it is not installed. */
+  dataRoot: string | null;
+  /** The data root this checkout uses. */
+  here: string;
 };
 
 export async function serviceStatus(options: ServiceOptions = {}): Promise<ServiceStatus> {
@@ -347,6 +362,8 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
   const range = nodeRange();
   const installed = units.find((unit) => unit.installed);
   const path = installed ? manager.nodePathOf(readFileSync(installed.file, 'utf8')) : null;
+  const workerUnit = units.find((unit) => unit.name === 'x-corpus-worker' && unit.installed);
+  const dataRoot = workerUnit ? manager.dataRootOf(readFileSync(workerUnit.file, 'utf8')) : null;
   const exists = path !== null && existsSync(path);
   let version: string | null = null;
   if (exists) {
@@ -358,5 +375,7 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     worker,
     secretBackend: createSecretStore({ env, platform }).backend(),
     node: { path, exists, version, inRange: version === null ? null : inRange(version, range), range },
+    dataRoot,
+    here: files.repoRoot,
   };
 }

@@ -9,7 +9,10 @@ import { readFileSync } from 'node:fs';
 const USAGE = `Usage: x-corpus.mjs <command>
 
 Commands:
-  setup                                check Node, the pinned Birdclaw and bird, the Claude CLI and the secret store
+  setup [--yes]                        check this machine, then take each first-run step not done yet: background
+                                       services, Connect X, the Jev key and the Claude skill. At a terminal it asks
+                                       first; --yes takes the steps that hold no secret and replace nothing; with
+                                       neither it only reports what is left
   service install                      build the web app, then install (or update) and restart both background services
   service uninstall [--purge-secrets]  stop and remove both services; --purge-secrets also deletes the stored
                                        X cookies and Jev key and disconnects X
@@ -43,16 +46,115 @@ const fail = (prefix, error) => {
   process.exit(1);
 };
 
-async function setup() {
-  const checks = await service.setupChecks();
-  for (const check of checks) console.log(`[setup] ${service.formatCheck(check)}`);
-  if (checks.some((check) => check.level === 'fail')) {
-    console.error('[setup] fix the failed checks above, then run setup again');
-    process.exit(1);
-  }
-  const blocker = service.installBlocker();
-  if (blocker) console.log(`[setup] ready, with one change to the next step: ${blocker}`);
-  else console.log('[setup] ready: run bun run service:install to start the background services');
+/** Yes or no at a terminal; Enter takes the default. */
+async function confirm(question, defaultYes) {
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = (await rl.question(`${question} ${defaultYes ? '[Y/n]' : '[y/N]'} `)).trim().toLowerCase();
+  rl.close();
+  return answer === '' ? defaultYes : answer.startsWith('y');
+}
+
+/** Polls for the X connection until it appears or the person presses Enter. */
+function waitForConnection(readConnection) {
+  return new Promise((resolve) => {
+    const stdin = process.stdin;
+    const finish = (value) => {
+      clearInterval(timer);
+      stdin.off('data', onData);
+      stdin.pause();
+      resolve(value);
+    };
+    const onData = () => finish(undefined);
+    const timer = setInterval(() => {
+      const connection = readConnection();
+      if (connection) finish(connection);
+    }, 2_000);
+    stdin.on('data', onData);
+    stdin.resume();
+  });
+}
+
+async function setup(args) {
+  const yes = args.includes('--yes');
+  const { spawn, spawnSync } = await import('node:child_process');
+  const { existsSync, lstatSync, realpathSync } = await import('node:fs');
+  const { homedir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { codeRoot, mainCheckout, paths } = await import('../src/config.ts');
+  const { createSecretStore } = await import('../src/secrets/store.ts');
+  const { readConnection } = await import('../src/sync/state.ts');
+  const { walkthrough } = await import('../src/setup/walkthrough.ts');
+
+  const code = codeRoot();
+  const main = mainCheckout(code);
+  const files = paths();
+  const log = (line) => console.log(line);
+  const connection = () => {
+    const found = readConnection(files.xConnection);
+    return found ? { handle: found.handle } : undefined;
+  };
+  const skillDir = join(code, 'packages', 'skill');
+  const skillLink = join(homedir(), '.claude', 'skills', 'x-corpus');
+
+  const result = await walkthrough({
+    interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+    yes,
+    log,
+    confirm,
+    secret: (prompt) => readKey(prompt),
+    checks: () => service.setupChecks(),
+    worktreeOf: main === code ? null : main,
+    legacy: service.legacyInstall(),
+    async services() {
+      const status = await service.serviceStatus();
+      return {
+        installed: status.units.every((unit) => unit.installed),
+        running: status.units.every((unit) => unit.running),
+        dataRoot: status.dataRoot,
+        here: status.here,
+      };
+    },
+    install: () => service.installService({ log: (line) => log(`  ${line}`) }),
+    async migrate() {
+      const { migrate } = await import('../src/migrate/legacy.ts');
+      const done = await migrate({ log: (line) => log(`  ${line}`) });
+      return done.ok ? { ok: true, message: '' } : { ok: false, message: `${done.message} ${done.state.join(' ')}` };
+    },
+    connection,
+    appUrl: `http://127.0.0.1:${service.webPort()}`,
+    async openApp(url) {
+      const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+      spawn(opener, [url], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+    },
+    waitForConnection: () => waitForConnection(connection),
+    async jevStored() {
+      const read = await createSecretStore().get('typesafe-api-key');
+      return read.ok && Boolean(read.value);
+    },
+    async storeJev(key) {
+      const stored = await createSecretStore().set('typesafe-api-key', key);
+      if (!stored.ok) return { ok: false, message: stored.message };
+      return { ok: true, message: stored.backend === 'keychain' ? 'in the OS secret store' : `in ${files.secrets}, owner-only` };
+    },
+    skill() {
+      if (!existsSync(join(homedir(), '.claude'))) return 'none';
+      try {
+        lstatSync(skillLink);
+      } catch {
+        return 'missing';
+      }
+      try {
+        return realpathSync(skillLink) === realpathSync(skillDir) ? 'linked' : 'elsewhere';
+      } catch {
+        return 'elsewhere';
+      }
+    },
+    async linkSkill() {
+      spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' });
+    },
+  });
+  if (!result.ok) process.exit(1);
 }
 
 const ago = (ms) => (ms < 120_000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60_000)} min`);
@@ -100,14 +202,14 @@ async function serviceCommand(sub, args) {
 }
 
 /** The key from stdin: typed with echo off at a terminal, otherwise everything piped in. */
-async function readKey() {
+async function readKey(prompt = 'Jev (TypeSafe) API key (typing is hidden): ') {
   const stdin = process.stdin;
   if (!stdin.isTTY) {
     let text = '';
     for await (const chunk of stdin) text += chunk;
     return text.trim();
   }
-  process.stderr.write('Jev (TypeSafe) API key (typing is hidden): ');
+  process.stderr.write(prompt);
   return new Promise((resolve) => {
     let key = '';
     const finish = () => {
@@ -178,10 +280,12 @@ async function migrateCommand(args) {
 
 const [command, sub, ...rest] = process.argv.slice(2);
 switch (command) {
-  case 'setup':
-    if (sub !== undefined) usage(`setup takes no arguments`);
-    await setup();
+  case 'setup': {
+    const args = [sub, ...rest].filter((arg) => arg !== undefined);
+    if (args.some((arg) => arg !== '--yes')) usage(`unknown setup argument: ${args.find((arg) => arg !== '--yes')}`);
+    await setup(args);
     break;
+  }
   case 'service':
     await serviceCommand(sub, rest);
     break;

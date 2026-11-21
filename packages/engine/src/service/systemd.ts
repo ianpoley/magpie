@@ -59,6 +59,10 @@ export function systemd(options: { home: string; env: Record<string, string | un
       const line = /^ExecStart=("(?:[^"\\]|\\.)*"|\S+)/m.exec(text);
       return line ? unword(line[1]) : null;
     },
+    dataRootOf(text) {
+      const line = /^Environment="X_CORPUS_ROOT=((?:[^"\\]|\\.)*)"$/m.exec(text);
+      return line ? line[1].replace(/\\(.)/g, '$1').replaceAll('%%', '%') : null;
+    },
     async stop(name) {
       if (existsSync(unitPath(name))) await ctl('stop', unit(name));
     },
