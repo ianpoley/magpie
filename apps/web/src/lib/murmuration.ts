@@ -34,6 +34,7 @@ const MARGIN = 16;
 const NARROW = 28;
 const RELEASE_SECONDS = 0.9;
 const OFFSCREEN = 48;
+const LEASH = 0.4;
 const SHY = 14;
 
 const W_ALIGN = 1.6;
@@ -72,9 +73,10 @@ export function createMurmuration(random: () => number = Math.random) {
   };
   const roam = (home: 0 | 1): Box => {
     const b = box(home);
-    const left = narrow || home === 0 ? OFFSCREEN : 0;
-    const right = narrow || home === 1 ? OFFSCREEN : 0;
-    return { x0: b.x0 - left, x1: b.x1 + right, y0: b.y0 - OFFSCREEN, y1: b.y1 + OFFSCREEN };
+    const reach = Math.min(OFFSCREEN, (b.x1 - b.x0) * LEASH);
+    const left = narrow || home === 0 ? reach : 0;
+    const right = narrow || home === 1 ? reach : 0;
+    return { x0: b.x0 - left, x1: b.x1 + right, y0: b.y0 - reach, y1: b.y1 + reach };
   };
   const sideOf = (b: Bird): 0 | 1 => (narrow ? 0 : b.x < (space.columnLeft + space.columnRight) / 2 ? 0 : 1);
   const overColumn = (b: Bird) => !narrow && b.x > space.columnLeft && b.x < space.columnRight;

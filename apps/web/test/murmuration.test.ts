@@ -89,7 +89,7 @@ test("a flock sweeps past the screen's edge now and then, and still keeps off th
       if (overColumn(b)) over++;
     }
   }
-  assert.ok(off / seen > 0.05, `only ${((off / seen) * 100).toFixed(1)}% of the flight went off screen`);
+  assert.ok(off / seen > 0.03, `only ${((off / seen) * 100).toFixed(1)}% of the flight went off screen`);
   assert.ok(over / seen < 0.001, `${((over / seen) * 100).toFixed(2)}% of the flight was over the column`);
 });
 
