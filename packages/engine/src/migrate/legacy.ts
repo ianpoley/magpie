@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from 'node:fs';
+import { lstatSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -19,6 +19,22 @@ import { createBirdclaw } from '../x/birdclaw.ts';
 import type { XAdapter } from '../x/birdclaw.ts';
 
 const SECRETS_ENV_KEYS: Record<string, SecretName> = { TYPESAFE_API_KEY: 'typesafe-api-key' };
+
+const NIGHTLY_LOG = /^nightly-\d{8}\.log$/;
+
+export function nightlyLogs(logsDir: string): { paths: string[]; bytes: number } {
+  let names: string[];
+  try {
+    names = readdirSync(logsDir);
+  } catch {
+    return { paths: [], bytes: 0 };
+  }
+  const found = names
+    .filter((name) => NIGHTLY_LOG.test(name))
+    .map((name) => join(logsDir, name))
+    .filter((path) => lstatSync(path).isFile());
+  return { paths: found, bytes: found.reduce((sum, path) => sum + statSync(path).size, 0) };
+}
 
 export type MigrateOptions = {
   env?: Record<string, string | undefined>;

@@ -18,6 +18,7 @@ Bun runs a small pre-check first. It runs `bun install`, then finds a Node in ra
 - **Connect X:** opens the web app and waits until you have connected (step 3). Press Enter to skip.
 - **Jev key:** typed hidden. Enter skips it here, and the web app asks for it instead (step 3).
 - **Claude skill:** links `packages/skill` into `~/.claude/skills`.
+- **Old logs:** if you moved off the old nightly job, offers to delete the `logs/nightly-*.log` files it left, about 25 MB a night. Only at a terminal.
 
 At a terminal it asks before each step. `bun run setup --yes`, or a run with no terminal, never prompts. `--yes` takes only the steps that hold no secret and replace nothing: the services and the skill. Without `--yes` it only reports. Every run ends with what is done and what is still to do, and skips what is already done. In a linked git worktree it only reports on the main checkout.
 

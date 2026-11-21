@@ -112,3 +112,7 @@ Read with echo off; '' means skip.
 A worktree borrows the main checkout's data and services; it only reports.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/setup/walkthrough.ts#L81)
+
+#### 0010.16 `oldNightlyLogs`
+
+The retired nightly job wrote a full JSON dump into `logs/nightly-<date>.log` every night, about 25 MB each, and migrate removes the job but not its logs. Setup offers to delete them only at a terminal: `--yes` is for agents, and deleting files is not something an agent should do unasked. While the old job is still installed the step is skipped, since that job still writes them.

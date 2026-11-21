@@ -29,6 +29,7 @@ function machine(state: {
   jev?: boolean;
   jevTyped?: string;
   skill?: SkillState;
+  oldLogs?: { count: number; bytes: number; dir: string };
   answer?: (question: string) => boolean;
 }): Machine {
   const asked: string[] = [];
@@ -38,6 +39,7 @@ function machine(state: {
   let connected = state.connected ?? false;
   let jev = state.jev ?? false;
   let skill: SkillState = state.skill ?? 'missing';
+  let logs = state.oldLogs ?? { count: 0, bytes: 0, dir: '/clone/logs' };
   const deps: WalkthroughDeps = {
     interactive: state.interactive ?? true,
     yes: state.yes ?? false,
@@ -83,6 +85,11 @@ function machine(state: {
       did.push('skill');
       skill = 'linked';
     },
+    oldLogs: () => logs,
+    deleteOldLogs: () => {
+      did.push('delete logs');
+      logs = { count: 0, bytes: 0, dir: logs.dir };
+    },
   };
   return { deps, asked, did, lines };
 }
@@ -121,6 +128,26 @@ test('running services pinned to a Node path Homebrew deletes are reinstalled on
   const left = await walkthrough(no.deps);
   assert.deepEqual(no.did, []);
   assert.ok(left.todo.some((line) => line.includes('bun run service:install')));
+});
+
+test("the old nightly job's logs are deleted only on a yes at a terminal, and never while that job is installed", async () => {
+  const setUp = { services: { installed: true, running: true, dataRoot: '/clone' }, connected: true, jev: true, skill: 'linked' as const };
+  const oldLogs = { count: 64, bytes: 1_160_000_000, dir: '/clone/logs' };
+
+  const asked = machine({ ...setUp, oldLogs });
+  const deleted = await walkthrough(asked.deps);
+  assert.deepEqual(asked.did, ['delete logs']);
+  assert.ok(deleted.done.includes('Deleted 64 old nightly logs (1.2 GB).'));
+
+  const agent = machine({ ...setUp, oldLogs, interactive: false, yes: true });
+  const kept = await walkthrough(agent.deps);
+  assert.deepEqual(agent.did, []);
+  assert.ok(kept.todo.some((line) => line.includes('rm /clone/logs/nightly-*.log')));
+
+  const legacy = machine({ ...setUp, oldLogs, legacy: '/Library/LaunchAgents/old.plist', answer: () => false });
+  await walkthrough(legacy.deps);
+  assert.ok(!legacy.did.includes('delete logs'));
+  assert.ok(!legacy.asked.includes('Delete them?'));
 });
 
 test('declined and skipped steps end up on the still-to-do list with the command for each', async () => {
