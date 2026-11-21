@@ -5,10 +5,22 @@ import { existsSync, rmSync } from "node:fs";
 import { refresh } from "next/cache";
 
 import { MAX_QUERY_CHARS } from "@/lib/ask";
-import { engineBirdclaw, engineConfig, engineEdits, engineJev, engineSecrets, engineStore, engineSyncState } from "@/lib/engine";
+import {
+  engineBirdclaw,
+  engineClaude,
+  engineConfig,
+  engineEdits,
+  engineFocus,
+  engineJev,
+  engineResort,
+  engineSecrets,
+  engineStore,
+  engineSyncState,
+} from "@/lib/engine";
 import { errorName } from "@/lib/error-name";
+import { MAX_FOCUS_CHARS } from "@/lib/focus";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
-import type { ActionErrorCode, ActionResult, PlayableMedia, SyncState, UndoStep } from "@/lib/types";
+import type { ActionErrorCode, ActionResult, FocusMode, PlayableMedia, ResortChoice, ResortPreview, SyncState, UndoStep } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
@@ -54,7 +66,7 @@ function pinScores(value: unknown): { postId: string; probability: number }[] {
 async function withStore<A, T extends object>(
   options: { write: boolean },
   prepare: () => A,
-  run: (db: Store, edits: Edits, args: A) => T,
+  run: (db: Store, edits: Edits, args: A) => T | Promise<T>,
 ): Promise<ActionResult<T>> {
   let args: A;
   try {
@@ -70,7 +82,7 @@ async function withStore<A, T extends object>(
   try {
     const db = openStore(store, { readOnly: !options.write });
     try {
-      result = run(db, edits, args);
+      result = await run(db, edits, args);
     } finally {
       db.close();
     }
@@ -292,4 +304,71 @@ export async function requestSync(): Promise<ActionResult<{ sync: SyncState }>> 
     state.writeSyncRequest(paths().syncRequest);
     return { ok: true, sync: await readSyncState() };
   });
+}
+
+function focusSetting(mode: unknown, focus: unknown): { mode: FocusMode; focus: string } {
+  if (mode !== "all" && mode !== "focus") throw new InvalidInput("Choose to show everything or only your focus.");
+  const text = words(focus, "The focus", MAX_FOCUS_CHARS);
+  if (mode === "focus" && text.trim() === "") throw new InvalidInput("Describe what you save posts for.");
+  return { mode, focus: text };
+}
+
+async function autoAreasExist(store: string): Promise<boolean> {
+  if (!existsSync(store)) return false;
+  const { openStore } = await engineStore();
+  const db = openStore(store, { readOnly: true });
+  try {
+    return db.prepare(`SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active' LIMIT 1`).get() !== undefined;
+  } finally {
+    db.close();
+  }
+}
+
+export async function saveFocus(mode: FocusMode, focus: string): Promise<ActionResult<{ areasExist: boolean }>> {
+  return guarded("save the category focus", async () => {
+    const setting = focusSetting(mode, focus);
+    const [{ readFocus, writeFocus }, state, { paths }] = await Promise.all([engineFocus(), engineSyncState(), engineConfig()]);
+    const files = paths();
+    const firstChoice = !readFocus(files).chosen;
+    writeFocus(files.categoryFocus, setting);
+    if (firstChoice) state.writeSyncRequest(files.syncRequest);
+    return { ok: true, areasExist: await autoAreasExist(files.store) };
+  });
+}
+
+export async function previewFocusChange(): Promise<ActionResult<ResortPreview>> {
+  return guarded("preview a re-sort", async () => {
+    const [{ readFocus }, { previewResort }, { createClaudeCli }] = await Promise.all([engineFocus(), engineResort(), engineClaude()]);
+    const read = await withStore(
+      { write: false },
+      () => null,
+      async (db) => {
+        const { mode, focus } = readFocus();
+        return { preview: await previewResort(db, { mode, focus }, { claude: createClaudeCli({ timeoutMs: 60_000 }) }) };
+      },
+    );
+    if (!read.ok) return read;
+    if (!read.preview.ok) {
+      console.error("preview a re-sort:", read.preview.reason);
+      return refused("resort_failed", "The re-sort didn't run, so no category changed. Your new setting is saved.");
+    }
+    return { ok: true, toHide: read.preview.toHide, toShow: read.preview.toShow };
+  });
+}
+
+function areaIds(value: unknown): { id: number }[] {
+  if (!Array.isArray(value)) throw new InvalidInput("The re-sort is not a list of areas.");
+  return value.map((entry: unknown) => ({ id: id(typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>).id : entry, "An area") }));
+}
+
+export async function applyFocusChange(choice: ResortChoice): Promise<ActionResult<{ changed: number; skipped: number }>> {
+  const { applyResort } = await engineResort();
+  return withStore(
+    WRITE,
+    () => {
+      const picked = typeof choice === "object" && choice !== null ? (choice as Record<string, unknown>) : {};
+      return { toHide: areaIds(picked.toHide), toShow: areaIds(picked.toShow) };
+    },
+    (db, _edits, picked) => applyResort(db, picked),
+  );
 }

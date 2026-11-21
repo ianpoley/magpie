@@ -7,3 +7,7 @@ export const engineSecrets = () => import(/* turbopackIgnore: true */ "@magpie/e
 export const engineSyncState = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/sync/state.ts");
 export const engineLock = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/lock.ts");
 export const engineBirdclaw = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/x/birdclaw.ts");
+export const engineFocus = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/focus/setting.ts");
+export const engineResort = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/focus/resort.ts");
+export const engineClaude = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/claude/cli.ts");
+export const engineSkillLink = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/setup/skill-link.ts");

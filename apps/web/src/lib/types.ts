@@ -207,9 +207,24 @@ export type ActionErrorCode =
   | "run_in_progress"
   | "no_worker"
   | "secret_store_locked"
+  | "resort_failed"
   | "failed";
 
 export type ActionResult<T> = ({ ok: true } & T) | { ok: false; code: ActionErrorCode; message: string };
+
+export type FocusMode = "all" | "focus";
+
+export type FocusState = { mode: FocusMode; focus: string; chosen: boolean };
+
+export type ResortArea = { id: number; name: string };
+
+export type ResortPreview = { toHide: ResortArea[]; toShow: ResortArea[] };
+
+export type ResortChoice = { toHide: Pick<ResortArea, "id">[]; toShow: Pick<ResortArea, "id">[] };
+
+export type SkillLink = "linked" | "elsewhere" | "missing" | "none";
+
+export type SettingsState = { focus: FocusState; skillLink: SkillLink; workerAlive: boolean; jevKeyStored: boolean };
 
 export type UndoStep = {
   id: number;
