@@ -33,6 +33,7 @@ const TURN = 1.6;
 const MARGIN = 16;
 const NARROW = 28;
 const RELEASE_SECONDS = 0.9;
+const OFFSCREEN = 48;
 
 const W_ALIGN = 1.6;
 const W_COHERE = 0.45;
@@ -67,6 +68,12 @@ export function createMurmuration(random: () => number = Math.random) {
     if (narrow) return { x0: 0, x1: width, y0: 0, y1: height };
     return home === 0 ? { x0: 0, x1: columnLeft, y0: 0, y1: height } : { x0: columnRight, x1: width, y0: 0, y1: height };
   };
+  const roam = (home: 0 | 1): Box => {
+    const b = box(home);
+    const left = narrow || home === 0 ? OFFSCREEN : 0;
+    const right = narrow || home === 1 ? OFFSCREEN : 0;
+    return { x0: b.x0 - left, x1: b.x1 + right, y0: b.y0 - OFFSCREEN, y1: b.y1 + OFFSCREEN };
+  };
   const sideOf = (b: Bird): 0 | 1 => (narrow ? 0 : b.x < (space.columnLeft + space.columnRight) / 2 ? 0 : 1);
   const overColumn = (b: Bird) => !narrow && b.x > space.columnLeft && b.x < space.columnRight;
   const flying = (b: Bird) => !b.dead && (b.state === 0 || b.state === 2);
@@ -80,6 +87,12 @@ export function createMurmuration(random: () => number = Math.random) {
     const ux = 0.5 + 0.32 * Math.sin(p * 0.21) + 0.18 * Math.sin(p * 0.53 + 1.3);
     const uy = 0.5 + 0.3 * Math.sin(p * 0.13 + 0.7) + 0.2 * Math.sin(p * 0.37 + 2.1);
     return { x: b.x0 + ix + ux * Math.max(0, b.x1 - b.x0 - 2 * ix), y: b.y0 + iy + uy * Math.max(0, b.y1 - b.y0 - 2 * iy) };
+  }
+
+  function onScreen(p: Point, home: 0 | 1): Point {
+    const b = box(home);
+    const clamp = (v: number, lo: number, hi: number) => (hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
+    return { x: clamp(p.x, b.x0 + MARGIN, b.x1 - MARGIN), y: clamp(p.y, b.y0 + MARGIN, b.y1 - MARGIN) };
   }
 
   function makeBird(x: number, y: number, home: 0 | 1, state: BirdState): Bird {
@@ -276,7 +289,7 @@ export function createMurmuration(random: () => number = Math.random) {
           }
 
           if (b.state === 0 || b.t > 1.2) {
-            const bx = box(b.home);
+            const bx = roam(b.home);
             const edge = (gap: number) => (gap >= MARGIN ? 0 : ((MARGIN - Math.max(gap, -MARGIN)) / MARGIN) ** 2);
             const left = edge(b.x - bx.x0);
             const right = edge(bx.x1 - b.x);
@@ -401,7 +414,7 @@ export function createMurmuration(random: () => number = Math.random) {
     },
     pin() {
       const home: 0 | 1 = narrow ? 0 : random() < 0.5 ? 0 : 1;
-      pinPoint = goal(home);
+      pinPoint = onScreen(goal(home), home);
       flyers()
         .sort((a, b) => Math.hypot(a.x - pinPoint.x, a.y - pinPoint.y) - Math.hypot(b.x - pinPoint.x, b.y - pinPoint.y))
         .slice(0, 28)
@@ -420,7 +433,7 @@ export function createMurmuration(random: () => number = Math.random) {
       leaveQueue = 0;
       for (let i = 0; i < target; i++) {
         const home: 0 | 1 = narrow ? 0 : i % 2 === 0 ? 0 : 1;
-        const g = goal(home);
+        const g = onScreen(goal(home), home);
         const bx = box(home);
         const a = random() * Math.PI * 2;
         const r = Math.sqrt(random());

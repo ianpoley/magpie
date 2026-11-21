@@ -634,8 +634,11 @@ How a flock holds together and changes shape, as starling murmurations do:
 - Birds cruise at a near-constant speed and steer by turning toward a desired heading; they never brake or dart.
   Alignment dominates, so a turn started anywhere ripples through the body; that ripple is what folds the shape.
 - A goal point drifts slowly round each gutter and the flock follows it, so the body keeps wheeling and stretching.
-- Near an edge of the gutter (or the content column) birds turn inward gradually, over a margin, toward the goal,
-  so the flock banks off the edges instead of piling against them.
+- Near the content column birds turn away gradually, over a margin, toward the goal,
+  so the flock banks off the column instead of piling against it.
+- The screen's other edges are soft: a flock may sweep up to OFFSCREEN past them (the sidebar side, the window side,
+  top and bottom) and wheel back in, as a real murmuration leaves the frame. Its goal stays on screen, so it always returns.
+  Pinning's gold glint and the still flock under reduced motion stay on screen, since they are meant to be seen.
 - Now and then a small scare sends nearby birds sharply off; alignment carries it through the flock as a wave.
 ```
 
