@@ -257,9 +257,19 @@ test('install on macOS refuses while the old nightly job is installed and points
   const machine = fakeMachine(t, 'darwin');
   mkdirSync(machine.unitDir, { recursive: true });
   writeFileSync(join(machine.unitDir, 'com.ianpoley.birdclaw-nightly.plist'), 'old job');
+  mkdirSync(join(machine.options.home!, '.birdclaw'));
+  writeFileSync(join(machine.options.home!, '.birdclaw', 'bird.env'), 'AUTH_TOKEN=x\nCT0=y\n');
   await assert.rejects(installService(machine.options), /bun run migrate/);
   assert.deepEqual(machine.calls, []);
   await installService({ ...machine.options, migrating: true });
+  assert.ok(machine.loaded.has('x-corpus-worker'));
+});
+
+test('install goes ahead when the old job is installed but its cookie file is gone, since migrate would have nothing to move', async (t) => {
+  const machine = fakeMachine(t, 'darwin');
+  mkdirSync(machine.unitDir, { recursive: true });
+  writeFileSync(join(machine.unitDir, 'com.ianpoley.birdclaw-nightly.plist'), 'old job');
+  await installService(machine.options);
   assert.ok(machine.loaded.has('x-corpus-worker'));
 });
 

@@ -47,5 +47,5 @@ Optional argument: a preferred port (default `3000`).
 ## Notes
 
 - The server serves the live store. Read-only browser checks may use it. Checks that write (category edits, pins, post removal, undo) need a production build against a scratch copy (see the solution doc).
-- If this branch adds a store migration (`packages/engine/src/store/schema.ts`), do not open the live store: the dev server would upgrade it past what the installed service's code accepts. Set `X_CORPUS_ROOT` to a scratch copy of the data root first.
+- If this branch adds a store migration (`packages/engine/src/store/schema.ts`), the engine refuses to upgrade the main checkout's store from a worktree. Set `X_CORPUS_ROOT` to a scratch copy of the data root to work on it.
 - `next dev` may rewrite the managed block in `apps/web/AGENTS.md`. If `git status` shows that file changed, it comes from Next, not from you.
