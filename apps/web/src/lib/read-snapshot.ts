@@ -85,6 +85,15 @@ function linkTargets(db: DatabaseSync): Map<string, Map<string, string>> {
 
 const NO_TARGETS: ReadonlyMap<string, string> = new Map();
 
+function resolvedLinks(db: DatabaseSync): Map<string, string> {
+  const resolved = new Map<string, string>();
+  for (const row of db.prepare(`SELECT url, final_url FROM links WHERE final_url IS NOT NULL`).all()) {
+    const target = text(row.final_url);
+    if (usableTarget(target)) resolved.set(String(row.url), withoutTracking(target));
+  }
+  return resolved;
+}
+
 export function readRuns(db: DatabaseSync): { lastRun: Run | null; lastCompleteRunAt: string | null } {
   const runRow = db.prepare(`SELECT * FROM runs ORDER BY id DESC LIMIT 1`).get();
   let lastRun: Run | null = null;
@@ -116,6 +125,7 @@ export function readRuns(db: DatabaseSync): { lastRun: Run | null; lastCompleteR
 
 function read(db: DatabaseSync): Snapshot {
   const targets = linkTargets(db);
+  const resolved = resolvedLinks(db);
   const readable = (postId: string, value: unknown, quotedId: string | null = null): string =>
     expandLinks(String(value), postId, targets.get(postId) ?? NO_TARGETS, quotedId);
   const posts: Post[] = [];
@@ -132,6 +142,7 @@ function read(db: DatabaseSync): Snapshot {
   for (const row of postRows) {
     const createdAt = text(row.created_at);
     const quotedPost = quoted(parse(row.quoted_json));
+    if (quotedPost) quotedPost.text = expandLinks(quotedPost.text, quotedPost.id ?? "", resolved);
     const post: Post = {
       id: String(row.id),
       text: readable(String(row.id), row.text, quotedPost?.id ?? null),
@@ -156,6 +167,10 @@ function read(db: DatabaseSync): Snapshot {
     };
     posts.push(post);
     postsById.set(post.id, post);
+  }
+  for (const post of posts) {
+    const saved = post.quoted?.id ? postsById.get(post.quoted.id) : undefined;
+    if (post.quoted && saved) post.quoted.text = saved.text;
   }
 
   const removed: RemovedPost[] = db

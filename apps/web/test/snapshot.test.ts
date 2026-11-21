@@ -368,6 +368,24 @@ test("post text reads with resolved links expanded, and search finds the destina
   assert.deepEqual(shown(snap, { keyword: "acme widget" }), ["9"]);
 });
 
+test("a quote reads with resolved links expanded, or as the saved post when it is one", (t) => {
+  const { db } = tempStore(t);
+  const author = { handle: "qq", displayName: "Quo Ted" };
+  seedPost(db, "8", { text: "Look https://t.co/own" });
+  seedPost(db, "1", { quoted: { id: "71", text: "See https://t.co/abc https://t.co/pic", author, media: [] } });
+  seedPost(db, "2", { quoted: { id: "8", text: "Look https://t.co/own", author, media: [] } });
+  seedLink(db, "8", "https://t.co/own", { status: "resolved" });
+  seedLink(db, "8", "https://t.co/abc", { status: "resolved" });
+  seedLink(db, "8", "https://t.co/pic", { status: "not_resource" });
+  const resolve = db.prepare(`UPDATE links SET final_url = ? WHERE url = ?`);
+  resolve.run("https://own.example/page", "https://t.co/own");
+  resolve.run("https://github.com/acme/widget", "https://t.co/abc");
+  resolve.run("https://x.com/qq/status/71/photo/1", "https://t.co/pic");
+  const byId = new Map(readSnapshot(db).posts.map((post) => [post.id, post]));
+  assert.equal(byId.get("1")?.quoted?.text, "See https://github.com/acme/widget");
+  assert.equal(byId.get("2")?.quoted?.text, "Look https://own.example/page");
+});
+
 test("emptying Removed takes its posts off the list for good, and a post removed afterwards is listed", (t) => {
   const { db } = tempStore(t);
   for (const id of ["old", "new", "kept"]) seedPost(db, id);
