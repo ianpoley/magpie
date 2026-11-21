@@ -17,7 +17,7 @@ import { formatCount } from "./format";
 import { MagpieMark } from "./magpie";
 import type { RemovedPostsController } from "./removed-posts";
 import type { ConnectXController } from "./connect-x-dialog";
-import { SyncStatus, type SyncController } from "./sync-status";
+import { SIDE_FOOTER_ROW, SyncStatus, type SyncController } from "./sync-status";
 import type { WhatChangedController } from "./what-changed";
 
 const COLLECTIONS: { value: Collection; label: string; icon: LucideIcon }[] = [
@@ -234,9 +234,9 @@ export function Sidebar({
         </ScrollAreaScrollbar>
       </ScrollArea>
 
-      <div className="flex flex-col gap-1 border-t border-[color-mix(in_oklch,var(--color-side-ink)_12%,transparent)] px-3 pt-3 pb-4">
+      <div className="flex flex-col gap-0.5 border-t border-[color-mix(in_oklch,var(--color-side-ink)_12%,transparent)] px-3 pt-2 pb-3">
         <SyncStatus sync={sync} connectX={connectX} />
-        <DialogTrigger controller={whatChanged} className={`${SIDE_ROW} justify-start bg-transparent font-medium hover:bg-side-hover`}>
+        <DialogTrigger controller={whatChanged} className={SIDE_FOOTER_ROW}>
           <History className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
           What changed
           {changeCount > 0 ? (

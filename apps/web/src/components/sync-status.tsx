@@ -2,7 +2,7 @@
 
 import { Button } from "@ui-sdk/react/button";
 import { DialogTrigger } from "@ui-sdk/react/dialog";
-import { CircleCheck, CloudOff, KeyRound, RefreshCw, TriangleAlert, type LucideIcon } from "lucide-react";
+import { AtSign, CircleCheck, CloudOff, KeyRound, RefreshCw, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -11,6 +11,7 @@ import type { SyncState } from "@/lib/types";
 
 import type { ConnectXController } from "./connect-x-dialog";
 import { describeSync, type PanelIcon } from "./sync-panel";
+import { Tip } from "./tip";
 
 const ICONS: Record<PanelIcon, LucideIcon> = { ok: CircleCheck, warning: TriangleAlert, syncing: RefreshCw, offline: CloudOff };
 
@@ -87,11 +88,21 @@ export function useSyncStatus(initial: SyncState): SyncController {
 const SIDE_TEXT_BUTTON =
   "focus-ring-side pressable inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3 text-[12px] font-semibold text-side-ink";
 
-/** The sidebar's sync panel: status, X connection, the fallback warning and one action. */
+/** A full-width sidebar row, the same shape as the What changed row under it. */
+export const SIDE_FOOTER_ROW =
+  "focus-ring-side pressable flex h-8 w-full cursor-pointer items-center justify-start gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] font-medium text-side-ink hover:bg-side-hover pointer-coarse:h-10";
+
+/**
+ * The sidebar's sync panel. While all is well it is one compact line, the
+ * status and an icon-only Sync now. A warning, Connect X or Reconnect X gets
+ * the full panel, with the detail and a labelled action. The X account sits
+ * in a row of its own under either.
+ */
 export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX: ConnectXController }) {
   const panel = describeSync(sync.state, sync.state.readAt);
   const [refusal, setRefusal] = useState<string | null>(null);
   const Icon = ICONS[panel.icon];
+  const compact = !panel.warning && panel.action.label === "Sync now";
 
   const syncNow = async () => {
     setRefusal(null);
@@ -105,64 +116,87 @@ export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX:
   };
 
   return (
-    <div className={`flex flex-col gap-2 rounded-[12px] px-2.5 py-2 ${panel.warning ? "bg-side-wash" : ""}`}>
-      <div role="status" className="flex items-start gap-2.5">
-        <Icon
-          className={`mt-0.5 size-4 shrink-0 ${panel.warning ? "text-side-ink" : "text-side-muted"} ${panel.icon === "syncing" ? "animate-spin [animation-duration:2.4s] motion-reduce:animate-none" : ""}`}
-          aria-hidden="true"
-        />
-        <div className="min-w-0">
-          <p className="text-[13px] leading-tight font-semibold text-side-ink">{panel.title}</p>
-          {panel.detail ? (
-            <p className={`mt-1 text-[12px] leading-snug ${panel.clamp ? "line-clamp-2" : ""} ${panel.warning ? "text-side-ink" : "text-side-muted"}`}>
-              {panel.detail}
-            </p>
-          ) : null}
-          {panel.synced ? <p className="mt-1 text-[12px] leading-snug text-side-ink">{panel.synced}</p> : null}
-          {panel.nextRun ? <p className="mt-1 text-[12px] leading-snug text-side-muted">{panel.nextRun}</p> : null}
+    <>
+      {/* One element tree for both shapes, so the live region stays mounted and announces a change of state. */}
+      <div className={compact ? "flex items-center gap-1 py-0.5 pl-2.5" : `flex flex-col gap-2 rounded-[12px] px-2.5 py-2 ${panel.warning ? "bg-side-wash" : ""}`}>
+        <div role="status" className="flex min-w-0 flex-1 items-start gap-2.5">
+          <Icon
+            className={`mt-0.5 size-4 shrink-0 ${panel.warning ? "text-side-ink" : "text-side-muted"} ${panel.icon === "syncing" ? "animate-spin [animation-duration:2.4s] motion-reduce:animate-none" : ""}`}
+            aria-hidden="true"
+          />
+          <div className="min-w-0">
+            <p className={`text-[13px] leading-tight font-semibold text-side-ink ${compact ? "truncate" : ""}`}>{panel.title}</p>
+            {compact ? (
+              <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-side-muted">{panel.detail ?? panel.nextRun ?? panel.synced}</p>
+            ) : (
+              <>
+                {panel.detail ? (
+                  <p className={`mt-1 text-[12px] leading-snug ${panel.clamp ? "line-clamp-2" : ""} ${panel.warning ? "text-side-ink" : "text-side-muted"}`}>
+                    {panel.detail}
+                  </p>
+                ) : null}
+                {panel.synced ? <p className="mt-1 text-[12px] leading-snug text-side-ink">{panel.synced}</p> : null}
+                {panel.nextRun ? <p className="mt-1 text-[12px] leading-snug text-side-muted">{panel.nextRun}</p> : null}
+              </>
+            )}
+          </div>
         </div>
+
+        {compact ? (
+          <Tip label={panel.action.disabled ? "Syncing" : "Sync now"}>
+            <Button
+              data-sync-action=""
+              aria-label="Sync now"
+              disabled={panel.action.disabled}
+              focusableWhenDisabled
+              pendingAnnouncement="Asking for a sync"
+              onClick={syncNow}
+              className="focus-ring-side pressable flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-muted hover:bg-side-hover hover:text-side-ink data-disabled:cursor-default data-disabled:opacity-60 data-disabled:hover:bg-transparent data-pending:cursor-progress pointer-coarse:size-11"
+            >
+              <RefreshCw className="size-4" aria-hidden="true" />
+            </Button>
+          </Tip>
+        ) : (
+          <div className="pl-6">
+            {panel.action.label === "Sync now" ? (
+              <Button
+                data-sync-action=""
+                disabled={panel.action.disabled}
+                focusableWhenDisabled
+                pendingAnnouncement="Asking for a sync"
+                onClick={syncNow}
+                className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover data-disabled:cursor-default data-disabled:opacity-60 data-pending:cursor-progress`}
+              >
+                <RefreshCw className="size-3.5" aria-hidden="true" />
+                Sync now
+              </Button>
+            ) : (
+              <DialogTrigger data-sync-action="" controller={connectX} className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover`}>
+                {panel.action.label}
+              </DialogTrigger>
+            )}
+          </div>
+        )}
       </div>
 
       {panel.fallbackWarning ? (
-        <p className="flex items-start gap-2.5 text-[12px] leading-snug text-side-ink">
+        <p className="flex items-start gap-2.5 px-2.5 py-1 text-[12px] leading-snug text-side-ink">
           <KeyRound className="mt-px size-4 shrink-0" aria-hidden="true" />
           {panel.fallbackWarning}
         </p>
       ) : null}
-
-      <div className="flex flex-wrap items-center gap-1.5 pl-6">
-        {panel.action.label === "Sync now" ? (
-          <Button
-            data-sync-action=""
-            disabled={panel.action.disabled}
-            focusableWhenDisabled
-            pendingAnnouncement="Asking for a sync"
-            onClick={syncNow}
-            className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover data-disabled:cursor-default data-disabled:opacity-60 data-pending:cursor-progress`}
-          >
-            <RefreshCw className="size-3.5" aria-hidden="true" />
-            Sync now
-          </Button>
-        ) : (
-          <DialogTrigger data-sync-action="" controller={connectX} className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover`}>
-            {panel.action.label}
-          </DialogTrigger>
-        )}
-        {panel.connection ? (
-          <DialogTrigger
-            controller={connectX}
-            aria-label={`${panel.connection}. Manage the X connection`}
-            className={`${SIDE_TEXT_BUTTON} min-w-0 bg-transparent font-medium text-side-muted hover:bg-side-hover hover:text-side-ink`}
-          >
-            <span className="truncate">{panel.connection}</span>
-          </DialogTrigger>
-        ) : null}
-      </div>
       {refusal ? (
-        <p role="alert" className="pl-6 text-[12px] leading-snug text-side-ink">
+        <p role="alert" className="py-1 pr-2.5 pl-9 text-[12px] leading-snug text-side-ink">
           {refusal}
         </p>
       ) : null}
-    </div>
+
+      {panel.connection ? (
+        <DialogTrigger controller={connectX} aria-label={`${panel.connection}. Manage the X connection`} className={SIDE_FOOTER_ROW}>
+          <AtSign className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
+          <span className="min-w-0 truncate text-side-muted">{panel.connection}</span>
+        </DialogTrigger>
+      ) : null}
+    </>
   );
 }
