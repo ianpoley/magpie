@@ -421,3 +421,7 @@ An empty Birdclaw database seeds demo posts with ids like `tweet_006`.
 Videos and GIFs are fetched when someone presses play in the post window, not at sync. `bird` gives each video a direct `video.twimg.com` MP4 (`videoUrl`), but birdclaw, up to at least 0.17.1, keeps only the thumbnail from `bird`, so the export and the store hold no video links. Reading one post with `bird read <id> --json` uses the same signed-in session as sync. The link is kept in the page's state, not the store: it can expire, and storing it would need a migration. Only `https` links on `video.twimg.com` are passed on.
 
 The browser streams the MP4 straight from X; nothing is downloaded or proxied. X's CDN refuses requests that carry a `Referer` (403) and serves the same request without one, and `<video>` has no per-element referrer setting, so the web app sends `no-referrer` for the whole document (`layout.tsx`).
+
+#### 0003.56 `previousUpstream`
+
+`data/sync-status.json` was written only by the retired nightly job, and migrate deletes it. Without it, a categorize-only run takes the X sync result of the run before it, so an X failure stays on the sync panel until a sync clears it instead of being hidden by a later `bun run categorize`.

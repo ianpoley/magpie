@@ -80,7 +80,7 @@ export function runCategorize(
 ): Promise<CategorizeResult> {
   return underLock(files, deps, async (run) => ({
     status: 'complete',
-    ...(await runPipeline(run, readSyncStatus(files.syncStatus), files, deps, options)),
+    ...(await runPipeline(run, readSyncStatus(files.syncStatus) ?? previousUpstream(run), files, deps, options)),
   }));
 }
 
@@ -191,12 +191,19 @@ function buildMarkdown(args: string[]): Promise<string | null> {
   });
 }
 
-function readSyncStatus(path: string): Upstream {
+function previousUpstream(run: OpenRun): Upstream {
+  const row = run.db
+    .prepare(`SELECT upstream_sync, upstream_sync_detail FROM runs WHERE id < ? ORDER BY id DESC LIMIT 1`)
+    .get(run.id) as { upstream_sync: Upstream['result']; upstream_sync_detail: string | null } | undefined;
+  return row ? { result: row.upstream_sync, detail: row.upstream_sync_detail } : { result: 'unknown', detail: null };
+}
+
+function readSyncStatus(path: string): Upstream | null {
   let text: string;
   try {
     text = readFileSync(path, 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { result: 'unknown', detail: null };
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
     return { result: 'unknown', detail: errorText(error).slice(0, MESSAGE_MAX_CHARS) };
   }
   let status: unknown;
