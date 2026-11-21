@@ -37,7 +37,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - The flock steps and draws at most once every 10ms, so a 120Hz screen draws it at 60fps. Birds move in 2px steps, so the extra frames showed nothing. Screens at 100Hz or less draw every frame.
   - A mouse or pen pointer in a gutter startles the birds within 14 art px of it, and the turn ripples through the flock as a scare does, so the flock parts around it. Over the column, on touch and with reduced motion on, the pointer does nothing.
   - Reactions follow what already happened and never delay or gate an action. They're broadcast through `lib/magpie-events.ts`.
-  - With reduced motion on, each flock is drawn still, as one loose body, and the mark and the empty-state birds rest.
+  - With reduced motion on, each flock is drawn still, as one loose body, and the mark and the empty-state birds rest. Turning the setting on or off changes the flock at once, without a reload.
 - **Page header** (`components/page-header.tsx`):
   - The title row holds the title (30px display), a count line (`N posts · N bookmarked · N liked`, or `N resources` on the Resources view) and the Posts / Resources switch.
   - The tool row under it holds one search field, Time, Sort, the Media toggle and an icon-only Surprise. It pins to the top on scroll over a frosted strip (`shadow-pinned`). Changing a filter while it's pinned jumps back to the top of the results.

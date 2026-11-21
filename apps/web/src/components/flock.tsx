@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { useMagpieEvents } from "@/lib/magpie-events";
 import { createMurmuration, type Murmuration } from "@/lib/murmuration";
@@ -178,21 +178,30 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
   };
 }
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+const subscribeReducedMotion = (onChange: () => void) => {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
+const prefersReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
+
 export function Flock({ count, asking }: { count: number; asking: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const sky = useRef<Sky>(NOOP);
+  const reduced = useSyncExternalStore(subscribeReducedMotion, prefersReducedMotion, () => false);
 
   useEffect(() => {
     if (!ref.current) return;
-    const s = createSky(ref.current, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const s = createSky(ref.current, reduced);
     sky.current = s;
     return () => {
       s.destroy();
       sky.current = NOOP;
     };
-  }, []);
-  useEffect(() => sky.current.setTarget(count), [count]);
-  useEffect(() => sky.current.setAsking(asking), [asking]);
+  }, [reduced]);
+  useEffect(() => sky.current.setTarget(count), [count, reduced]);
+  useEffect(() => sky.current.setAsking(asking), [asking, reduced]);
   useMagpieEvents((event) => {
     if (event === "surprise") sky.current.surprise();
     if (event === "pin") sky.current.pin();
