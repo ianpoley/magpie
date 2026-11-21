@@ -8,7 +8,7 @@ import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
 import { Bookmark, Eye, Heart, History, Layers, Search, Tags, Trash2, X, type LucideIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-import type { AuthorCount, Collection, FilterState, Snapshot } from "@/lib/types";
+import type { AuthorCount, Collection, FilterState, Post, Snapshot } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import type { CategoryEdits } from "./category-menu";
@@ -35,6 +35,7 @@ export type SidebarProps = {
   sync: SyncController;
   connectX: ConnectXController;
   filter: FilterState;
+  viewed: (post: Post) => boolean;
   totals: { everything: number; bookmarks: number; likes: number };
   authors: AuthorCount[];
   expanded: string[];
@@ -56,6 +57,7 @@ export function Sidebar({
   sync,
   connectX,
   filter,
+  viewed,
   totals,
   authors,
   expanded,
@@ -163,6 +165,7 @@ export function Sidebar({
                 <CategoryTree
                   snapshot={snapshot}
                   filter={filter}
+                  viewed={viewed}
                   query={categoryQuery}
                   expanded={expanded}
                   edits={categoryEdits}

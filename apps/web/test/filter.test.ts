@@ -5,6 +5,7 @@ import {
   DEFAULT_FILTER,
   applyFilter,
   categoryCounts,
+  inView,
   mostSavedAuthors,
 } from "../src/lib/filter.ts";
 import type { FilterState } from "../src/lib/types.ts";
@@ -238,7 +239,7 @@ test("a category's count is the number of posts selecting it alone lists, with a
     areas: AREAS,
     topics: TOPICS,
     posts: [
-      post("a", { liked: true, in: { [EVALS]: "confident" } }),
+      post("a", { liked: true, authorHandle: "ada", in: { [EVALS]: "confident" } }),
       post("b", { in: { [EVALS]: "confident" } }),
       post("c", { hidden: true, in: { [EVALS]: "confident", [ELECTIONS]: "confident" } }),
       post("loose", {}),
@@ -264,11 +265,15 @@ test("a category's count is the number of posts selecting it alone lists, with a
   assert.equal(off.topics.get(ELECTIONS), listed({ topicIds: [ELECTIONS] }));
   assert.equal(off.areas.get(POLITICS), listed({ areaIds: [POLITICS] }));
 
-  const likes = categoryCounts(snap, false, "likes");
+  const likes = categoryCounts(snap, false, inView(filter({ collection: "likes" }), NOW));
   assert.equal(likes.topics.get(EVALS), 1);
   assert.equal(likes.topics.get(EVALS), listed({ topicIds: [EVALS], collection: "likes" }));
   assert.equal(likes.areas.get(AI), listed({ areaIds: [AI], collection: "likes" }));
   assert.equal(likes.unfiled, listed({ unfiled: true, collection: "likes" }));
+
+  const byAda = categoryCounts(snap, false, inView(filter({ author: "ADA" }), NOW));
+  assert.equal(byAda.topics.get(EVALS), 1);
+  assert.equal(byAda.topics.get(EVALS), listed({ topicIds: [EVALS], author: "ADA" }));
 });
 
 test("recently added puts the posts a later sync found first, then newest within a sync", () => {

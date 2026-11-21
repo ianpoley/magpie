@@ -34,6 +34,18 @@ const ORDER: Record<FilterState["sort"], (a: Post, b: Post) => number> = {
   most_liked: (a, b) => b.likeCount - a.likeCount || newestFirst(a, b),
 };
 
+export type ViewFilter = Pick<FilterState, "collection" | "author" | "timeRange" | "mediaOnly" | "keyword">;
+
+export function inView(state: ViewFilter, now: number): (post: Post) => boolean {
+  const since = state.timeRange === "all" ? null : now - RANGE_DAYS[state.timeRange] * DAY_MS;
+  return (post) =>
+    inCollection(post, state.collection) &&
+    (state.author === null || sameHandle(post.authorHandle, state.author)) &&
+    (since === null || (post.createdAtMs !== null && post.createdAtMs >= since)) &&
+    (!state.mediaOnly || post.media.length > 0) &&
+    matchesKeyword(post, state.keyword);
+}
+
 export function applyFilter(snapshot: Snapshot, state: FilterState, now: number, held: ReadonlySet<string> = new Set()): FilterResult {
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
@@ -54,8 +66,7 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number,
     state.revealHidden ||
     topicIds.some((id) => topicsById.get(id)?.hidden) ||
     areaIds.some((id) => areasById.get(id)?.hidden);
-  const since = state.timeRange === "all" ? null : now - RANGE_DAYS[state.timeRange] * DAY_MS;
-  const author = state.author;
+  const viewed = inView(state, now);
 
   const selectionBand = (post: Post): Band | null => {
     const byTopic = new Map<number, Band>();
@@ -72,12 +83,8 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number,
 
   const placement = (post: Post): Band | null => {
     if (post.hidden && !showHidden) return null;
-    if (!inCollection(post, state.collection)) return null;
     if (state.unfiled && !post.unfiled) return null;
-    if (author !== null && !sameHandle(post.authorHandle, author)) return null;
-    if (since !== null && (post.createdAtMs === null || post.createdAtMs < since)) return null;
-    if (state.mediaOnly && post.media.length === 0) return null;
-    if (!matchesKeyword(post, state.keyword)) return null;
+    if (!viewed(post)) return null;
     return categorySelected ? selectionBand(post) : "confident";
   };
 
@@ -102,12 +109,12 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number,
 
 export type CategoryCounts = { topics: Map<number, number>; areas: Map<number, number>; unfiled: number };
 
-export function categoryCounts(snapshot: Snapshot, revealHidden: boolean, collection: Collection = "everything"): CategoryCounts {
+export function categoryCounts(snapshot: Snapshot, revealHidden: boolean, viewed: (post: Post) => boolean = () => true): CategoryCounts {
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
   const counts: CategoryCounts = { topics: new Map(), areas: new Map(), unfiled: 0 };
   for (const post of snapshot.posts) {
-    if (!inCollection(post, collection)) continue;
+    if (!viewed(post)) continue;
     const shown = revealHidden || !post.hidden;
     if (shown && post.unfiled) counts.unfiled++;
     const inAreas = new Set<number>();
