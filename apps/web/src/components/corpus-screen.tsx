@@ -593,7 +593,7 @@ export function CorpusScreen({
         topicsById={topicsById}
         chipsFor={(post) => postChips(post, applied)}
         similarFor={(post) => similarPosts(snapshot, post, shownPosts, SIMILAR_POSTS)}
-        quotedByFor={(post) => snapshot.posts.filter((other) => other.quoted?.id === post.id)}
+        quotedByFor={(post) => shownPosts.filter((other) => other.quoted?.id === post.id)}
         isAuthor={(handle) => authorHandles.has(handle.toLowerCase())}
         onShowAuthor={showAuthor}
         neighborsOf={(postId) => {
