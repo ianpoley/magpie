@@ -155,7 +155,7 @@ export function setTopicHidden(db: Store, topicId: number, hidden: boolean): { t
 export function setAreaHidden(db: Store, areaId: number, hidden: boolean): { areaId: number; hidden: boolean } {
   return transaction(db, () => {
     editableArea(db, areaId);
-    db.prepare(`UPDATE areas SET hidden = ?, locked = 1, updated_at = ? WHERE id = ?`).run(
+    db.prepare(`UPDATE areas SET hidden = ?, locked = 1, set_by_owner = 1, updated_at = ? WHERE id = ?`).run(
       hidden ? 1 : 0,
       timestamp(),
       areaId,

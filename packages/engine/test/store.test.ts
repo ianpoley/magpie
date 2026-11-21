@@ -231,3 +231,61 @@ test('a borrowed store already at the current schema opens read-write as usual',
   t.after(() => db.close());
   assert.equal(Number(db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()?.value), SCHEMA_VERSION);
 });
+
+function migratedFromV2(t: TestContext, seed: string): DatabaseSync {
+  const path = storePath(t);
+  mkdirSync(dirname(path), { recursive: true });
+  const old = new DatabaseSync(path);
+  old.exec(readFileSync(join(import.meta.dirname, 'fixtures', 'store-v2.sql'), 'utf8'));
+  old.exec(seed);
+  old.close();
+  const db = openStore(path);
+  t.after(() => db.close());
+  return db;
+}
+
+test('migrating flags only active auto areas whose hidden state was set by hand', (t) => {
+  const db = migratedFromV2(
+    t,
+    `INSERT INTO areas (name, kind, is_dev, hidden, locked, state, created_at) VALUES
+       ('dev default', 'auto', 1, 0, 0, 'active', '2026-01-01'),
+       ('non-dev default', 'auto', 0, 1, 0, 'active', '2026-01-01'),
+       ('non-dev unhidden', 'auto', 0, 0, 0, 'active', '2026-01-01'),
+       ('dev hidden', 'auto', 1, 1, 0, 'active', '2026-01-01'),
+       ('non-dev rehidden', 'auto', 0, 1, 1, 'active', '2026-01-01'),
+       ('system', 'system', 1, 1, 1, 'active', '2026-01-01'),
+       ('deleted', 'auto', 1, 1, 1, 'deleted', '2026-01-01');`,
+  );
+
+  assert.deepEqual(
+    db.prepare(`SELECT name, set_by_owner FROM areas ORDER BY id`).all().map((row) => ({ ...row })),
+    [
+      { name: 'dev default', set_by_owner: 0 },
+      { name: 'non-dev default', set_by_owner: 0 },
+      { name: 'non-dev unhidden', set_by_owner: 1 },
+      { name: 'dev hidden', set_by_owner: 1 },
+      { name: 'non-dev rehidden', set_by_owner: 1 },
+      { name: 'system', set_by_owner: 0 },
+      { name: 'deleted', set_by_owner: 0 },
+    ],
+  );
+});
+
+test('migrating a store with an active auto area marks it as a legacy install, and an empty store is not marked', (t) => {
+  const legacyMarker = (db: DatabaseSync) =>
+    db.prepare(`SELECT value FROM meta WHERE key = 'category_focus_legacy'`).get()?.value;
+
+  const withAreas = migratedFromV2(t, `INSERT INTO areas (name, created_at) VALUES ('AI', '2026-01-01');`);
+  assert.equal(legacyMarker(withAreas), '1');
+
+  const onlyInactive = migratedFromV2(
+    t,
+    `INSERT INTO areas (name, kind, state, created_at) VALUES
+       ('system', 'system', 'active', '2026-01-01'),
+       ('gone', 'auto', 'deleted', '2026-01-01');`,
+  );
+  assert.equal(legacyMarker(onlyInactive), undefined);
+
+  const empty = migratedFromV2(t, '');
+  assert.equal(legacyMarker(empty), undefined);
+});

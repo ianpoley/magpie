@@ -57,6 +57,7 @@ test('renaming a topic or an area changes its name and locks it', (t) => {
   assert.equal(topicRow(db, topic)?.locked, 1);
   assert.equal(areaRow(db, area)?.name, 'Machine learning');
   assert.equal(areaRow(db, area)?.locked, 1);
+  assert.equal(areaRow(db, area)?.set_by_owner, 0);
 });
 
 test('invalid edits throw a typed error and change nothing', (t) => {
@@ -176,6 +177,7 @@ test('hiding and unhiding a topic or an area flags its posts and locks it', (t) 
   setAreaHidden(db, area, true);
   assert.deepEqual(hidden(), ['p1']);
   assert.equal(areaRow(db, area)?.locked, 1);
+  assert.equal(areaRow(db, area)?.set_by_owner, 1);
   assert.equal(topicRow(db, elections)?.locked, 0);
 
   setAreaHidden(db, area, false);

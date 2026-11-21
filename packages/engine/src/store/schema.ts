@@ -236,6 +236,14 @@ const MIGRATIONS: string[] = [
   `,
   MEMBERSHIP_VIEWS_V1,
   MEMBERSHIP_VIEWS_V2,
+  `
+  ALTER TABLE areas ADD COLUMN set_by_owner INTEGER NOT NULL DEFAULT 0;
+  UPDATE areas SET set_by_owner = 1
+   WHERE kind = 'auto' AND state = 'active' AND (locked = 1 OR hidden != 1 - is_dev);
+  INSERT INTO meta (key, value)
+  SELECT 'category_focus_legacy', '1'
+   WHERE EXISTS (SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active');
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
