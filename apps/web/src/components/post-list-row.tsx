@@ -22,7 +22,7 @@ function Carries({ post, keyword }: { post: Post; keyword: string }) {
   const marked = "rounded-[4px] bg-mark px-1 text-ink";
   if (post.media.length === 0 && !post.quoted && !page) return null;
   return (
-    <span className="flex min-w-0 shrink items-center gap-3 pl-1 text-[12px] font-medium text-ink-muted">
+    <span className="flex min-w-0 flex-1 items-center gap-3 pl-1 text-[12px] font-medium text-ink-muted">
       {post.media.length > 0 ? (
         <span className="flex shrink-0 items-center gap-1">
           {mediaKind(post.media[0]) === "photo" ? <Images className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}
