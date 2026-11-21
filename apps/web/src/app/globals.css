@@ -181,6 +181,11 @@
   --color-bird-tail: oklch(0.6 0.11 180);
   --color-bird-tip: oklch(0.55 0.13 290);
   --color-bird-eye: oklch(0.97 0 0);
+  --color-bird-gloss: oklch(0.34 0.07 255);
+  --color-bird-far: oklch(0.36 0.03 262);
+  --color-bird-far-white: oklch(0.7 0.015 262);
+  --color-bird-tail-gloss: oklch(0.4 0.07 185);
+  --color-bird-tail-end: oklch(0.4 0.09 290);
   --color-coin: oklch(0.84 0.15 85);
   --color-coin-shine: oklch(0.97 0.06 95);
   --color-coin-shade: oklch(0.64 0.13 68);
@@ -369,8 +374,23 @@ body {
   animation: orbit var(--dur) linear infinite;
   animation-delay: var(--delay);
 }
-.orbit-bird .wing-up {
-  animation: wing-up 260ms steps(1, jump-none) infinite;
+/* The wingbeat: a strip of frames slides past its window one frame at a time. */
+.wingbeat {
+  animation: wingbeat var(--beat, 600ms) steps(var(--beat-n), end) infinite;
+}
+@keyframes wingbeat {
+  to {
+    transform: translateX(calc(var(--beat-w) * var(--beat-n) * -1));
+  }
+}
+/* Facing: the sprite faces right; the bird flies left along the bottom of its orbit and right along the top. */
+.orbit-face {
+  animation: orbit-face var(--dur) step-end infinite;
+  animation-delay: var(--delay);
+}
+@keyframes orbit-face {
+  0% { transform: scaleX(-1); }
+  50% { transform: none; }
 }
 
 /* The tool row picks up a frosted sky once it is pinned to the top, so the list reads clearly as it slides under. */
@@ -443,7 +463,8 @@ body {
   .mark-flap,
   .mark-flap .wing-up,
   .orbit,
-  .orbit-bird .wing-up {
+  .orbit-face,
+  .wingbeat {
     animation: none !important;
   }
   .orbit {
