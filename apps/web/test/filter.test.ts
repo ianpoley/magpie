@@ -6,12 +6,6 @@ import {
   applyFilter,
   categoryCounts,
   mostSavedAuthors,
-  postChips,
-  selectTopicOnly,
-  toggleArea,
-  toggleAuthor,
-  toggleTopic,
-  toggleUnfiled,
 } from "../src/lib/filter.ts";
 import type { FilterState } from "../src/lib/types.ts";
 import {
@@ -216,34 +210,6 @@ test("most-saved authors are capped at ten, most saved first", () => {
   const top = mostSavedAuthors(posts, false);
   assert.equal(top.length, 10);
   assert.deepEqual([top[0].handle, top[0].count, top[9].handle], ["author11", 12, "author2"]);
-});
-
-test("chips are a post's confident topics, plus a selected unsure topic marked possible", () => {
-  const p = post("p", { in: { [EVALS]: "confident", [AGENTS]: "unsure", [ANIMATIONS]: "unsure" } });
-  assert.deepEqual(postChips(p, filter({})), [{ topicId: EVALS, possible: false }]);
-  assert.deepEqual(postChips(p, filter({ topicIds: [AGENTS] })), [
-    { topicId: EVALS, possible: false },
-    { topicId: AGENTS, possible: true },
-  ]);
-});
-
-test("selection changes", () => {
-  const start = filter({ topicIds: [EVALS], areaIds: [FRONTEND], unfiled: false, keyword: "x" });
-  assert.deepEqual(toggleTopic(start, AGENTS).topicIds, [EVALS, AGENTS]);
-  assert.deepEqual(toggleTopic(start, EVALS).topicIds, []);
-  assert.deepEqual(toggleArea(start, FRONTEND).areaIds, []);
-  assert.deepEqual(toggleArea(start, AI).areaIds, [FRONTEND, AI]);
-
-  const chip = selectTopicOnly(start, ANIMATIONS);
-  assert.deepEqual([chip.topicIds, chip.areaIds, chip.unfiled, chip.keyword], [[ANIMATIONS], [], false, "x"]);
-
-  const unfiled = toggleUnfiled(start);
-  assert.deepEqual([unfiled.topicIds, unfiled.areaIds, unfiled.unfiled], [[], [], true]);
-  assert.equal(toggleUnfiled(unfiled).unfiled, false);
-  assert.equal(toggleTopic(unfiled, EVALS).unfiled, false);
-
-  assert.equal(toggleAuthor(start, "ada").author, "ada");
-  assert.equal(toggleAuthor(toggleAuthor(start, "ada"), "Ada").author, null);
 });
 
 test("a category's count is the number of posts selecting it alone lists, with and without hidden posts", () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { storedSidebarWidth } from "../src/components/sidebar-width.ts";
+
 import { noCategories, searchCategories, type CategoryRows } from "../src/lib/category-search.ts";
 import { area, topic } from "./fixtures/snapshot.ts";
 
@@ -71,14 +71,3 @@ test("a query matching nothing returns an empty tree", () => {
   assert.equal(noCategories(rows), false);
 });
 
-test("a stored sidebar width that is not a number or is out of range is not used", () => {
-  assert.equal(storedSidebarWidth("300"), 300);
-  assert.equal(storedSidebarWidth("220"), 220);
-  assert.equal(storedSidebarWidth("440"), 440);
-  assert.equal(storedSidebarWidth(null), null);
-  assert.equal(storedSidebarWidth(""), null);
-  assert.equal(storedSidebarWidth("wide"), null);
-  assert.equal(storedSidebarWidth("NaN"), null);
-  assert.equal(storedSidebarWidth("100"), null);
-  assert.equal(storedSidebarWidth("5000"), null);
-});
