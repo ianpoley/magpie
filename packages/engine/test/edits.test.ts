@@ -13,6 +13,7 @@ import {
   listUndo,
   mergeTopics,
   pinQuery,
+  purgeRemoved,
   removePost,
   removePostTopic,
   renameArea,
@@ -364,6 +365,25 @@ test('removing a post twice keeps the first removal time, and an unknown post is
 
   throwsCode(() => removePost(db, 'nope'), 'unknown_post');
   throwsCode(() => restorePost(db, 'nope'), 'unknown_post');
+});
+
+test('emptying Removed covers every post removed so far, refuses to restore them, and leaves later removals for the next empty', (t) => {
+  const { db } = tempStore(t);
+  for (const id of ['a', 'b', 'later', 'kept']) seedPost(db, id);
+  db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = 'a'`).run();
+  db.prepare(`UPDATE posts SET removed_at = '2026-02-02T00:00:00.000Z' WHERE id = 'b'`).run();
+
+  assert.deepEqual(purgeRemoved(db), { purged: 2 });
+  assert.deepEqual(purgeRemoved(db), { purged: 0 });
+  throwsCode(() => restorePost(db, 'a'), 'purged');
+  assert.equal(db.prepare(`SELECT removed_at FROM posts WHERE id = 'a'`).get()?.removed_at, '2026-02-01T00:00:00.000Z');
+
+  removePost(db, 'later');
+  restorePost(db, 'later');
+  removePost(db, 'later');
+  assert.deepEqual(purgeRemoved(db), { purged: 1 });
+  throwsCode(() => restorePost(db, 'later'), 'purged');
+  assert.equal(db.prepare(`SELECT removed_at FROM posts WHERE id = 'kept'`).get()?.removed_at, null);
 });
 
 test('a topic cannot be merged into a pinned search, and both stay as they were', (t) => {

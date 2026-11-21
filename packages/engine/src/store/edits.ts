@@ -17,7 +17,8 @@ export type EditErrorCode =
   | 'not_pinned'
   | 'system_area'
   | 'not_undoable'
-  | 'already_undone';
+  | 'already_undone'
+  | 'purged';
 
 export class EditError extends Error {
   code: EditErrorCode;
@@ -192,11 +193,33 @@ export function removePost(db: Store, postId: string): { postId: string } {
   });
 }
 
+export const REMOVED_PURGED_THROUGH = 'removed_purged_through';
+
 export function restorePost(db: Store, postId: string): { postId: string } {
   return transaction(db, () => {
     knownPost(db, postId);
+    const purged = db
+      .prepare(`SELECT 1 FROM posts WHERE id = ? AND removed_at <= (SELECT value FROM meta WHERE key = ?)`)
+      .get(postId, REMOVED_PURGED_THROUGH);
+    if (purged) throw new EditError('purged', `Post ${postId} was emptied from Removed and can no longer be restored.`);
     db.prepare(`UPDATE posts SET removed_at = NULL WHERE id = ?`).run(postId);
     return { postId };
+  });
+}
+
+export function purgeRemoved(db: Store): { purged: number } {
+  return transaction(db, () => {
+    const row = db
+      .prepare(
+        `SELECT MAX(removed_at) AS through, COUNT(*) AS purged FROM posts
+         WHERE removed_at > COALESCE((SELECT value FROM meta WHERE key = ?), '')`,
+      )
+      .get(REMOVED_PURGED_THROUGH);
+    if (!row?.through) return { purged: 0 };
+    db.prepare(
+      `INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+    ).run(REMOVED_PURGED_THROUGH, String(row.through));
+    return { purged: Number(row.purged) };
   });
 }
 
