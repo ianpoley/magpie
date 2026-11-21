@@ -190,7 +190,7 @@ const prefersReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 function birdsFor(count: number, collection: number) {
   if (count <= ONE_BIRD_EACH || collection <= MAX_BIRDS) return count;
   const share = Math.log(count / ONE_BIRD_EACH) / Math.log(collection / ONE_BIRD_EACH);
-  return Math.round(ONE_BIRD_EACH + (MAX_BIRDS - ONE_BIRD_EACH) * Math.min(1, share));
+  return Math.min(count, Math.round(ONE_BIRD_EACH + (MAX_BIRDS - ONE_BIRD_EACH) * Math.min(1, share)));
 }
 
 export function Flock({ count, collection, asking }: { count: number; collection: number; asking: boolean }) {
