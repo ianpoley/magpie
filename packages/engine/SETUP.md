@@ -14,7 +14,7 @@ bun run setup
 Bun runs a small pre-check first. It runs `bun install`, then finds a Node in range: the first `node` on your `PATH` if it fits, otherwise the newest one in the usual places (Homebrew, `/usr/local`, nvm, fnm, Volta, mise, asdf). It names the one it picked. With none, it says how to install Node 26 and stops. Then the walkthrough runs under that Node:
 
 - **Checks:** the Node range, the pinned Birdclaw and bird, the Claude CLI and the secret store. A failed check stops here with the fix.
-- **Background services:** installs them (step 2 below). On a Mac with the old `birdclaw-nightly` job it offers `migrate` instead (see below). If the services belong to another clone, it asks before pointing them here; the default is no.
+- **Background services:** installs them (step 2 below). If the services belong to another clone, it asks before pointing them here; the default is no.
 - **Connect X:** opens the web app and waits until you have connected (step 3). Press Enter to skip.
 - **Jev key:** typed hidden. Enter skips it here, and the web app asks for it instead (step 3).
 - **Claude skill:** links `packages/skill` into `~/.claude/skills`.
@@ -63,22 +63,9 @@ bun run service:install          # rebuilds and restarts both services
 bun run service:status
 ```
 
-Coming from a version from before the rename to Magpie, when the services were `x-corpus-web` and `x-corpus-worker`: run `bun run setup` at a terminal right after `git pull` instead. It offers to rename the install (services, keychain entries and `~/.config/x-corpus`) and puts it back if anything fails. See "Upgrading from x-corpus" in the README.
-
 If you upgrade Node and the path the services captured goes away, they stay stopped until you rerun `service:install`; `service:status` reports it.
 
 To remove the services: `bun run service:uninstall`. Add `-- --purge-secrets` to also delete the stored X cookies and Jev key and disconnect X.
-
-## Migrating from the old launchd job
-
-If this machine still runs the old `birdclaw-nightly` LaunchAgent (`bin/birdclaw-nightly.sh`, with `~/.birdclaw/bird.env` and a plaintext `secrets.env`):
-
-```bash
-bun install
-bun run migrate                  # --timeout-minutes N changes the 15 minute wait
-```
-
-It stops the old job but keeps it, moves your X cookies and Jev key into the secret store, installs the two services, and waits for the new worker to finish one good sync. Only after that sync does it delete the old plaintext files and the old job's plist. If any step fails, it rolls back: the new services are removed and the old job is loaded again.
 
 ## Notes
 

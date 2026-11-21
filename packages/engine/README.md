@@ -12,15 +12,13 @@ Two user-level background services run the system:
 ## Files
 
 ```
-bin/magpie.mjs          # the CLI: setup, service install|uninstall|status, secrets set-jev, sync, migrate
+bin/magpie.mjs          # the CLI: setup, service install|uninstall|status, secrets set-jev, sync
 bin/sync.mjs              # one whole sync under the run lock: X check, bookmarks + likes, export JSON, build markdown/jsonl, categorize
 bin/worker.mjs            # the scheduler process the worker service runs
 bin/build-markdown.mjs    # birdclaw JSON -> per-post .md + index.md + normalized .jsonl
 bin/categorize.mjs        # ingest -> resolve links -> tag -> discover or evolve categories
-bin/birdclaw-nightly.sh   # legacy: the old launchd job's script, kept only so `migrate` can roll back to it
-launchd/…plist            # legacy: the old job's plist, kept for the same reason
 src/                      # the pipeline, secret store, scheduler and service renderers (TypeScript, run directly by node)
-SETUP.md                  # setup, connect, service install, migration
+SETUP.md                  # setup, connect, service install, update
 ```
 
 Everything runs on plain node. The `bun` scripts are convenience wrappers only.
@@ -40,7 +38,7 @@ Thresholds and limits live in `src/config.ts`. All Jev question wording lives in
 
 **Credentials**
 
-- X cookies and the Jev key are in the OS secret store (macOS Keychain, Linux Secret Service), service `magpie`. Connect X in the web app; store the Jev key with `bun run secrets:set-jev`. When no secret store is available they fall back to an owner-only `~/.config/magpie/secrets.env`, and the app warns.
+- X cookies and the Jev key are in the OS secret store (macOS Keychain, Linux Secret Service), service `magpie`. Both are required, and the web app's setup screen asks for them; `bun run secrets:set-jev` stores the Jev key from a terminal instead. When no secret store is available they fall back to an owner-only `~/.config/magpie/secrets.env`, and the app warns.
 - Claude: the Claude Code CLI, using your existing login. The services' PATH includes `~/.local/bin`. It runs with no built-in tools, no MCP servers, and no slash commands, and its output is accepted only when it matches a JSON schema. If the CLI is missing or fails, category upkeep is skipped for that run and tagging still completes.
 
 **Run by hand**
