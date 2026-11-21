@@ -13,7 +13,6 @@ import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
   DEFAULT_FILTER,
-  inCollection,
   inView,
   MOST_SAVED_AUTHORS,
   mostSavedAuthors,
@@ -313,7 +312,7 @@ export function CorpusScreen({
     likes: shownPosts.filter((post) => post.liked).length,
   };
   const authors = mostSavedAuthors(
-    snapshot.posts.filter((post) => inCollection(post, applied.collection)),
+    snapshot.posts.filter(inView({ ...applied, author: null }, now)),
     applied.revealHidden,
     MOST_SAVED_AUTHORS,
     applied.author,
