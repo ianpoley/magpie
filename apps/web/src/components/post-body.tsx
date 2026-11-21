@@ -107,7 +107,11 @@ export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: 
               <span className="block truncate text-[13px] leading-snug font-semibold text-ink">
                 <Marked text={page.title} keyword={keyword} />
               </span>
-              {page.host ? <span className="block truncate text-[12px] leading-snug text-ink-muted">{page.host}</span> : null}
+              {page.host ? (
+                <span className="block truncate text-[12px] leading-snug text-ink-muted">
+                  <Marked text={page.host} keyword={keyword} />
+                </span>
+              ) : null}
             </span>
           </>
         );

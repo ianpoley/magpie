@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Link2, Tags, Trash2, X } from "lu
 import { useRef, useState, useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
+import { withoutTrailingUrl } from "@/lib/post-links";
 import type { Area, Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
@@ -129,6 +130,7 @@ function PostLayer({
           const date = formatDate(post.createdAt);
           const chips = chipsFor(post);
           const similar = similarFor(post);
+          const text = withoutTrailingUrl(post.text, post.linkedPages[0]?.url ?? null);
           const { previous, next } = neighborsOf(post.id);
           return (
             <>
@@ -193,9 +195,9 @@ function PostLayer({
                   }}
                   className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5"
                 >
-                  {post.text ? (
+                  {text ? (
                     <PostText
-                      text={post.text}
+                      text={text}
                       keyword={keyword}
                       links
                       mentions={{
