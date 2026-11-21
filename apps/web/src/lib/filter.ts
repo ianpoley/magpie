@@ -16,7 +16,7 @@ export const DEFAULT_FILTER: FilterState = {
 
 export const MOST_SAVED_AUTHORS = 10;
 
-export const inCollection = (post: Post, collection: Collection): boolean =>
+const inCollection = (post: Post, collection: Collection): boolean =>
   collection === "everything" || (collection === "bookmarks" ? post.bookmarked : post.liked);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
