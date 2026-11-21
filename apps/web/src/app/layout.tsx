@@ -16,6 +16,7 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "Magpie",
   description: "Every post you bookmarked or liked on X, sorted into topics.",
+  referrer: "no-referrer",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

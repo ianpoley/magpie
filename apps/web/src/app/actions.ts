@@ -8,7 +8,7 @@ import { MAX_QUERY_CHARS } from "@/lib/ask";
 import { engineBirdclaw, engineConfig, engineEdits, engineJev, engineSecrets, engineStore, engineSyncState } from "@/lib/engine";
 import { errorName } from "@/lib/error-name";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
-import type { ActionErrorCode, ActionResult, SyncState, UndoStep } from "@/lib/types";
+import type { ActionErrorCode, ActionResult, PlayableMedia, SyncState, UndoStep } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
@@ -230,6 +230,20 @@ export async function connectX(authToken: string, ct0: string): Promise<ActionRe
     const jev = await store.get("typesafe-api-key");
     if (!jev.ok || jev.value) state.writeSyncRequest(files.syncRequest);
     return { ok: true, handle: who.handle, sync: await readSyncState() };
+  });
+}
+
+export async function playableMedia(post: string): Promise<ActionResult<{ media: PlayableMedia[] }>> {
+  return guarded("read a post's video", async () => {
+    const tweetId = postId(post);
+    const [{ createBirdclaw }, { createSecretStore }] = await Promise.all([engineBirdclaw(), engineSecrets()]);
+    const session = await createSecretStore().get("x-session");
+    if (!session.ok) return refused("secret_store_locked", LOCKED_MESSAGE);
+    if (!session.value) return refused("x_rejected", "Connect X to play videos here.");
+    const read = await createBirdclaw().playableMedia(session.value, tweetId);
+    if (read.ok) return { ok: true, media: read.media };
+    if (read.reason === "missing_cookies") return refused("x_rejected", "Connect X to play videos here.");
+    return refused("x_unreachable", "X didn't send this video. Open the post on X instead.");
   });
 }
 

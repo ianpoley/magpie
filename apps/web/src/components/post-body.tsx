@@ -7,6 +7,7 @@ import type { LinkedPage, Media, QuotedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { FadeImg } from "./fade-img";
+import { MediaPlayer } from "./media-player";
 
 export function Marked({ text, keyword, phrase = false }: { text: string; keyword: string; phrase?: boolean }) {
   const ranges = highlightRanges(text, keyword, phrase);
@@ -133,14 +134,18 @@ export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: 
   );
 }
 
-export function MediaGrid({ media }: { media: Media[] }) {
+export function MediaGrid({ media, postId }: { media: Media[]; postId: string }) {
   if (media.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      {media.map((item) => (
-        // eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally
-        <img key={item.url} src={item.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="img-outline max-h-[70dvh] w-full rounded-inner bg-sunken object-contain" />
-      ))}
+      {media.map((item) =>
+        mediaKind(item) === "photo" ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally
+          <img key={item.url} src={item.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="img-outline max-h-[70dvh] w-full rounded-inner bg-sunken object-contain" />
+        ) : (
+          <MediaPlayer key={item.url} item={item} postId={postId} />
+        ),
+      )}
     </div>
   );
 }
@@ -160,7 +165,7 @@ export function Thumb({ item, className, small = false }: { item: Media; classNa
   );
 }
 
-export function Quoted({ quoted, keyword }: { quoted: QuotedPost; keyword: string }) {
+export function Quoted({ quoted, keyword, parentId }: { quoted: QuotedPost; keyword: string; parentId: string }) {
   const handle = quoted.authorHandle ?? "";
   const name = quoted.authorName ?? (handle || "Quoted post");
   return (
@@ -171,7 +176,7 @@ export function Quoted({ quoted, keyword }: { quoted: QuotedPost; keyword: strin
         {handle ? <span className="truncate text-ink-muted">@{handle}</span> : null}
       </div>
       {quoted.text ? <PostText text={quoted.text} keyword={keyword} links className="text-[14px]" /> : null}
-      <MediaGrid media={quoted.media} />
+      <MediaGrid media={quoted.media} postId={quoted.id ?? parentId} />
     </blockquote>
   );
 }
