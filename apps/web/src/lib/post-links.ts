@@ -25,8 +25,11 @@ export function expandLinks(text: string, postId: string, targets: ReadonlyMap<s
   return expanded === text ? text : expanded.trimEnd();
 }
 
+const X_ARTICLE = /^(?:x|twitter)\.com\/i\/article\/\d+$/i;
+
 export function displayUrl(url: string): string {
   const bare = url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+  if (X_ARTICLE.test(bare)) return "X article";
   return bare.length > DISPLAY_CHARS ? `${bare.slice(0, DISPLAY_CHARS - 1)}…` : bare;
 }
 
