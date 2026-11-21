@@ -11,7 +11,7 @@ import { withoutTrailingUrl } from "@/lib/post-links";
 import type { Area, Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { formatDate } from "./format";
+import { formatDate, formatLikes } from "./format";
 import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, postCardOpen, type PostDialogController } from "./post-card";
 import { PostRow } from "./resources-view";
@@ -154,6 +154,7 @@ function PostLayer({
                     <DialogDescription className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">
                       @{post.authorHandle}
                       {date ? ` · ${date}` : ""}
+                      {` · ${formatLikes(post.likeCount)}`}
                     </DialogDescription>
                   </div>
                   <CollectionMarks post={post} />

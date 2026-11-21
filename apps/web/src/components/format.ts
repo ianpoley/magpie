@@ -7,6 +7,10 @@ const DAY = 24 * HOUR;
 
 export const formatCount = (value: number): string => NUMBER.format(value);
 
+const COMPACT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
+export const formatLikes = (value: number): string => `${COMPACT.format(value)} ${value === 1 ? "like" : "likes"}`;
+
 export function formatDate(iso: string | null): string | null {
   if (iso === null) return null;
   const ms = Date.parse(iso);
