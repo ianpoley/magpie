@@ -2,58 +2,6 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { BANDS } from '../config.ts';
 
-/**
- * Which posts are in which topic, and which posts are Unfiled, hidden or
- * pending. Each is defined once, here, as a view in the store, so the sync
- * job, the web app and the skill read the same answer with plain SQL.
- *
- * All five views cover visible posts only: bookmarked or liked, and not
- * removed by the user (see `visible_posts` below).
- *
- *   scoring_topics   (topic_id, target_id)
- *     Every definition posts are scored against, with the active topic its
- *     matches count for: an active topic counts for itself, a merged-away
- *     topic for the active topic at the end of its merge chain.
- *
- *   pairs_to_score   (post_id, topic_id)
- *     Post and definition pairs that need a score: none stored yet, or the
- *     stored one is older than a link of the post that resolved to a page with
- *     a title or description.
- *
- *   topic_membership (post_id, topic_id, area_id, band, probability, strength,
- *                     hidden, pinned)
- *     One row per post and active topic the post is in.
- *       band         'confident' | 'unsure'
- *       probability  best score among the topic's definitions; NULL when only
- *                    a per-post decision places the post
- *       strength     order within a band, highest first
- *       hidden       1 when the topic or its area is hidden
- *       pinned       1 when the topic is a pinned search
- *     Per post and topic, first match wins:
- *       the user removed the post from the topic        -> not in it
- *       the user added the post to the topic            -> confident
- *       best score >= confident threshold               -> confident
- *       best score >= unsure threshold                  -> unsure
- *       a split carried the post onto the topic         -> unsure
- *       otherwise                                       -> not in it
- *     A decision recorded on a merged-away topic follows it: an add or a carry
- *     counts for the surviving topic, a remove discards that definition's
- *     score only.
- *
- *   post_unfiled     (post_id)  No confident match in any topic.
- *
- *   post_hidden      (post_id)  The best match is in a hidden topic or area and
- *     no visible topic matches confidently. Pinned searches are ignored.
- *
- *   post_pending     (post_id)  A score is still needed, or a link has not
- *     been resolved yet and will be tried again.
- *
- * The two thresholds are read from `meta` (`band_confident`, `band_unsure`),
- * so changing them re-bands every stored score without scoring anything again.
- *
- * This text is a shipped migration. To change a view, add a new constant that
- * drops and recreates it and append that as a new migration.
- */
 export const MEMBERSHIP_VIEWS_V1 = `
   INSERT OR IGNORE INTO meta (key, value) VALUES ('band_confident', '0.7'), ('band_unsure', '0.3');
 
@@ -165,13 +113,6 @@ export const MEMBERSHIP_VIEWS_V1 = `
     AND l.status IN ('new', 'failed');
 `;
 
-/**
- *   visible_posts    (id)  Posts that are bookmarked or liked and not removed.
- *     The one definition of a visible post. Every reader of posts goes through
- *     it, and so do the views above, which this recreates on top of it.
- *     `post_hidden` and `scoring_topics` are unchanged: the first reads only
- *     `topic_membership`, the second reads no posts.
- */
 export const MEMBERSHIP_VIEWS_V2 = `
   ALTER TABLE posts ADD COLUMN removed_at TEXT;
 
@@ -260,10 +201,6 @@ export const MEMBERSHIP_VIEWS_V2 = `
   WHERE l.status IN ('new', 'failed');
 `;
 
-/**
- * Stores the two band thresholds where the membership view reads them. The
- * sync job calls this at the start of a run so the store follows the config.
- */
 export function syncBands(
   db: DatabaseSync,
   bands: { confident: number; unsure: number } = BANDS,

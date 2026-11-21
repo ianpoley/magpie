@@ -8,12 +8,6 @@ type LockRecord = { pid: number; boot: string | null };
 
 let thisBoot: string | null | undefined;
 
-/**
- * Names the current boot of this machine, or null when it cannot be read.
- * Both are random ids fixed for the life of a boot. The boot time is not
- * used: macOS moves it when the clock is stepped, which would make a live
- * lock look stale.
- */
 function bootIdentity(): string | null {
   if (thisBoot !== undefined) return thisBoot;
   try {
@@ -36,7 +30,6 @@ function isAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    // EPERM: the process exists but belongs to someone else.
     return (error as NodeJS.ErrnoException).code === 'EPERM';
   }
 }
@@ -51,12 +44,6 @@ function readRecord(path: string): LockRecord | null {
   }
 }
 
-/**
- * The pid of the process running a sync, read from the lock file at `path`,
- * or null when no run is in progress. A lock counts only while its owner is
- * alive, was started in this boot, and is not this process: after a reboot,
- * or in a process that reused a dead owner's pid, the old lock is stale.
- */
 export function lockHolder(path: string): number | null {
   const record = readRecord(path);
   if (record === null || record.pid === process.pid) return null;
@@ -65,15 +52,8 @@ export function lockHolder(path: string): number | null {
   return isAlive(record.pid) ? record.pid : null;
 }
 
-/**
- * Takes the lock file at `path` for this process, so two runs never overlap.
- * A stale lock (see `lockHolder`) is taken over; a live one is left alone
- * and reported with its owner's pid.
- */
 export function acquireLock(path: string): LockAttempt {
   mkdirSync(dirname(path), { recursive: true });
-  // Written whole under a private name, then linked into place: the link
-  // fails when the lock exists, and a reader never sees a half-written file.
   const draft = `${path}.${process.pid}.tmp`;
   writeFileSync(draft, `${JSON.stringify({ pid: process.pid, boot: bootIdentity() })}\n`);
   try {

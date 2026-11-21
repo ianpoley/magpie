@@ -6,10 +6,6 @@ import { must } from './manager.ts';
 const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const unescape = (text: string) => text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
 
-/**
- * A LaunchAgent plist that runs the spec's program directly (no shell), starts
- * at login and restarts it whenever it exits with a failure.
- */
 export function renderPlist(spec: ServiceSpec): string {
   const string = (value: string) => `<string>${escape(value)}</string>`;
   const env = Object.entries(spec.environment).flatMap(([key, value]) => [
@@ -50,7 +46,6 @@ export function renderPlist(spec: ServiceSpec): string {
   ].join('\n');
 }
 
-/** The user's LaunchAgents, managed with `launchctl bootstrap`, `bootout` and `kickstart` in the `gui/<uid>` domain. */
 export function launchd(options: { home: string; uid: number; run: Runner }): ServiceManager {
   const { home, uid, run } = options;
   const domain = `gui/${uid}`;
@@ -75,7 +70,6 @@ export function launchd(options: { home: string; uid: number; run: Runner }): Se
     stop: bootout,
     async start(names) {
       for (const name of names) {
-        // A loaded job keeps its old definition, so it is unloaded before the new plist is loaded.
         await bootout(name);
         await must(run, 'launchctl', ['enable', target(name)]);
         await must(run, 'launchctl', ['bootstrap', domain, unitPath(name)]);

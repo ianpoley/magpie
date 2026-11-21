@@ -52,7 +52,6 @@ export function ResourcesView({ groups, dialog }: { groups: ResourceGroup[]; dia
         const Icon = kind.icon;
         const name = resourceName(resource, posts);
         const still = videoStill(resource.url);
-        // A video's channel says more than its host; anything else keeps the host.
         const source = resource.kind === "video" && resource.description ? resource.description : (resource.host ?? resource.url);
         return (
           <AccordionItem key={resource.id} value={String(resource.id)} className="border-line last:border-b-0">

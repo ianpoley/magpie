@@ -25,9 +25,7 @@ function quotedText(quotedJson: unknown): string {
     for (const field of ['full_text', 'text', 'content', 'tweet']) {
       if (typeof quoted?.[field] === 'string' && quoted[field] !== '') return quoted[field];
     }
-  } catch {
-    // A quoted post that cannot be parsed contributes nothing.
-  }
+  } catch {}
   return '';
 }
 
@@ -106,7 +104,6 @@ function cleanCandidates(topics: CandidateTopics['topics'], seen: Set<string>): 
   return out;
 }
 
-/** The list as it will be stored: cleaned, same-named areas folded together, each topic kept once. */
 function cleanCategoryList(list: CategoryList): CategoryList['areas'] {
   const areas = new Map<string, CategoryList['areas'][number]>();
   const topicNames = new Set<string>();
@@ -126,18 +123,6 @@ function cleanCategoryList(list: CategoryList): CategoryList['areas'] {
   return [...areas.values()].filter((area) => area.topics.length > 0);
 }
 
-/**
- * Builds the first category list for a store that has none.
- *
- * Claude reads the visible posts in batches and proposes candidate topics, then
- * one more call merges the candidates into areas containing topics. The list
- * is written in one transaction together with the "Initial categories"
- * change-log entry, which cannot be undone. Areas Claude marks as not about
- * development start hidden.
- *
- * Does nothing when an automatic topic already exists in any state, or when
- * there are no visible posts. Any failed call leaves the store untouched.
- */
 export async function runDiscovery(
   db: Store,
   deps: { claude: ClaudeAdapter; runId?: number },

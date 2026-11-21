@@ -3,7 +3,6 @@ import { suppressProposal } from './tombstones.ts';
 
 export const CHANGE_KIND = { newTopic: 'new_topic', split: 'split', undo: 'undo' } as const;
 
-/** What a logged change stores so it can be reversed. */
 export type NewTopicSnapshot = { topicId: number; areaId: number; areaCreated: boolean };
 export type SplitSnapshot = { parentId: number; subtopicIds: number[] };
 
@@ -13,7 +12,6 @@ export type LoggedChange = {
   summary: string;
   postCount: number;
   createdAt: string;
-  /** Names of topics the user merged into a topic this change created; undoing it brings them back. */
   restores: string[];
 };
 
@@ -28,7 +26,6 @@ function createdTopicIds(change: ChangeRow): number[] {
 
 type MergedTopic = { id: number; name: string };
 
-/** Each topic the given changes created, with the change that created it. */
 function createdBy(changes: ChangeRow[]): Map<number, number> {
   const created = new Map<number, number>();
   for (const change of changes) {
@@ -37,11 +34,6 @@ function createdBy(changes: ChangeRow[]): Map<number, number> {
   return created;
 }
 
-/**
- * Topics merged into `topicId`, which stop counting for anything once it goes
- * out of use: the user's `own`, and those `created` made. What was merged into
- * one of the latter is found too, since that topic goes out of use as well.
- */
 function mergedInto(
   db: Store,
   topicId: number,
@@ -68,11 +60,6 @@ function mergedInto(
   return { own, made };
 }
 
-/**
- * Every change that undoing `changeId` reverses, newest first: the change
- * itself, then each later automatic change still in effect that touched a
- * topic one of them touched. Empty when the change does not exist.
- */
 export function undoChain(db: Store, changeId: number): LoggedChange[] {
   const read = db.prepare(`SELECT id, kind, summary, post_count, created_at, snapshot_json FROM changes WHERE id = ?`);
   const target = read.get(changeId);
@@ -107,12 +94,6 @@ export function undoChain(db: Store, changeId: number): LoggedChange[] {
   }));
 }
 
-/**
- * Takes topics an automatic change created out of use and keeps them from
- * being proposed again. A topic the user merged into one of them is the
- * user's own, so it comes back as it was rather than going out of use too,
- * unless a change being undone (`created`) made that topic as well.
- */
 function removeCreatedTopics(
   db: Store,
   topicIds: number[],
@@ -124,16 +105,12 @@ function removeCreatedTopics(
   const remove = db.prepare(
     `UPDATE topics SET state = 'removed', merged_into = NULL, locked = 1, updated_at = ? WHERE id = ?`,
   );
-  // The posts the proposal itself matched: what was merged in is not part of it.
   const ownMatches = db.prepare(
     `SELECT s.post_id FROM scores s
      WHERE s.topic_id = ? AND s.post_id IN (SELECT id FROM visible_posts)
        AND s.probability >= (SELECT CAST(value AS REAL) FROM meta WHERE key = 'band_confident')
      ORDER BY s.post_id`,
   );
-  // The merge moved the merged topic's per-post fixes here without recording
-  // which were its own, so each restored topic gets them all: a fix kept in
-  // one place too many can be taken off, a lost one cannot be found again.
   const copyFixes = db.prepare(
     `INSERT OR IGNORE INTO overrides (post_id, topic_id, action, created_at)
      SELECT post_id, ?, action, created_at FROM overrides WHERE topic_id = ? AND action IN ('add', 'remove')`,
@@ -190,12 +167,6 @@ function reverse(db: Store, change: LoggedChange, created: Map<number, number>, 
   }
 }
 
-/**
- * Reverses `chain` in the order given and logs the undo. Posts return to where
- * the membership view puts them once the topics change state; nothing is
- * scored here. The caller runs this inside one transaction. Returns the id of
- * the log entry for the undo.
- */
 export function reverseChanges(db: Store, chain: LoggedChange[], now: string): number {
   const target = chain[chain.length - 1];
   const undo = db

@@ -66,13 +66,6 @@ function fixtureRecords() {
   return [...byId.values()];
 }
 
-/**
- * A store holding the fixture corpus:
- *   UI        > Animation       101, 105, 103 confident; 202 and 104 unsure
- *             > State machines  102 confident
- *   Politics  > Elections       104 confident
- * Post 201 is in no topic. Two resources are linked from Animation posts.
- */
 function seedStore(t, { politicsHidden }) {
   const { db, path } = tempStore(t);
   for (const record of fixtureRecords()) {
@@ -280,7 +273,6 @@ test('a store written by a newer schema version is refused', (t) => {
   db.prepare(`UPDATE meta SET value = '99' WHERE key = 'schema_version'`).run();
   db.close();
 
-  // Which posts were removed cannot be read from it, so keyword search has no flag that skips the store.
   for (const args of [['categories'], ['topic', 'animation'], ['resources', 'animation'], ['animation'], ['animation', '--include-hidden']]) {
     const result = run(store, args);
     assert.notEqual(result.status, 0, args.join(' '));
@@ -426,7 +418,6 @@ test('install moves an existing skill directory to a dated backup and leaves its
   assert.ok(lstatSync(target).isSymbolicLink());
   assert.equal(realpathSync(target), realpathSync(SKILL_DIR));
 
-  // A backup left inside the skills directory would be loaded as a second skill.
   assert.deepEqual(readdirSync(skills), ['magpie']);
   const backupDir = join(home, '.claude', 'skill-backups');
   const backups = readdirSync(backupDir);
@@ -451,7 +442,6 @@ test('with no env overrides the skill reads the clone its symlink points back to
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'skill-root-')));
   t.after(() => rmSync(base, { recursive: true, force: true }));
 
-  // A clone anywhere on disk, with a store and JSONL of its own.
   const clone = join(base, 'some', 'clone');
   mkdirSync(join(clone, 'packages'), { recursive: true });
   mkdirSync(join(clone, 'data'));
@@ -475,7 +465,6 @@ test('with no env overrides the skill reads the clone its symlink points back to
   db.close();
   copyFileSync(path, join(clone, 'state', 'corpus.sqlite'));
 
-  // The way install.sh links it: a symlink in a skills directory.
   const skills = join(base, 'home', '.claude', 'skills');
   mkdirSync(skills, { recursive: true });
   symlinkSync(join(clone, 'packages', 'skill'), join(skills, 'magpie'));

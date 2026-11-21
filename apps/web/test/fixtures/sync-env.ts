@@ -7,23 +7,6 @@ import type { TestContext } from "node:test";
 
 import { tempDir } from "../../../../packages/engine/test/fixtures/export.ts";
 
-/**
- * A scratch install for the sync actions and the status route: repo root,
- * store, per-user config and Birdclaw home all in one temp dir, secrets in
- * the owner-only file (never the OS keychain), and a stub `bird` that acts
- * on the auth_token it is given:
- *
- *   good…      whoami names @owner
- *   probe…     whoami fails without saying why, one page of bookmarks works
- *   rejected…  whoami fails without saying why, bookmarks get HTTP 401
- *   offline…   whoami cannot reach X
- *
- * and a stub TypeSafe that takes Jev keys starting `good` and refuses the
- * rest, except keys starting `offline`, whose connection it drops.
- *
- * Importing this sets the environment, so import it before anything that
- * reads it. Nothing is ever unset, so no test can reach the real install.
- */
 const scratch = tempDir();
 export const root = join(scratch.dir, "root");
 export const configDir = join(scratch.dir, "config");
@@ -39,7 +22,6 @@ process.env.MAGPIE_KEYCHAIN_SERVICE = "magpie-web-test";
 process.env.BIRDCLAW_HOME = join(scratch.dir, "birdclaw");
 process.env.MAGPIE_BIRD_BIN = bird;
 process.env.MAGPIE_BIRDCLAW_BIN = bird;
-// A real key in the shell must never be read or sent.
 process.env.TYPESAFE_API_KEY = "";
 
 const jevChecks: string[] = [];
@@ -85,7 +67,6 @@ export function freshInstall(t: TestContext): void {
 
 export const cleanupScratch = scratch.cleanup;
 
-/** Next resolves these when it builds; plain node needs telling. */
 export function resolveLikeNext(): void {
   const src = new URL("../../src/", import.meta.url);
   registerHooks({
@@ -98,7 +79,6 @@ export function resolveLikeNext(): void {
   });
 }
 
-/** A worker heartbeat written `ageMs` ago, with its next scheduled run. */
 export function writeHeartbeat(ageMs: number, nextRunAt: string | null = null): void {
   const heartbeatAt = new Date(Date.now() - ageMs).toISOString();
   writeFileSync(
@@ -107,7 +87,6 @@ export function writeHeartbeat(ageMs: number, nextRunAt: string | null = null): 
   );
 }
 
-/** A run lock held by another live process, as a sync started elsewhere would hold it. */
 export function holdRunLock(t: TestContext): void {
   const owner = spawn("sleep", ["30"], { stdio: "ignore" });
   t.after(() => owner.kill());

@@ -1,14 +1,4 @@
 #!/usr/bin/env node
-//
-// categorize.mjs
-// Brings the local store up to date with the exported bookmarks and likes:
-// ingest, resolve links, score posts against topics, grow the category list.
-//
-//     node packages/engine/bin/categorize.mjs [--limit-posts N] [--skip-links] [--skip-evolve]
-//
-// Exits 0 when the run reached its end, even if a stage failed or warned (the
-// summary and the run row say which). Exits 1 when another run holds the lock
-// or the run could not start, and 2 for a bad argument.
 
 import { RUN_OPTIONS_USAGE, categorizeDeps, printStages, readRunOptions } from './run-cli.mjs';
 

@@ -2,11 +2,6 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { MEMBERSHIP_VIEWS_V1, MEMBERSHIP_VIEWS_V2 } from './membership.ts';
 
-/**
- * The store schema is a contract shared by the sync job, the web app and the
- * skill. Change it only by appending a migration; never edit one that shipped.
- */
-
 const MIGRATIONS: string[] = [
   `
   CREATE TABLE IF NOT EXISTS meta (
@@ -245,7 +240,6 @@ const MIGRATIONS: string[] = [
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-/** The version a store was last migrated to; 0 for a file with no schema yet. */
 export function readSchemaVersion(db: DatabaseSync): number {
   const hasMeta = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'`).get();
   if (!hasMeta) return 0;
@@ -253,7 +247,6 @@ export function readSchemaVersion(db: DatabaseSync): number {
   return row ? Number(row.value) : 0;
 }
 
-/** Throws when the store was written by code newer than this. */
 export function assertKnownVersion(db: DatabaseSync): number {
   const version = readSchemaVersion(db);
   if (version > SCHEMA_VERSION) {
@@ -264,12 +257,10 @@ export function assertKnownVersion(db: DatabaseSync): number {
   return version;
 }
 
-/** Brings a store up to SCHEMA_VERSION. Safe to call on every open. */
 export function migrate(db: DatabaseSync): void {
   if (assertKnownVersion(db) === SCHEMA_VERSION) return;
   db.exec('BEGIN IMMEDIATE');
   try {
-    // Read again under the write lock: another process may have migrated first.
     for (let version = assertKnownVersion(db); version < SCHEMA_VERSION; version++) {
       db.exec(MIGRATIONS[version]);
     }

@@ -12,16 +12,11 @@ const OK_CHECKS: SetupCheck[] = [
 
 type Machine = {
   deps: WalkthroughDeps;
-  /** Every question asked, and every step taken, in order. */
   asked: string[];
   did: string[];
   lines: string[];
 };
 
-/**
- * A machine in some state, with every answer `answer` gives (yes by default).
- * The fakes change the state the way the real steps would.
- */
 function machine(state: {
   interactive?: boolean;
   yes?: boolean;

@@ -35,27 +35,15 @@ type Machine = {
   secretsEnv: string;
   syncStatus: string;
   plist: string;
-  /** What happened, in order: launchctl commands, `install`, `uninstall`. */
   events: string[];
-  /** Every line the migration printed. */
   output: string[];
-  /** The cookies the X check was given. */
   checked: Cookies[];
-  /** Labels launchctl has loaded. */
   loaded: Set<string>;
-  /** Items the stand-in keychain holds, by account. */
   keychain: () => Record<string, string>;
-  /** Calls the stand-in keychain received, as `<command> <account>`. */
   keychainCalls: () => string[];
-  /** What the X connection and secret backend files held when the services were installed. */
   atInstall: { connection: boolean; backend: boolean } | null;
 };
 
-/**
- * A stand-in for /usr/bin/security that keeps items as files named by
- * account. `fail` refuses everything; `fail-writes` refuses every write except
- * the store's own probe.
- */
 function stubSecurity(dir: string, mode: Keychain): { path: string; items: () => Record<string, string>; calls: () => string[] } {
   const items = join(dir, 'items');
   mkdirSync(items);
@@ -93,7 +81,6 @@ function stubSecurity(dir: string, mode: Keychain): { path: string; items: () =>
   };
 }
 
-/** One worker run as the orchestrator would record it: a complete run row with the given X stage outcomes. */
 function fakeRun(store: string, likes: 'ok' | 'failed'): () => Promise<SyncRunResult> {
   return async () => {
     const db = openStore(store);
@@ -130,12 +117,6 @@ function fakeRun(store: string, likes: 'ok' | 'failed'): () => Promise<SyncRunRe
   };
 }
 
-/**
- * A fake home, clone and config dir, with fakes for launchctl, the keychain,
- * the X check and the service installer. The installer starts the real worker
- * loop with a fake sync, so the migration reads a real worker status file and
- * run row; `worker: 'none'` installs services that never run.
- */
 function fakeMachine(
   t: TestContext,
   setup: { whoami?: WhoamiResult; keychain?: Keychain; worker?: 'ok' | 'likes-fail' | 'none' } = {},
@@ -161,7 +142,6 @@ function fakeMachine(
   writeFileSync(plist, PLIST);
 
   let worker: Worker | null = null;
-  // The worker stops before its files go.
   t.after(async () => {
     await worker?.stop();
     cleanup();
@@ -232,7 +212,6 @@ function fakeMachine(
   return machine;
 }
 
-/** Every secret value the machine started with. */
 const SECRET_VALUES = [AUTH_TOKEN, CT0, JEV_KEY];
 
 function assertNoSecretsPrinted(machine: Machine) {
@@ -261,10 +240,8 @@ test('a successful migration checks the cookies, stores the secrets, connects X,
   const result = await migrate(machine.options);
   assert.equal(result.ok, true, machine.output.join('\n'));
 
-  // The cookie check got the pair from `export AUTH_TOKEN="..."` lines.
   assert.deepEqual(machine.checked, [{ authToken: AUTH_TOKEN, ct0: CT0 }]);
 
-  // The secrets went to the keychain, and a fresh store reads them back from there.
   assert.deepEqual(JSON.parse(machine.keychain()['x-session']), { authToken: AUTH_TOKEN, ct0: CT0 });
   assert.equal(machine.keychain()['typesafe-api-key'], JEV_KEY);
   const store = createSecretStore({ env: machine.options.env, platform: 'darwin', securityPath: machine.options.secretStore?.securityPath });
@@ -275,14 +252,12 @@ test('a successful migration checks the cookies, stores the secrets, connects X,
   assert.equal(connection?.handle, 'owner');
   assert.ok(connection && !Number.isNaN(Date.parse(connection.connectedAt)));
 
-  // The connection and the secrets existed before the services started, and the old job was stopped first.
   assert.deepEqual(machine.atInstall, { connection: true, backend: true });
   const bootout = machine.events.indexOf(`launchctl bootout gui/501/${LABEL}`);
   assert.ok(bootout >= 0 && bootout < machine.events.indexOf('install'), machine.events.join('\n'));
   assert.ok(!machine.events.includes('uninstall'));
   assert.ok(!machine.loaded.has(LABEL));
 
-  // Both plaintext files, the old status file and the old plist are gone, in that order.
   for (const path of [machine.birdEnv, machine.secretsEnv, machine.syncStatus, machine.plist]) assert.equal(existsSync(path), false, path);
   const deleted = [machine.birdEnv, machine.secretsEnv, machine.syncStatus, machine.plist].map((path) =>
     machine.output.findIndex((line) => line.includes('deleted') && line.includes(path)),
@@ -375,12 +350,10 @@ test('when no sync finishes in time the migration rolls back, and the legacy Jev
   assertNothingRecorded(machine);
   assert.equal(existsSync(paths(machine.options.env).syncRequest), false, 'the unanswered sync request is removed');
 
-  // A legacy categorize builds a store with no backend recorded, which reads the Jev key from secrets.env.
   const store = createSecretStore({ env: machine.options.env, platform: 'darwin', securityPath: machine.options.secretStore?.securityPath });
   assert.equal(store.backend(), null);
   assert.deepEqual(await store.get('typesafe-api-key'), { ok: true, value: JEV_KEY });
 
-  // The reported state says where things stand.
   const state = result.ok ? '' : result.state.join('\n');
   assert.match(state, new RegExp(`${LABEL}.*loaded again`));
   assert.match(state, /services are removed/);

@@ -16,7 +16,6 @@ import { Tip } from "./tip";
 const ICONS: Record<PanelIcon, LucideIcon> = { ok: CircleCheck, warning: TriangleAlert, syncing: RefreshCw, offline: CloudOff };
 
 const POLL_MS = 5_000;
-// The worker starts a due run at its next tick, up to half a minute later.
 const AFTER_NEXT_RUN_MS = 32_000;
 
 export type SyncController = { state: SyncState; update: (next: SyncState) => void };
@@ -34,12 +33,6 @@ const finished = (before: SyncState, after: SyncState): boolean =>
   !after.running &&
   (before.running || before.lastRun?.id !== after.lastRun?.id || before.lastRun?.status !== after.lastRun?.status);
 
-/**
- * The sync state the panel shows: what the page was rendered with, or a
- * newer read. It polls only while a run is in progress or requested, and
- * reads once more on window focus and when the next scheduled run is due.
- * When a run finishes it refreshes the page, so the new posts show.
- */
 export function useSyncStatus(initial: SyncState): SyncController {
   const router = useRouter();
   const [latest, setLatest] = useState<SyncState | null>(null);
@@ -88,16 +81,9 @@ export function useSyncStatus(initial: SyncState): SyncController {
 const SIDE_TEXT_BUTTON =
   "focus-ring-side pressable inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3 text-[12px] font-semibold text-side-ink";
 
-/** A full-width sidebar row, the same shape as the What changed row under it. */
 export const SIDE_FOOTER_ROW =
   "focus-ring-side pressable flex h-8 w-full cursor-pointer items-center justify-start gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] font-medium text-side-ink hover:bg-side-hover pointer-coarse:h-10";
 
-/**
- * The sidebar's sync panel. While all is well it is one compact line, the
- * status and an icon-only Sync now. A warning, Connect X or Reconnect X gets
- * the full panel, with the detail and a labelled action. The X account sits
- * in a row of its own under either.
- */
 export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX: ConnectXController }) {
   const panel = describeSync(sync.state, sync.state.readAt);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -117,7 +103,6 @@ export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX:
 
   return (
     <>
-      {/* One element tree for both shapes, so the live region stays mounted and announces a change of state. */}
       <div className={compact ? "flex items-center gap-1 py-0.5 pl-2.5" : `flex flex-col gap-2 rounded-[12px] px-2.5 py-2 ${panel.warning ? "bg-side-wash" : ""}`}>
         <div role="status" className="flex min-w-0 flex-1 items-start gap-2.5">
           <Icon

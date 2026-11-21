@@ -2,7 +2,6 @@ import type { Area, Topic } from "./types.ts";
 
 export type CategoryGroup = { area: Area; topics: Topic[] };
 
-/** The category tree as the sidebar lists it, top to bottom. */
 export type CategoryRows = {
   pinned: CategoryGroup[];
   unfiled: boolean;
@@ -14,12 +13,6 @@ export type CategoryRows = {
 export const UNFILED_LABEL = "Unfiled";
 export const HIDDEN_LABEL = "Hidden";
 
-/**
- * The rows whose name contains the query, ignoring case and surrounding
- * whitespace. A matching topic stays under its area; a matching area keeps
- * every topic; the Hidden row's own name keeps everything under it. A blank
- * query returns the rows unchanged.
- */
 export function searchCategories(rows: CategoryRows, query: string): CategoryRows {
   const needle = query.trim().toLowerCase();
   if (needle === "") return rows;

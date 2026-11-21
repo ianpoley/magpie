@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import { EmptyFlock } from "./magpie";
 
-/** Why a list is empty and the way out, under a few birds circling a patch with nothing in it. */
 export function EmptyState({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center rounded-card bg-surface px-6 py-12 text-center shadow-card">

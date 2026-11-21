@@ -27,10 +27,6 @@ const HOUR = 60 * 60 * 1000;
 
 type FakeX = XAdapter & { calls: string[] };
 
-/**
- * An X adapter that records each call. Exports write the given posts; a sync
- * fails with the given message for a collection listed in `fail`.
- */
 function fakeX(
   options: {
     whoami?: WhoamiResult;
@@ -90,7 +86,6 @@ const stageRows = (db: Store, runId: number): [string, string][] =>
     .all(runId)
     .map((row) => [String(row.stage), String(row.outcome)]);
 
-/** A separate node process that takes the lock at `path` and keeps it until killed. */
 async function holdLock(t: TestContext, path: string): Promise<ChildProcess> {
   const script = `
     import { acquireLock } from ${JSON.stringify(LOCK_MODULE)};
@@ -107,7 +102,6 @@ async function holdLock(t: TestContext, path: string): Promise<ChildProcess> {
   return child;
 }
 
-/** An environment for a spawned CLI that keeps every secret, store and tool inside `dir`. */
 function cliEnv(dir: string): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = {
     ...process.env,

@@ -10,31 +10,13 @@ import { newTopicTrigger, tooBroadTopics } from './triggers.ts';
 export type EvolveDeps = { claude: ClaudeAdapter; jev: JevClient; runId?: number; now?: () => Date };
 
 export type EvolveResult = {
-  /** Topics created from Unfiled posts. */
   newTopics: number;
-  /** Topics replaced by narrower ones. */
   splits: number;
-  /** Proposals that did not hold up. */
   rejected: number;
-  /** Proposals abandoned because the user edited what they touch meanwhile. */
   dropped: number;
-  /** Set when the stage stopped early because a model could not be reached; counts cover what ran before. */
   skipped: { reason: 'claude' | 'jev'; message: string } | null;
 };
 
-/**
- * Grows the category list where the corpus demands it. While enough Unfiled
- * posts wait, Claude proposes a topic for them and it is created when Jev's
- * scores support it; then each topic that has grown too broad is offered a
- * split. Every change is logged and can be undone. Locked topics, pinned
- * searches and anything the user removed are left alone.
- *
- * New-topic rounds run first: a new topic makes the posts not yet scored
- * against it pending, and pending posts are not evolution input.
- *
- * The caller runs a tagging pass afterwards so every post is scored against
- * what was created.
- */
 export async function evolve(db: Store, deps: EvolveDeps): Promise<EvolveResult> {
   const round: RoundDeps = { jev: deps.jev, runId: deps.runId, now: deps.now ?? (() => new Date()) };
   const result: EvolveResult = { newTopics: 0, splits: 0, rejected: 0, dropped: 0, skipped: null };
@@ -51,7 +33,6 @@ export async function evolve(db: Store, deps: EvolveDeps): Promise<EvolveResult>
     return true;
   };
 
-  // Left by a run that stopped between scoring a proposal and applying it.
   db.exec(`DELETE FROM topics WHERE state = 'proposed'`);
 
   for (;;) {

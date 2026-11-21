@@ -8,7 +8,6 @@ import type { LinkedPage, Media, QuotedPost } from "@/lib/types";
 import { AuthorAvatar } from "./author-avatar";
 import { FadeImg } from "./fade-img";
 
-/** Text with the search marked. `phrase` marks the query only as typed, for the category search. */
 export function Marked({ text, keyword, phrase = false }: { text: string; keyword: string; phrase?: boolean }) {
   const ranges = highlightRanges(text, keyword, phrase);
   if (ranges.length === 0) return text;
@@ -23,12 +22,10 @@ export function Marked({ text, keyword, phrase = false }: { text: string; keywor
   return parts;
 }
 
-/** Handles in post text that can filter the list: those of authors the corpus has posts from. */
 export type Mentions = { known: (handle: string) => boolean; select: (handle: string) => void };
 
 const MENTION = /(?<![\w@])@(\w{1,15})\b/g;
 
-/** Text between addresses, with @mentions of saved authors as buttons when `mentions` is given. */
 function Words({ text, keyword, mentions }: { text: string; keyword: string; mentions?: Mentions }) {
   if (!mentions) return <Marked text={text} keyword={keyword} />;
   const parts: React.ReactNode[] = [];
@@ -55,12 +52,6 @@ function Words({ text, keyword, mentions }: { text: string; keyword: string; men
   return parts;
 }
 
-/**
- * Post text with search matches marked and addresses shortened the way X shows
- * them. With `links`, addresses become links; a card leaves them plain because
- * the whole card opens the post. With `mentions`, @handles of saved authors
- * filter to that author.
- */
 export function PostText({
   text,
   keyword,
@@ -103,7 +94,6 @@ export function PostText({
   return <p id={id} className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
 }
 
-/** The titles of the pages a post links to, each row opening its page. */
 export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: string }) {
   if (pages.length === 0) return null;
   return (
@@ -143,7 +133,6 @@ export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: 
   );
 }
 
-/** A post's pictures, each shown whole. */
 export function MediaGrid({ media }: { media: Media[] }) {
   if (media.length === 0) return null;
   return (
@@ -156,7 +145,6 @@ export function MediaGrid({ media }: { media: Media[] }) {
   );
 }
 
-/** A fixed square crop of one picture, with a play mark when it stands for a video or GIF. `small` is for crops under 40px. */
 export function Thumb({ item, className, small = false }: { item: Media; className: string; small?: boolean }) {
   return (
     <span className={`relative block shrink-0 overflow-hidden rounded-inner bg-sunken ${className}`}>
@@ -172,7 +160,6 @@ export function Thumb({ item, className, small = false }: { item: Media; classNa
   );
 }
 
-/** The post this one quotes, in full, set in as an inner surface. */
 export function Quoted({ quoted, keyword }: { quoted: QuotedPost; keyword: string }) {
   const handle = quoted.authorHandle ?? "";
   const name = quoted.authorName ?? (handle || "Quoted post");

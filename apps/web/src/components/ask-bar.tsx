@@ -19,10 +19,6 @@ function progressText(ask: AskState): string {
   return `Judged all ${total}`;
 }
 
-/**
- * The header over ask results: the search as typed, how far judging has come,
- * and the ways on from here: keep it as a topic, try again, or leave.
- */
 export function AskBar({
   ask,
   onPin,
@@ -30,7 +26,6 @@ export function AskBar({
   onClear,
 }: {
   ask: AskState;
-  /** Resolves when the pin has been saved or refused. */
   onPin: () => Promise<void>;
   onRetry: () => void;
   onClear: () => void;

@@ -1,36 +1,4 @@
 #!/usr/bin/env node
-/*
- * magpie query — search the user's saved X (Twitter) bookmarks & likes.
- *
- * Reads the normalized JSONL exported by the birdclaw nightly/3-hourly job:
- *   $MAGPIE_DIR/bookmarks.normalized.jsonl
- *   $MAGPIE_DIR/likes.normalized.jsonl
- * MAGPIE_DIR defaults to <clone>/data, where <clone> is found from the real
- * path of this file (the ~/.claude/skills symlink points back into the clone).
- *
- * Each record: {type,id,handle,name,created,url,text}
- * Ranks by how many DISTINCT query terms a post hits, then total frequency,
- * then recency — and prints the top matches with URL + text so the calling
- * agent can weave them into the current task.
- *
- * Category commands read the store the sync job keeps, read-only:
- *   $MAGPIE_STORE, else $MAGPIE_DIR/../state/corpus.sqlite,
- *   else <clone>/state/corpus.sqlite.
- * Posts in areas or topics the user hides by default are left out of every
- * command unless --include-hidden is given. Posts the user removed from the
- * corpus are left out of every command, and no flag brings them back.
- *
- * This file is run from ~/.claude/skills/magpie under whatever node the
- * calling session has, so it imports nothing outside node itself.
- *
- * Usage:
- *   node query.mjs <terms...> [--source bookmarks|likes|all] [--limit N]
- *                  [--author handle] [--since YYYY-MM-DD] [--full] [--json]
- *                  [--include-hidden]
- *   node query.mjs categories [--include-hidden] [--json]
- *   node query.mjs topic <name> [--limit N] [--full] [--json] [--include-hidden]
- *   node query.mjs resources <name> [--limit N] [--json] [--include-hidden]
- */
 import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -80,7 +48,6 @@ Examples:
   node query.mjs resources evals`);
 }
 
-// Each override is also read under its name from before the rename, X_CORPUS_*.
 const ENV_STORE = process.env.MAGPIE_STORE || process.env.X_CORPUS_STORE;
 const ENV_DIR = process.env.MAGPIE_DIR || process.env.X_CORPUS_DIR;
 const STORE = ENV_STORE || (ENV_DIR ? join(ENV_DIR, '..', 'state', 'corpus.sqlite') : join(CLONE_ROOT, 'state', 'corpus.sqlite'));
@@ -95,8 +62,6 @@ function fail(message) {
 
 async function loadSqlite() {
   const emitWarning = process.emitWarning;
-  // node:sqlite announces itself as experimental on older node versions; that
-  // line would land in the output the calling agent reads.
   process.emitWarning = (warning, ...rest) => {
     const type = rest[0] && typeof rest[0] === 'object' ? rest[0].type : rest[0];
     if (type === 'ExperimentalWarning' || (warning && warning.name === 'ExperimentalWarning')) return;
@@ -111,8 +76,6 @@ async function loadSqlite() {
   }
 }
 
-// Returns a read-only handle and the store's schema version, or null when
-// there are no categories to read yet.
 async function openStore() {
   if (!existsSync(STORE)) return null;
   const { DatabaseSync } = await loadSqlite();
@@ -137,8 +100,6 @@ function hiddenPostIds(db) {
   return new Set(db.prepare('SELECT post_id FROM post_hidden').all().map(r => String(r.post_id)));
 }
 
-// Posts the user removed from the corpus. The category views already leave
-// them out; keyword search reads the export files, which still carry them.
 function removedPostIds({ db, version }) {
   if (version < REMOVAL_SCHEMA_VERSION) return new Set();
   return new Set(db.prepare('SELECT id FROM posts WHERE removed_at IS NOT NULL').all().map(r => String(r.id)));
@@ -161,9 +122,6 @@ function editDistance(a, b) {
   return row[b.length];
 }
 
-// The active areas and topics, and which posts are in which topic. Posts the
-// user hides by default are dropped here unless they were asked for, so every
-// command counts and lists the same set.
 function readCategories(db) {
   const areas = db.prepare(`SELECT id, name, hidden FROM areas WHERE state = 'active' ORDER BY position, id`).all();
   const areaById = new Map(areas.map(a => [a.id, a]));
@@ -215,7 +173,6 @@ function runCategories(db) {
   }
 }
 
-// Resolves an area or topic name to its posts, best match first.
 function resolveCategory(db, name) {
   const { areas, topics, members } = readCategories(db);
   const wanted = fold(name);
@@ -338,7 +295,6 @@ if (command) {
   else if (command === 'topic') runTopic(db, terms.join(' '));
   else runResources(db, terms.join(' '));
   db.close();
-  // Exiting with output still queued on a pipe would cut it short.
   await new Promise(done => process.stdout.write('', done));
   process.exit(0);
 }
@@ -363,8 +319,6 @@ if (!records.length) {
   process.exit(1);
 }
 
-// A post can be BOTH bookmarked and liked — collapse into one entry and mark
-// the dual endorsement (e.g. type "bookmark+like") rather than showing it twice.
 const byKey = new Map();
 for (const r of records) {
   const key = r.id || r.url || `${r.handle}:${String(r.text).slice(0, 40)}`;

@@ -44,7 +44,6 @@ const attemptAgo = (ms: number): LastAttempt => ({
   message: null,
 });
 
-/** A fake orchestrator: each call takes the next result, or waits for `hold` when one is given. */
 function fakeRun(results: (() => Promise<SyncRunResult>)[] | SyncRunResult) {
   let calls = 0;
   const run = async () => {
@@ -129,7 +128,6 @@ test('the heartbeat keeps going during a run, and a request made meanwhile waits
   const first = deferred<SyncRunResult>();
   const fake = fakeRun([() => first.promise, async () => complete(ok, 2)]);
   const worker = startWorker({ files, runSync: fake.run, secretBackend: () => 'file', tickMs: TICK_MS });
-  // Release the held run first, so a failed assertion cannot leave stop() waiting on it.
   t.after(() => {
     first.resolve(complete(ok, 1));
     return worker.stop();
@@ -211,7 +209,6 @@ test('a rejection from a run that used an older connection leaves a reconnect al
   const reconnectedAt = '2026-11-20T11:30:00.000Z';
   const fake = fakeRun([
     async () => {
-      // The owner reconnects while the run is checking the old cookies.
       writeConnection(files.xConnection, { handle: 'someone', connectedAt: reconnectedAt });
       return complete(rejected);
     },
@@ -297,7 +294,6 @@ test('corrupt state files read as a fresh state', async (t) => {
   const fake = fakeRun(complete(ok));
   start(t, files, fake.run);
 
-  // With no record of a past run, a connected worker syncs at once.
   await waitFor('the run to be recorded', () => status()?.lastAttempt?.result === 'ok');
   assert.equal(fake.calls(), 1);
 });
@@ -319,7 +315,6 @@ test('SIGTERM during a run kills the tool processes it started, releases the run
   t.after(cleanup);
   const home = join(dir, 'home');
   mkdirSync(home);
-  // A bird whose whoami hangs with a child of its own, and records that child's pid.
   const bird = join(dir, 'bird');
   writeFileSync(bird, '#!/bin/sh\nsleep 30 &\necho $! > "$HOME/grandchild.pid"\nwait\n');
   chmodSync(bird, 0o755);

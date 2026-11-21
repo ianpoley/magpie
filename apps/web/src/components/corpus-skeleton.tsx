@@ -6,7 +6,6 @@ export function CorpusSkeleton() {
       <div className="bg-side sticky top-0 hidden h-dvh w-[272px] shrink-0 lg:block" />
       <div className="bg-wash min-w-0 flex-1">
         <div className="mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
-          {/* The page header: title and count, Posts/Resources, then the tool row. */}
           <div className="flex items-center gap-3">
             <div className={`${BAR} h-8 w-40`} />
             <div className={`${BAR} h-3 w-48`} />

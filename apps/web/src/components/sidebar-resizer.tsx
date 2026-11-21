@@ -4,7 +4,6 @@ import { useRef, useSyncExternalStore, type KeyboardEvent, type PointerEvent } f
 
 import { clampSidebarWidth, SIDEBAR_WIDTH, SIDEBAR_WIDTH_KEY, SIDEBAR_WIDTH_VAR, storedSidebarWidth } from "./sidebar-width";
 
-/** The post column keeps at least this much, matching the `w-sidebar` utility. */
 const MAIN_MIN = 600;
 
 const listeners = new Set<() => void>();
@@ -36,7 +35,6 @@ function saveWidth() {
   try {
     window.localStorage.setItem(SIDEBAR_WIDTH_KEY, String(readWidth()));
   } catch {
-    // Without storage the width still holds until the page is closed.
   }
 }
 
@@ -47,15 +45,9 @@ function subscribeWindow(listener: () => void): () => void {
   return () => window.removeEventListener("resize", listener);
 }
 
-/**
- * The right edge of the desktop sidebar: drag it, or focus it and use the
- * arrow keys, Home and End, to set the sidebar's width; double-click to go
- * back to the default. The width is kept in the browser.
- */
 export function SidebarResizer({ controls }: { controls: string }) {
   const current = useSyncExternalStore(subscribe, readWidth, () => SIDEBAR_WIDTH.fallback);
   const limit = useSyncExternalStore(subscribeWindow, widest, () => SIDEBAR_WIDTH.max);
-  // A narrow window can hold the sidebar below its remembered width.
   const shownWidth = Math.round(Math.min(current, limit));
   const drag = useRef<{ pointerId: number; offset: number } | null>(null);
 
@@ -66,12 +58,10 @@ export function SidebarResizer({ controls }: { controls: string }) {
 
   const start = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    // Stops the press from starting a text selection.
     event.preventDefault();
     const handle = event.currentTarget;
     handle.focus({ preventScroll: true });
     handle.setPointerCapture(event.pointerId);
-    // Measured, not remembered: a narrow window can hold the sidebar below its remembered width.
     const shown = handle.parentElement?.getBoundingClientRect().width ?? readWidth();
     drag.current = { pointerId: event.pointerId, offset: event.clientX - shown };
   };
@@ -87,7 +77,6 @@ export function SidebarResizer({ controls }: { controls: string }) {
 
   const keys = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? SIDEBAR_WIDTH.step * 3 : SIDEBAR_WIDTH.step;
-    // A narrow window can hold the sidebar below its remembered width; steps start from what is shown.
     const shown = Math.min(current, widest());
     const next =
       event.key === "ArrowLeft"
@@ -124,7 +113,6 @@ export function SidebarResizer({ controls }: { controls: string }) {
       onDoubleClick={() => set(SIDEBAR_WIDTH.fallback)}
       onKeyDown={keys}
       className={
-        // The hit area sits mostly outside the sidebar, clear of its scrollbar; the line it shows is on the edge itself.
         "group/resizer absolute inset-y-0 -right-2 z-10 flex w-3 cursor-col-resize touch-none justify-start outline-none select-none"
       }
     >

@@ -10,38 +10,22 @@ import type { TopicDefinition } from './questions.ts';
 export type TagDeps = {
   jev: JevClient;
   now?: () => Date;
-  /** Requests in flight at once. */
   concurrency?: number;
 };
 
 export type ScorePair = { postId: string; topicId: number };
 
 export type TagResult = {
-  /** Posts that needed at least one score. */
   posts: number;
-  /** Posts Jev answered for. */
   scored: number;
-  /** Posts with nothing to judge, stored as matching no topic without a request. */
   withoutContent: number;
-  /**
-   * Posts whose request failed, and posts left untried after too many failed in
-   * a row; they keep whatever scores they had and are tried again next run.
-   */
   failed: number;
-  /** Score rows written. */
   scores: number;
-  /** Up to five distinct failure messages, after the notice that the run stopped early if it did. */
   errors: string[];
 };
 
 const MAX_ERRORS = 5;
 
-/**
- * Scores every visible post against every topic definition it has no current
- * score for, one request per post, storing each post's scores as its request
- * returns. Safe to run again after an interruption: only what is still
- * missing is asked.
- */
 export async function tagPosts(db: Store, deps: TagDeps): Promise<TagResult> {
   syncBands(db);
   const pairs = db
@@ -51,10 +35,6 @@ export async function tagPosts(db: Store, deps: TagDeps): Promise<TagResult> {
   return scorePairs(db, deps, pairs);
 }
 
-/**
- * Scores the given post and topic pairs, whatever state the topics are in,
- * replacing any score a pair already has.
- */
 export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): Promise<TagResult> {
   const now = deps.now ?? (() => new Date());
   const result: TagResult = { posts: 0, scored: 0, withoutContent: 0, failed: 0, scores: 0, errors: [] };
@@ -67,8 +47,6 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
   }
 
   const topics = new Map<number, TopicDefinition>();
-  // A pinned search is always judged under the words the user searched for, so
-  // renaming it changes its label on screen and nothing about which posts match.
   const readTopic = db.prepare(
     `SELECT id, CASE WHEN kind = 'pinned' AND query IS NOT NULL THEN query ELSE name END AS name, definition
      FROM topics WHERE id = ?`,
@@ -135,11 +113,6 @@ export async function scorePairs(db: Store, deps: TagDeps, pairs: ScorePair[]): 
     }
   };
 
-  // During an outage every request runs to its timeout, so a long queue is
-  // given up on rather than drained one timeout at a time. Posts that failed
-  // last run are first in the queue again, and a run of them looks the same,
-  // so after each run of failures one post from the far end tells the two
-  // apart: scored, the failures belong to the posts and the pass goes on.
   const queue = [...topicIdsByPost];
   let stopped = false;
   let probe: Promise<void> | null = null;

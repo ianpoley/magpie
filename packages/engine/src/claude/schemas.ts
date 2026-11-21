@@ -1,8 +1,3 @@
-/**
- * The subset of JSON Schema the Claude calls use. The same object is handed to
- * the CLI and checked again here, so an answer is never trusted on the CLI's
- * word alone.
- */
 export type JsonSchema =
   | { type: 'string' }
   | { type: 'boolean' }
@@ -14,7 +9,6 @@ export type JsonSchema =
       additionalProperties: false;
     };
 
-/** Every way `value` departs from `schema`; empty when it conforms. */
 export function schemaErrors(schema: JsonSchema, value: unknown, path = '$'): string[] {
   switch (schema.type) {
     case 'string':
@@ -43,7 +37,6 @@ export type CandidateTopics = {
   topics: { name: string; area: string; definition: string }[];
 };
 
-/** What Claude returns for one batch of posts. */
 export const candidateTopicsSchema: JsonSchema = {
   type: 'object',
   properties: {
@@ -65,7 +58,6 @@ export type CategoryList = {
   areas: { name: string; dev: boolean; topics: { name: string; definition: string }[] }[];
 };
 
-/** The final two-level list: areas, each flagged dev or not, containing defined topics. */
 export const categoryListSchema: JsonSchema = {
   type: 'object',
   properties: {

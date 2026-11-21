@@ -10,32 +10,23 @@ import type { Canonical } from './canonical.ts';
 import { homepageHost, lookupRepo, onHost } from './github.ts';
 import type { HttpFetch, HttpResponse } from './http.ts';
 
-/** Every address a host name resolves to. */
 export type HostLookup = (host: string) => Promise<string[]>;
 
 export type LinkDeps = {
   http: HttpFetch;
   now: () => Date;
-  /** Defaults to the system resolver. */
   lookup?: HostLookup;
 };
 
 export type LinkCounts = {
-  /** Links tried this run: new ones and failed ones whose retry gap has passed. */
   attempted: number;
   resolved: number;
   notResource: number;
-  /** Attempts that failed and will be retried. */
   failed: number;
-  /** Links given up on this run after the last allowed attempt. */
   unresolved: number;
-  /** Resources in the store after this run. */
   resources: number;
-  /** Repos whose declared homepage was learned this run. */
   homepagesChecked: number;
-  /** Repos still waiting for a homepage lookup. */
   homepagesPending: number;
-  /** Hosts that stand for a repo after this run. */
   aliases: number;
 };
 
@@ -43,7 +34,6 @@ type Outcome =
   | { status: 'resolved'; finalUrl: string; title: string; description: string | null }
   | { status: 'not_resource'; finalUrl: string };
 
-/** A failure at an address already known to be where the link ends. */
 class Unreadable extends Error {
   finalUrl: string;
 
@@ -61,7 +51,6 @@ const DESCRIPTION_MAX = 1000;
 const ERROR_MAX = 300;
 const NOT_PUBLIC = 'address is not on the public web';
 
-/** Titles served in place of the page: bot checks, blocks and login prompts. */
 const WALL_TITLES = [
   /^just a moment/i,
   /^one moment/i,
@@ -96,7 +85,6 @@ function decodeEntities(text: string): string {
   });
 }
 
-/** Page metadata is untrusted: keep plain, single-line, bounded text only. */
 function plainText(raw: string | undefined | null, max: number): string | null {
   if (raw === undefined || raw === null) return null;
   const text = decodeEntities(raw)
@@ -108,14 +96,12 @@ function plainText(raw: string | undefined | null, max: number): string | null {
 
 function metaContents(html: string): Map<string, string> {
   const found = new Map<string, string>();
-  // Each tag's end is searched for once, however many tags open before it.
   let end = -1;
   for (const { index } of html.matchAll(/<meta\b/gi)) {
     if (end < index) end = html.indexOf('>', index);
     if (end === -1) break;
     const tag = html.slice(index, end + 1);
     const attributes: Record<string, string> = {};
-    // A name is only tried from its first character, so a long run with no `=` is read once, not once per character.
     for (const match of tag.matchAll(/(?<![a-z:_-])([a-z:_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
       attributes[match[1].toLowerCase()] = match[2] ?? match[3] ?? match[4] ?? '';
     }
@@ -125,7 +111,6 @@ function metaContents(html: string): Map<string, string> {
   return found;
 }
 
-/** Each step reads the page once from where the last ended, however many titles open and never close. */
 function titleText(html: string): string | undefined {
   const open = /<title\b/i.exec(html);
   if (open === null) return undefined;
@@ -161,7 +146,6 @@ function httpUrl(value: unknown): URL | null {
   }
 }
 
-/** Link text comes from strangers, so only addresses on the public web are requested. */
 function isPublicHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, '');
   if (host.startsWith('[') || /^\d+(\.\d+){3}$/.test(host)) return false;
@@ -188,14 +172,12 @@ for (const [network, prefix] of [
 for (const [network, prefix] of [
   ['::', 128],
   ['::1', 128],
-  // Ranges that carry an IPv4 address inside them, which may be a private one.
   ['::', 96],
   ['::ffff:0:0:0', 96],
   ['64:ff9b::', 96],
   ['64:ff9b:1::', 48],
   ['2001::', 32],
   ['2002::', 16],
-  // Used in examples only; nothing real answers there.
   ['2001:db8::', 32],
   ['fc00::', 7],
   ['fe80::', 10],
@@ -205,7 +187,6 @@ for (const [network, prefix] of [
   NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, 'ipv6');
 }
 
-/** An IPv4 address written inside an IPv6 one is checked as the IPv4 address. */
 function isPublicAddress(address: string): boolean {
   const version = isIP(address);
   return version !== 0 && !NON_PUBLIC_ADDRESSES.check(address, version === 6 ? 'ipv6' : 'ipv4');
@@ -213,10 +194,6 @@ function isPublicAddress(address: string): boolean {
 
 const systemLookup: HostLookup = async (host) => (await dnsLookup(host, { all: true })).map((found) => found.address);
 
-/**
- * npmjs.com refuses clients that are not browsers, so a package is described
- * by the registry's record of its latest version instead of by its page.
- */
 async function readPackage(page: URL, name: string, http: HttpFetch): Promise<Outcome> {
   try {
     const response = await http({
@@ -239,17 +216,11 @@ async function readPackage(page: URL, name: string, http: HttpFetch): Promise<Ou
   }
 }
 
-/** The watch address of a YouTube video `url` names, or null when it names none. */
 function youtubeVideo(url: string): string | null {
   const own = canonicalize(url);
   return own !== null && own.key.startsWith('youtube:') ? own.url : null;
 }
 
-/**
- * A YouTube page served to a client that is not a browser carries no title, so
- * a video is described by YouTube's oEmbed record instead: its title, and its
- * channel as the description.
- */
 async function readVideo(page: URL, watch: string, http: HttpFetch): Promise<Outcome> {
   try {
     const response = await http({
@@ -282,13 +253,10 @@ async function follow(start: URL, http: HttpFetch, lookup: HostLookup): Promise<
     const watch = youtubeVideo(url.href);
     if (watch !== null) return readVideo(url, watch, http);
 
-    // An address that answers, or that a redirect pointed at, is where the
-    // link ends even if its page cannot be read. A shortener's never is.
     const isDestination = !onHost(normalizeHost(url.hostname), LINKS.shortenerHosts);
     const unreachable = (error: unknown): unknown =>
       redirects > 0 && isDestination ? new Unreadable(errorText(error), url.href) : error;
 
-    // A public-looking name can resolve to this machine or the local network.
     let addresses: string[];
     try {
       addresses = await lookup(url.hostname);
@@ -359,8 +327,6 @@ async function resolveDue(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts):
      WHERE url = ?`,
   );
 
-  // Each result is one statement written as soon as it arrives, so a crash or
-  // a later failure keeps every link already resolved.
   const resolveOne = async (row: Record<string, unknown>): Promise<void> => {
     const written = String(row.url);
     counts.attempted++;
@@ -387,8 +353,6 @@ async function resolveDue(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts):
       const finalUrl = learned ?? (row.final_url as string | null);
       const host = finalUrl === null ? null : normalizeHost(new URL(finalUrl).hostname);
       if (givenUp && finalUrl !== null && host !== null && !onHost(host, LINKS.notResourceHosts)) {
-        // The page was never read, but where the link leads is known: it is
-        // filed under that destination, named by its host.
         settle.run(finalUrl, host, host, attempts, now.toISOString(), now.toISOString(), message, written);
         counts.resolved++;
         return;
@@ -424,12 +388,6 @@ type ResourceRow = {
   homepage: string | null;
 };
 
-/**
- * Brings every resolved link's resource, and the homepage aliases, in line
- * with what is known now. It recomputes rather than appends, because a repo's
- * homepage is usually learned after the site's own links were filed, and a
- * second repo naming the same host takes an alias away again.
- */
 function assignResources(db: DatabaseSync, now: Date): void {
   const at = now.toISOString();
   transaction(db, () => {
@@ -478,7 +436,6 @@ function assignResources(db: DatabaseSync, now: Date): void {
     );
     const describe = db.prepare(`UPDATE resources SET title = ?, description = ? WHERE id = ?`);
     const described = new Set<string>();
-    // A link whose page was read describes the resource ahead of one that only has its host for a title.
     const wasRead = ({ row }: (typeof links)[number]) => row.description !== null || row.title !== row.host;
     for (const { row, own } of [...links.filter(wasRead), ...links.filter((link) => !wasRead(link))]) {
       if (described.has(own.key) || targetOf(own) !== own.key) continue;
@@ -493,7 +450,6 @@ function assignResources(db: DatabaseSync, now: Date): void {
         const id = Number(insert.run(own.key, own.kind, own.url, own.host, title, description, at).lastInsertRowid);
         resources.set(own.key, { id, kind: own.kind, title, description, homepage: null });
       } else if (own.kind !== 'repo' && (existing.title !== title || existing.description !== description)) {
-        // A repo keeps what GitHub said about it; other kinds follow their first link.
         describe.run(title, description, existing.id);
       }
     }
@@ -520,7 +476,6 @@ function assignResources(db: DatabaseSync, now: Date): void {
   });
 }
 
-/** Asks GitHub for the homepage of each repo not yet answered. Returns whether anything was learned. */
 async function lookupHomepages(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts): Promise<boolean> {
   const waiting = db
     .prepare(
@@ -548,25 +503,12 @@ async function lookupHomepages(db: DatabaseSync, deps: LinkDeps, counts: LinkCou
       record.run('not_found', null, at, null, null, row.id);
     } else {
       record.run('pending', null, at, null, null, row.id);
-      // The unauthenticated allowance is spent; the rest wait for a later run.
       if (result.outcome === 'rate_limited') break;
     }
   }
   return learned;
 }
 
-/**
- * The link stage of a sync. Follows every new or retry-due link to its final
- * URL, reads the page's title and description, files each resolved link under
- * a resource, and groups a library's site with the repo that declares it as
- * homepage. A link that fails is recorded and retried on a later run; nothing
- * a single link or GitHub does makes the stage throw.
- */
-/**
- * Videos resolved before they were read from oEmbed were titled by their host.
- * Each is read once more. One that still cannot be read stays a resource under
- * its host, and is not asked about again.
- */
 async function rereadVideos(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts): Promise<void> {
   const stale = db
     .prepare(`SELECT url, final_url FROM links WHERE status = 'resolved' AND title = host AND attempts = 1 ORDER BY url`)

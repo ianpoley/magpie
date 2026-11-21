@@ -45,10 +45,6 @@ function readSettings(path: string): Record<string, string> {
   }
 }
 
-/**
- * How a run went, for the schedule. A failed categorize stage is not a
- * failed attempt: only the X side decides when to retry.
- */
 function classify(run: Complete | undefined, error: unknown): { result: AttemptResult; runId: number | null; message: string | null } {
   if (run === undefined) return { result: 'failed', runId: null, message: errorText(error).slice(0, MESSAGE_MAX_CHARS) };
   if (run.auth.status !== 'ok') return { result: run.auth.status, runId: run.runId, message: run.auth.message };
@@ -56,19 +52,6 @@ function classify(run: Complete | undefined, error: unknown): { result: AttemptR
   return { result: 'failed', runId: run.runId, message: xFailureDetail(run.stages) };
 }
 
-/**
- * The background sync worker. Every tick, also while a run is in progress,
- * it writes its heartbeat to the worker status file, reads the schedule's
- * state, settings, X connection and any sync request, and asks the
- * scheduler whether to start a run. A run is never awaited by the tick, so
- * a long backfill does not stop the heartbeat; and while one is in progress,
- * here or in another command, no second run starts and a request waits.
- *
- * After a run it records the attempt for the schedule. When X rejected the
- * session it marks the connection it ran with as rejected, which pauses the
- * schedule; when X accepted it, it clears any rejection of that connection
- * and fills in the handle.
- */
 export function startWorker(options: WorkerOptions): Worker {
   const { files } = options;
   const log = options.log ?? (() => {});
@@ -91,7 +74,6 @@ export function startWorker(options: WorkerOptions): Worker {
     });
     log(`sync${runId === null ? '' : ` run ${runId}`} finished: ${result}${message ? ` (${message})` : ''}`);
 
-    // Only the connection the run used: after a reconnect, a stale result changes nothing.
     const connection = readConnection(files.xConnection);
     if (generation === null || connection === null || connection.connectedAt !== generation) return;
     if (result === 'rejected') {
@@ -125,11 +107,6 @@ export function startWorker(options: WorkerOptions): Worker {
       })
       .then((recorded) => {
         inFlight = null;
-        // Tick again soon, so a request that waited behind this run starts and
-        // the status shows the result. Deferred to the event loop, never
-        // straight from here, so a state that keeps asking for a run cannot
-        // starve the timers and signal handlers. After a failed record, the
-        // regular tick decides.
         if (recorded) setImmediate(tick);
       });
   }

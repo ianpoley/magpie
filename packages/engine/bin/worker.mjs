@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-//
-//     node packages/engine/bin/worker.mjs
-//
-// On SIGTERM or SIGINT it kills any bird or Birdclaw process a run started,
-// releases the run lock and exits 0. The interrupted run's row is closed as
-// interrupted by the next run.
-
 import { categorizeDeps } from './run-cli.mjs';
 
 const deps = await categorizeDeps();
@@ -31,8 +24,6 @@ log(`started (pid ${process.pid})`);
 
 function shutdown(signal) {
   log(`${signal}: stopping`);
-  // The tool processes run in their own process groups, so stopping this
-  // process alone would leave them running.
   x.killActive();
   void worker.stop();
   releaseLock(files.lock);

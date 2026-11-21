@@ -27,16 +27,6 @@ function Divider({ count, total }: { count: number; total: number }) {
   );
 }
 
-/**
- * The matching posts, 60 at a time, with more added as the end comes into
- * view. Give it a `key` that changes with the filter so the window starts
- * over. Under a category filter, a divider sets unsure matches apart. `rows`
- * lays them out as dense rows under month headings; `ranked` says an Ask
- * ordered them, and `arriving` that it is still finding more.
- *
- * A post removed from the screen stays a moment as a ghost while it leaves,
- * and comes back the same way if the removal is undone.
- */
 export function PostList({
   posts,
   unsureStart,
@@ -83,9 +73,6 @@ export function PostList({
     return () => observer.disconnect();
   }, [hasMore, shown]);
 
-  // Compared on each new list, during render, so a leaving post never drops out for a frame.
-  // Each change that starts motion is a batch, cleared on its own timer, so the screen
-  // re-rendering (an Ask streaming, a sync poll) never cuts an animation short.
   const [motion, setMotion] = useState({
     posts,
     ghosts: [] as Ghost[],
@@ -110,8 +97,6 @@ export function PostList({
   useEffect(() => {
     const batch = motion.batch;
     if (!batch) return;
-    // A leave fades for 150ms, then closes its gap for 200ms; a return opens, then fades in.
-    // Reduced motion only fades. No cleanup: a later batch must not cancel this one's timer.
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.setTimeout(() => {
       setMotion((current) => ({
@@ -157,7 +142,6 @@ export function PostList({
                 </ul>
               ) : null}
               {run.label ? (
-                // Pins under the tool row as one frosted band with it, so a long scroll always says which month it is in.
                 <h2 className="sticky top-[var(--pinned-h,56px)] z-10 -mx-4 -mt-2 flex items-baseline gap-2 bg-[color-mix(in_oklch,var(--color-canvas)_82%,transparent)] px-5 py-1.5 backdrop-blur-[12px] sm:-mx-8 sm:px-9">
                   <span className="text-eyebrow text-ink">{run.label}</span>
                   <span className="text-[12px] font-medium text-ink-muted tabular-nums">{formatCount(run.count)}</span>
@@ -174,7 +158,6 @@ export function PostList({
           ))}
         </div>
       ) : (
-        // --list-gap lets a leaving card close its gap too, not just its height.
         <ul className="flex flex-col gap-3 [--list-gap:0.75rem]">
           {listed.slice(0, listedShown).map((post, index) => (
             <FragmentRow key={post.id} item={itemProps(post)} divider={unsureCount > 0 && index === listedUnsure ? <Divider count={unsureCount} total={posts.length} /> : null}>

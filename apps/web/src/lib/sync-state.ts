@@ -5,8 +5,6 @@ import { errorName } from "./error-name.ts";
 import { readRuns } from "./read-snapshot.ts";
 import type { Run, SyncState } from "./types.ts";
 
-// The engine's run records a secret store that could not be read with this
-// at the start of the auth stage's message; nothing typed carries it.
 const SESSION_UNREADABLE = "The X session could not be read";
 
 const freshWithin = (iso: string | null | undefined, maxAgeMs: number, now: number): boolean => {
@@ -27,7 +25,6 @@ function lastRunOf(store: string, openStore: Awaited<ReturnType<typeof engineSto
       db.close();
     }
   } catch (error) {
-    // Mid-way through the first sync the store can exist before it can be read.
     console.error("sync status: the store could not be read:", errorName(error));
     return { storeExists: true, lastRun: null, lastCompleteRunAt: null };
   }
@@ -37,7 +34,6 @@ const sessionUnreadable = (run: Run | null): boolean =>
   run?.stages.some((stage) => stage.stage === "x_auth" && stage.outcome === "failed" && stage.message?.startsWith(SESSION_UNREADABLE)) ===
   true;
 
-/** The sync state the small files the worker and the CLI share hold, and the run lock. Does not open the store. */
 export async function readSyncFiles(): Promise<SyncFiles> {
   const [{ paths, SCHEDULE }, { createSecretStore }, state, { lockHolder }] = await Promise.all([
     engineConfig(),
@@ -63,12 +59,6 @@ export async function readSyncFiles(): Promise<SyncFiles> {
   };
 }
 
-/**
- * Reads the sync state from the small files the worker and the CLI share,
- * plus the store's last run, unless the caller passes the `runs` it already
- * read. Nothing here reads a secret: the backend name comes from its record
- * file.
- */
 export async function readSyncState(runs?: Runs): Promise<SyncState> {
   const [{ paths }, { openStore }] = await Promise.all([engineConfig(), engineStore()]);
   const read = runs ?? lastRunOf(paths().store, openStore);
@@ -87,12 +77,6 @@ export async function readSyncState(runs?: Runs): Promise<SyncState> {
   };
 }
 
-/**
- * Whether a Jev key is stored, for the page's setup check only: unlike
- * everything above, this reads a secret, so it stays out of the polled sync
- * status. When the store can't be read, it says yes, so a locked keychain
- * shows the app and its warning instead of the setup screen.
- */
 export async function readJevKeyStored(): Promise<boolean> {
   const { createSecretStore } = await engineSecrets();
   const read = await createSecretStore().get("typesafe-api-key");

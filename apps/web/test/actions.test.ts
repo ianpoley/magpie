@@ -9,14 +9,11 @@ import { seedArea, seedPost, seedTopic } from "../../../packages/engine/test/fix
 import { tempDir } from "../../../packages/engine/test/fixtures/export.ts";
 import { refreshes } from "./fixtures/next-cache.ts";
 
-// The actions find the store through this variable. It is set before they load
-// and never cleared, so no test can reach the real store.
 const scratch = tempDir();
 after(scratch.cleanup);
 const MISSING_STORE = join(scratch.dir, "missing", "corpus.sqlite");
 process.env.MAGPIE_STORE = MISSING_STORE;
 
-// Next resolves these two kinds of import when it builds; plain node needs telling.
 const SRC = new URL("../src/", import.meta.url);
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -29,7 +26,6 @@ const actions = await import("../src/app/actions.ts");
 
 const wrongType = <T,>(value: unknown): T => value as T;
 
-/** A store holding one topic, one post and the built-in Pinned area, which the actions then use. */
 function useStore(t: TestContext): { path: string; topicId: number; pinnedAreaId: number } {
   const { dir, cleanup } = tempDir();
   const path = join(dir, "corpus.sqlite");
@@ -75,7 +71,6 @@ test("an id that is not a positive whole number is refused before the store is l
     await actions.undoChange(0),
   ];
 
-  // With no store at the configured path, a call that got past its checks would report `no_store`.
   assert.deepEqual(refused.map(code), refused.map(() => "invalid_input"));
 });
 

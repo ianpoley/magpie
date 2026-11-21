@@ -17,7 +17,6 @@ export const menuContent =
 export const menuItem =
   "rounded-[9px] data-highlighted:bg-sunken data-checked:font-semibold data-checked:text-primary-text [&_[data-slot=menu-item-indicator]]:text-primary";
 
-/** Popups mounted inside the sidebar read the page's colors, not the ink that sits on the gradient. */
 export const pageColors =
   "[--ui-background:var(--color-surface)] [--ui-foreground:var(--color-ink)] [--ui-muted:var(--color-sunken)] " +
   "[--ui-muted-foreground:var(--color-ink-muted)] [--ui-border:var(--color-line)]";

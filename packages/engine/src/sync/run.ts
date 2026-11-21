@@ -27,13 +27,6 @@ export type SyncDeps = PipelineDeps & {
   secrets: Pick<SecretStore, 'get'>;
 };
 
-/**
- * What the X auth check found:
- *   ok             the session works; `handle` is null when X confirmed it without naming the account
- *   rejected       X refused the session
- *   transient      X, the network or the secret store could not answer: try again later
- *   not_connected  no X session is stored
- */
 export type XAuthStatus = 'ok' | 'rejected' | 'transient' | 'not_connected';
 export type XAuth = { status: XAuthStatus; handle: string | null; message: string | null };
 
@@ -50,7 +43,6 @@ const COLLECTIONS = [
 export const X_COLLECTION_STAGES: readonly StageName[] = COLLECTIONS.map((collection) => collection.stage);
 const X_STAGES: readonly StageName[] = ['x_auth', ...X_COLLECTION_STAGES];
 
-/** The failed X stages as one message, or null when none failed. */
 export const xFailureDetail = (stages: StageReport[]): string | null =>
   stages
     .filter((report) => X_STAGES.includes(report.stage) && report.outcome === 'failed')
@@ -60,7 +52,6 @@ export const xFailureDetail = (stages: StageReport[]): string | null =>
 
 const skipped = (message: string): StageBody => ({ outcome: 'skipped', counts: {}, message });
 
-/** Holds the run lock, opens the store and starts the run row for `work`. */
 async function underLock<T>(files: SyncFiles, deps: PipelineDeps, work: (run: OpenRun) => Promise<T>): Promise<Locked | T> {
   const lock = acquireLock(files.lock);
   if (!lock.held) return { status: 'locked', pid: lock.pid };
@@ -74,19 +65,6 @@ async function underLock<T>(files: SyncFiles, deps: PipelineDeps, work: (run: Op
   }
 }
 
-/**
- * One whole sync: check the X session, sync bookmarks and likes, export them
- * to JSON, build the markdown, then categorize. Everything runs under the run
- * lock and is recorded in one run row, X stages first.
- *
- * Without a stored session nothing talks to X: the run records `x_auth` as
- * skipped and categorizes the exports already on disk. When the check fails,
- * neither collection is synced, but the export from the local Birdclaw
- * database still runs. A collection's sync failing fails only that stage.
- *
- * Returns `locked`, having touched nothing, while another live run holds the
- * lock. Throws when the store cannot be opened.
- */
 export function runSync(files: SyncFiles, deps: SyncDeps, options: PipelineOptions = {}): Promise<SyncRunResult> {
   return underLock(files, deps, async (run) => {
     const { auth, upstream } = await xStages(run, files, deps);
@@ -95,10 +73,6 @@ export function runSync(files: SyncFiles, deps: SyncDeps, options: PipelineOptio
   });
 }
 
-/**
- * The categorize stages alone, under the same run lock. The upstream X sync
- * is read from the sync status file the legacy sync script writes.
- */
 export function runCategorize(
   files: SyncFiles,
   deps: PipelineDeps,
@@ -217,16 +191,6 @@ function buildMarkdown(args: string[]): Promise<string | null> {
   });
 }
 
-/**
- * How the X sync that ran before this went, as the legacy sync script records
- * it: one entry per collection with the exit status of its `birdclaw sync`
- * and when it ran:
- *
- *   { "bookmarks": { "exit": 0, "at": "<ISO time>" }, "likes": { "exit": 0, "at": "<ISO time>" } }
- *
- * Any nonzero exit means failed. It is ok only when both collections report
- * zero. A missing or unreadable file, or a missing collection, means unknown.
- */
 function readSyncStatus(path: string): Upstream {
   let text: string;
   try {

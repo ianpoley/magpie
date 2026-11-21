@@ -93,7 +93,6 @@ const attempts = (db: Store) =>
     .all()
     .map((row) => `${row.kind}:${row.outcome}`);
 
-/** A topic with 130 confident posts: 70 about animation, 55 about css, 5 about neither. */
 function seedBroadTopic(db: Store, name = 'Frontend stuff'): { parent: number; area: number; posts: string[] } {
   const area = seedArea(db, 'Frontend');
   const parent = seedTopic(db, name, { areaId: area });

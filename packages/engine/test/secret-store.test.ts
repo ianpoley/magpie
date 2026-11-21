@@ -13,18 +13,11 @@ const SESSION = { authToken: 'abc%2E_-0123456789abcdef', ct0: 'def0123456789' };
 
 type Stub = {
   path: string;
-  /** Every invocation's argv, oldest first. */
   calls: () => string[][];
-  /** Everything every invocation read on stdin, joined. */
   stdin: () => string;
-  /** Items the stub holds, by account. */
   items: () => Record<string, string>;
 };
 
-/**
- * A shell script standing in for an OS secret tool. It keeps items as files
- * named by account, records argv and stdin, and can be told to hang or fail.
- */
 function stubTool(t: TestContext, kind: 'security' | 'secret-tool', behavior: 'ok' | 'hang' | 'fail' = 'ok'): Stub {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
@@ -36,7 +29,6 @@ function stubTool(t: TestContext, kind: 'security' | 'secret-tool', behavior: 'o
     `printf '\\n' >> '${dir}/argv'`,
     behavior === 'hang' ? 'exec sleep 5' : '',
     behavior === 'fail' ? `echo 'stub refused' >&2; exit ${kind === 'security' ? 45 : 1}` : '',
-    // Find the value that follows a flag or attribute name.
     'after() { want=$1; shift; while [ $# -gt 0 ]; do if [ "$1" = "$want" ]; then printf %s "$2"; return; fi; shift; done; }',
   ];
   const security = [
@@ -231,7 +223,6 @@ test('with the file recorded, delete succeeds even when the OS store refuses', a
   assert.deepEqual(await store.get('x-session'), { ok: true, value: null });
 });
 
-/** Points the default store at a temp config dir for one test. */
 function useProcessEnv(t: TestContext, values: Record<string, string | undefined>) {
   const saved: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(values)) {

@@ -18,18 +18,11 @@ import { createPostTopicsController, PostTopicsEditor } from "./post-topics-edit
 import { dangerButton, iconButton } from "./styles";
 import { TopicChip } from "./topic-chip";
 
-// Nested layers render inside this element, so it only places the dialog: the card inside carries the look and the stacking.
 const LAYER =
   "w-[min(42rem,calc(100%-1.5rem))] max-h-none gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none " +
   "data-starting-style:translate-y-3 data-starting-style:scale-[0.97] data-ending-style:scale-[0.97]";
-// Room above the card for the peeking edges of the posts behind it.
 const CARD = "post-card flex max-h-[calc(100dvh-5rem)] min-h-0 flex-col overflow-hidden rounded-[20px] bg-(--ui-background) shadow-(--ui-shadow)";
 
-/**
- * While this layer is the one in front, keeps the stack's `--front-height` at
- * its card's height, which the layers behind take on. It is set on the bottom
- * layer and inherited, without a re-render.
- */
 function frontHeight(front: boolean) {
   return (card: HTMLDivElement | null) => {
     if (!card || !front) return;
@@ -53,11 +46,8 @@ type PostDialogProps = {
   topicsById: Map<number, Topic>;
   chipsFor: (post: Post) => Chip[];
   similarFor: (post: Post) => Post[];
-  /** The posts listed before and after this one, for stepping through the list without closing. */
   neighborsOf: (postId: string) => { previous: string | null; next: string | null };
-  /** Whether the corpus has posts by this handle, so a mention of it can filter to them. */
   isAuthor: (handle: string) => boolean;
-  /** Shows everything by a mentioned author, setting aside the search and categories that may exclude them. */
   onShowAuthor: (handle: string) => void;
   activeTopicIds: number[];
   keyword: string;
@@ -67,11 +57,6 @@ type PostDialogProps = {
   onRemove: (post: Post) => Promise<void>;
 };
 
-/**
- * A post, and every post opened from its "More like this" stacked over it.
- * Each pick opens a nested dialog on top, so closing one shows the post it was
- * opened from, like a history.
- */
 export function PostDialog(props: PostDialogProps) {
   return <PostLayer {...props} root={props.controller} depth={0} />;
 }
@@ -81,7 +66,6 @@ function PostLayer({
   depth,
   ...props
 }: PostDialogProps & {
-  /** The bottom layer. Anything that changes the list behind closes it, and with it the whole stack. */
   root: PostDialogController;
   depth: number;
 }) {
@@ -103,11 +87,9 @@ function PostLayer({
         if (open.current) stepped.current = true;
       }}
     >
-      {/* The page dims once; a nested backdrop is clear and only catches the click that closes it. */}
       <DialogBackdrop className={depth > 0 ? "bg-transparent" : undefined} />
       <DialogContent<string>
         initialFocus="content"
-        // After stepping to other posts, closing lands on the card of the post last shown, when it is listed.
         finalFocus={() => {
           if (depth > 0 || !stepped.current) return undefined;
           const id = controller.getPayload();
@@ -118,8 +100,6 @@ function PostLayer({
         className={LAYER}
         onKeyDown={(event) => {
           if ((event.key !== "j" && event.key !== "k") || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
-          // Keys from popups portaled out of the dialog, like the topics editor, and from the layers stacked
-          // inside this one still bubble here through React.
           const target = event.target as HTMLElement;
           if (target.closest("[data-slot=dialog-content]") !== event.currentTarget || target.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
           const current = controller.getPayload();
@@ -156,7 +136,6 @@ function PostLayer({
                   <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} size="lg" />
                   <div className="min-w-0 flex-1">
                     <DialogTitle className="flex text-[17px] leading-tight font-bold" style={{ color: hue.fg }}>
-                      {/* The title names the dialog, so the button keeps the author's name and describes itself in `title`. */}
                       <button
                         type="button"
                         title={`Show posts by ${post.authorName}`}
@@ -208,7 +187,6 @@ function PostLayer({
 
                 <div
                   key={post.id}
-                  // Picking a suggestion replaces the row that had focus, so focus returns to the dialog instead of the page.
                   ref={(node) => {
                     if (node && document.activeElement === document.body) node.closest<HTMLElement>("[data-slot=dialog-content]")?.focus();
                   }}
@@ -286,7 +264,6 @@ function PostLayer({
                       aria-label="Remove from corpus"
                       disabled={removing}
                       onClick={() => {
-                        // The removed post's card goes away, so focus returns to where the dialog was opened from.
                         stepped.current = false;
                         startRemoving(() => onRemove(post));
                       }}

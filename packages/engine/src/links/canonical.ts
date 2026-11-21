@@ -3,15 +3,12 @@ export type ResourceKind = 'repo' | 'package' | 'video' | 'page';
 export type Canonical = {
   key: string;
   kind: ResourceKind;
-  /** The address to show and open for the resource. */
   url: string;
-  /** Lowercase, without `www.`. */
   host: string;
 };
 
 const TRACKING_PARAM = /^(utm_.+|fbclid|gclid|gclsrc|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref|ref_src|ref_url)$/i;
 
-/** First path segments on github.com that are site pages, not account names. */
 const GITHUB_SITE_PAGES = new Set([
   'about', 'account', 'apps', 'codespaces', 'collections', 'contact', 'copilot', 'customer-stories', 'enterprise',
   'events', 'explore', 'features', 'issues', 'join', 'login', 'marketplace', 'mobile', 'new', 'notifications',
@@ -44,7 +41,6 @@ function youtubeId(host: string, segments: string[], parsed: URL): string | null
   return id !== null && YOUTUBE_ID.test(id) ? id : null;
 }
 
-/** The package an npmjs.com package page is about, as written in the URL. */
 export function npmPackageName(url: URL): string | null {
   const segments = url.pathname.split('/').filter(Boolean);
   if (normalizeHost(url.hostname) !== 'npmjs.com' || segments[0] !== 'package' || segments.length < 2) return null;
@@ -52,10 +48,6 @@ export function npmPackageName(url: URL): string | null {
   return scoped ? `${segments[1]}/${segments[2]}` : segments[1];
 }
 
-/**
- * The identity of the thing a final URL points at. Two URLs with the same key
- * are the same resource. Returns null for anything that is not an http(s) URL.
- */
 export function canonicalize(url: string): Canonical | null {
   const parsed = parse(url);
   if (parsed === null) return null;

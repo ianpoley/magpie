@@ -7,14 +7,6 @@ import type { JsonSchema } from './schemas.ts';
 
 export type ClaudeRequest = { prompt: string; schema: JsonSchema };
 
-/**
- * Why a call produced no usable answer:
- *   missing  the CLI is not installed at the configured path
- *   timeout  the CLI was killed after running too long
- *   exit     the CLI exited nonzero or could not be started
- *   output   the CLI finished without a structured answer
- *   schema   the answer does not match the requested schema
- */
 export type ClaudeFailure = {
   ok: false;
   reason: 'missing' | 'timeout' | 'exit' | 'output' | 'schema';
@@ -25,22 +17,16 @@ export type ClaudeSendResult =
   | {
       ok: true;
       value: unknown;
-      /** The CLI's own report of the session: its tools, MCP servers, plugins. Null when it sent none. */
       session: Record<string, unknown> | null;
     }
   | ClaudeFailure;
 
-/** One prompt in, one JSON value out. Implemented by the CLI below and by fakes in tests. */
 export interface ClaudeAdapter {
   send(request: ClaudeRequest): Promise<ClaudeSendResult>;
 }
 
 export type ClaudeAnswer<T> = { ok: true; value: T } | ClaudeFailure;
 
-/**
- * Sends `request` and returns the answer only when it matches `request.schema`.
- * `T` must be the type that schema describes.
- */
 export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest): Promise<ClaudeAnswer<T>> {
   const sent = await adapter.send(request);
   if (!sent.ok) return sent;
@@ -51,12 +37,6 @@ export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest)
   return { ok: true, value: sent.value as T };
 }
 
-// The prompt carries untrusted post text, so the session must be unable to
-// act: no built-in tools, no MCP servers, no skills, no slash commands, and
-// no CLAUDE.md. Installed plugins are still listed as loaded under
-// --safe-mode, but with those surfaces off they contribute nothing callable;
-// the only tool present is the StructuredOutput helper that --json-schema
-// adds. The prompt goes on stdin so nothing in it can be read as an argument.
 function cliArgs(schema: JsonSchema): string[] {
   return [
     '--print',
@@ -111,10 +91,6 @@ function readAnswer(stdout: string): ClaudeSendResult {
   return { ok: true, value: result.structured_output, session };
 }
 
-/**
- * The adapter that runs the Claude Code CLI under the user's existing login.
- * It never throws: every way the call can go wrong is a `ClaudeFailure`.
- */
 export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number } = {}): ClaudeAdapter {
   const cliPath = options.cliPath ?? paths().claudeCli;
   const timeoutMs = options.timeoutMs ?? CLAUDE.timeoutMs;
@@ -148,7 +124,6 @@ export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number 
         });
         child.on('close', (code, signal) => {
           if (code !== 0) {
-            // A failure inside the run, such as a missing login, is explained on stdout.
             const detail = `${resultText(readStream(stdout).result)} ${stderr.trim()}`.trim().slice(0, MESSAGE_MAX_CHARS);
             settle({
               ok: false,
@@ -159,8 +134,6 @@ export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number 
             settle(readAnswer(stdout));
           }
         });
-        // A child that dies before reading its input breaks the pipe; the
-        // close handler reports that exit, so the stream error is dropped here.
         child.stdin.on('error', () => {});
         child.stdin.end(request.prompt);
       }),

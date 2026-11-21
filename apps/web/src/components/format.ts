@@ -1,6 +1,5 @@
 const NUMBER = new Intl.NumberFormat("en-US");
 const COMPACT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-// A fixed locale and zone, so the server and the browser print the same date.
 const DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 const MINUTE = 60_000;
@@ -30,7 +29,6 @@ export function relativeTime(iso: string, now: number): string {
   return `on ${DATE.format(ms)}`;
 }
 
-/** How long until `iso`, as "in 2 hr"; "soon" once it has passed. */
 export function timeUntil(iso: string, now: number): string {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "at an unknown time";

@@ -19,31 +19,18 @@ export type ExportFiles = {
 
 export type PipelineDeps = {
   http: HttpFetch;
-  /** How link hosts are resolved before they are requested. Defaults to the system resolver. */
   lookup?: HostLookup;
   jev: JevClient;
   claude: ClaudeAdapter;
-  /** The clock a run is stamped with: pass it to `startRun`, which hands it on to the stages. */
   now?: () => Date;
 };
 
 export type PipelineOptions = {
-  /** At most this many posts are scored in the run, counted across both tagging passes. */
   limitPosts?: number;
-  /** Leave the category list alone: no first discovery and no evolution, so no Claude call. */
   skipEvolve?: boolean;
   skipLinks?: boolean;
 };
 
-/**
- * A whole sync records the X stages first: `x_auth` checks the session,
- * `x_bookmarks` and `x_likes` sync each collection, `export` writes the JSON
- * exports and `markdown` builds the browsable files from them. The categorize
- * stages follow. `tag` is the pass over what the run started with; `retag` is
- * the pass that scores posts against topics the same run created. A run
- * records `discovery` while no automatic topic exists and `evolve` once one
- * does, never both.
- */
 export type StageName =
   | 'x_auth'
   | 'x_bookmarks'
@@ -57,12 +44,6 @@ export type StageName =
   | 'evolve'
   | 'retag';
 
-/**
- * ok       the stage did its work
- * warning  it finished, but part of its work is left for a later run
- * failed   it did nothing useful: it threw, or no post could be scored
- * skipped  it was not attempted
- */
 export type StageOutcome = 'ok' | 'warning' | 'failed' | 'skipped';
 
 export type StageReport = {
@@ -74,30 +55,20 @@ export type StageReport = {
 
 export type UpstreamSync = 'ok' | 'failed' | 'unknown';
 
-/** How the X sync before the categorize stages went, as recorded on the run row. */
 export type Upstream = { result: UpstreamSync; detail: string | null };
 
 export type PipelineResult = { runId: number; upstreamSync: UpstreamSync; stages: StageReport[] };
 
 export type StageBody = Omit<StageReport, 'stage' | 'message'> & { message?: string | null };
 
-/** A run row being written: every stage recorded through it lands in `stages` and `run_stages`. */
 export type OpenRun = {
   db: Store;
   id: number;
   now: () => Date;
   stages: StageReport[];
-  /**
-   * Runs one stage and records it. A stage that throws is recorded as failed;
-   * one whose work returns null did not apply and leaves no record.
-   */
   stage: (name: StageName, work: () => Promise<StageBody | null> | StageBody | null) => Promise<void>;
 };
 
-/**
- * Closes any run row a killed run left `running`, then inserts this run's row.
- * The caller must hold the run lock, which is what makes a `running` row stale.
- */
 export function startRun(db: Store, now: () => Date = () => new Date()): OpenRun {
   const stamp = (): string => now().toISOString();
   db.prepare(
@@ -131,20 +102,6 @@ export function startRun(db: Store, now: () => Date = () => new Date()): OpenRun
   return { db, id, now, stages, stage };
 }
 
-/**
- * The categorize stages of a run: load the exports, resolve links, score
- * posts against topics, then let the category list grow (the first list when
- * none exists, new and split topics afterwards) and score posts against
- * whatever was added. Records `upstream` on the run row first and finishes
- * the row last.
- *
- * Each stage commits its own work and is recorded in `run_stages`. A stage
- * that fails does not stop the ones after it, with one exception: when no post
- * could be scored, the category list is left alone for that run. So the run
- * row ends `complete` whenever the run reached its end, and its message names
- * any stage, from the whole run, that failed or warned. Only a run that was
- * killed ends `failed`.
- */
 export async function runPipeline(
   run: OpenRun,
   upstream: Upstream,

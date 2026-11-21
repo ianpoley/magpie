@@ -4,7 +4,6 @@ import type { SystemOneRequest } from '@typesafe-ai/sdk';
 import { paths } from '../config.ts';
 import { createSecretStore } from '../secrets/store.ts';
 
-/** A yes/no question; the answer is the probability that it is true. */
 export type JevQuestion = {
   instructions: string | Record<string, unknown>;
   criteria?: { true: string; false: string };
@@ -16,20 +15,11 @@ export type JevRequest = {
 };
 
 export interface JevClient {
-  /**
-   * Resolves to one probability (0 to 1) per question id. Rejects when the
-   * request fails or any answer is missing, so a failure is never read as "no".
-   */
   ask(request: JevRequest, options?: { signal?: AbortSignal }): Promise<Record<string, number>>;
 }
 
 const KEY_NAME = 'TYPESAFE_API_KEY';
 
-/**
- * Asks TypeSafe whether it accepts `apiKey`, by listing the account's models,
- * which costs nothing. One try with a short timeout, so a form waiting on it
- * never hangs on retries.
- */
 export async function checkJevKey(apiKey: string): Promise<{ ok: true } | { ok: false; reason: 'rejected' | 'unreachable' }> {
   try {
     await new TypeSafeClient({ apiKey, retry: { maxRetries: 0 }, timeout: 10_000 }).models.list();
@@ -40,11 +30,6 @@ export async function checkJevKey(apiKey: string): Promise<{ ok: true } | { ok: 
   }
 }
 
-/**
- * The client that calls the live API. The key comes from `options.apiKey`,
- * else the secret store. Rejects when the key is not set or the store cannot
- * be read.
- */
 export async function createJevClient(options: { apiKey?: string } = {}): Promise<JevClient> {
   let apiKey = options.apiKey;
   if (!apiKey) {

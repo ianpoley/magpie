@@ -7,10 +7,6 @@ type TipController = ReturnType<typeof createTooltipController<string>>;
 
 const TipContext = createContext<TipController | null>(null);
 
-/**
- * One tooltip shared by every `Tip` inside. A modal dialog makes the rest of
- * the page inert, so a dialog needs a provider of its own inside its content.
- */
 export function TipProvider({ children }: { children: ReactNode }) {
   const [controller] = useState(() => createTooltipController<string>());
   return (
@@ -28,7 +24,6 @@ export function TipProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Names an icon-only control. The control still needs its own `aria-label`. */
 export function Tip({ label, children }: { label: string; children: ReactElement }) {
   const controller = use(TipContext);
   if (!controller) return children;

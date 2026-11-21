@@ -18,16 +18,6 @@ import { errorText } from '../util.ts';
 import { createBirdclaw } from '../x/birdclaw.ts';
 import type { XAdapter } from '../x/birdclaw.ts';
 
-/**
- * Moves an install that syncs through the old nightly LaunchAgent, with its
- * cookies in ~/.birdclaw/bird.env and its Jev key in
- * ~/.config/magpie/secrets.env, onto the OS secret store and the two
- * background services. The new setup has to finish one good sync before
- * anything of the old one is deleted, and any failure puts the old one back.
- */
-
-
-/** The secrets.env keys the secret store can hold, and the names it keeps them under. */
 const SECRETS_ENV_KEYS: Record<string, SecretName> = { TYPESAFE_API_KEY: 'typesafe-api-key' };
 
 export type MigrateOptions = {
@@ -40,17 +30,14 @@ export type MigrateOptions = {
   secretStore?: Pick<SecretStoreOptions, 'securityPath' | 'secretToolPath' | 'timeoutMs'>;
   installServices?: () => Promise<void>;
   uninstallServices?: () => Promise<void>;
-  /** The old job's LaunchAgent label; its plist is `~/Library/LaunchAgents/<label>.plist`. */
   legacyLabel?: string;
   timeoutMs?: number;
   pollMs?: number;
   log?: (line: string) => void;
 };
 
-/** `state` says, one line each, what the machine was left with. */
 export type MigrateResult = { ok: true; handle: string | null } | { ok: false; message: string; state: string[] };
 
-/** Why the migration cannot go on; the message never holds a secret value. */
 class Stop extends Error {}
 
 function readIfPresent(path: string): string | null {
@@ -64,10 +51,6 @@ function readIfPresent(path: string): string | null {
 
 type Wait = { ok: true } | { ok: false; message: string };
 
-/**
- * Whether the run `runId` completed with both collections synced. Null while
- * the store cannot be read yet.
- */
 function checkRun(store: string, runId: number): Wait | null {
   let db;
   try {
@@ -148,7 +131,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
   }
   log(`X accepted the cookies${who.handle ? ` for @${who.handle}` : ''}`);
 
-  // The OS secret store must work: moving onto the file fallback would only swap one plaintext file for another.
   const { keychainService, forceFileBackend } = secretSettings(env);
   const secretOptions = { ...options.secretStore, timeoutMs: options.secretStore?.timeoutMs ?? SECRETS.timeoutMs };
   const store = createSecretStore({ env, platform, ...secretOptions });
@@ -176,7 +158,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
     did.connection = true;
     const connectedAt = new Date();
     writeConnection(files.xConnection, { handle: who.handle, connectedAt: connectedAt.toISOString() });
-    // The old job already pulled both histories into Birdclaw's database.
     recordBackfill(files.schedulerState, 'bookmarks', 'completed', connectedAt);
     recordBackfill(files.schedulerState, 'likes', 'completed', connectedAt);
     log('X is connected, with both collections marked as already backfilled');
@@ -200,7 +181,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
     const deadline = Date.now() + timeoutMs;
     for (;;) {
       const attempt = readWorkerStatus(files.workerStatus)?.lastAttempt;
-      // Only a sync that started after the install proves the new services; the first one decides.
       if (attempt && Date.parse(attempt.startedAt) >= since.getTime()) {
         if (attempt.result !== 'ok' || attempt.runId === null) {
           throw new Stop(`the first sync under the new service ended ${attempt.result}${attempt.message ? `: ${attempt.message}` : ''}.`);
@@ -230,7 +210,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
   log('migration complete');
   return { ok: true, handle: who.handle };
 
-  /** Undoes what `did` records, each step on its own, and returns what the machine was left with. */
   async function rollBack(): Promise<string[]> {
     const state: string[] = [];
     const step = async (work: () => Promise<void> | void, done: string, failed: (message: string) => string) => {
@@ -259,13 +238,10 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
     if (did.secrets) {
       await step(
         async () => {
-          // Straight from the OS store and never through the secret store's delete,
-          // which would also take the Jev key out of secrets.env.
           for (const name of SECRET_NAMES) {
             const deleted = await keychain!.delete(name);
             if (!deleted.ok) throw new Stop(`${name}: ${deleted.message}`);
           }
-          // Only there if the store fell back to the file after all; the old Jev key stays.
           const fromFile = await fileBackend({ path: files.secrets }).delete('x-session');
           if (!fromFile.ok) throw new Stop(`x-session in ${files.secrets}: ${fromFile.message}`);
         },
@@ -284,7 +260,6 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
         `${files.xConnection} is removed.`,
         (message) => `${files.xConnection} could NOT be removed (${message}).`,
       );
-      // Harmless to the old job, which never reads it; a later migration marks them again.
       state.push(`${files.schedulerState} still marks bookmarks and likes as backfilled.`);
     }
     if (did.bootedOut) {

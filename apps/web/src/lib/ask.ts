@@ -15,7 +15,6 @@ export type AskScore = { postId: string; probability: number };
 export type AskRecord =
   | { type: "start"; total: number; bands: Bands }
   | { type: "scores"; scores: AskScore[] }
-  /** One request failed; this many posts went unjudged. */
   | { type: "error"; posts: number }
   | { type: "done" };
 
@@ -27,21 +26,10 @@ export function cleanQuery(value: unknown): string | null {
 
 const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 
-/**
- * True when a `Host` header names this machine, on any port. A page elsewhere
- * that points its own name at this machine still sends its own name here.
- */
 export function isLoopbackHost(host: string | null): boolean {
   return host !== null && LOOPBACK_HOST.test(host);
 }
 
-/**
- * True when a request can only have come from the app's own page or from a
- * local script. A page on another site can post without asking only if the
- * body is not declared as JSON, and a browser names where a request began.
- * A page that points its own name at this machine passes both, so the app
- * must also have been addressed as this machine.
- */
 export function isSameOriginJson(headers: Headers): boolean {
   if (!headers.get("content-type")?.trim().toLowerCase().startsWith("application/json")) return false;
   if (!isLoopbackHost(headers.get("host"))) return false;
@@ -75,19 +63,12 @@ export type AskDeps = {
   buildRequest: (query: string, posts: AskPost[]) => JevRequest;
   questionId: (postId: string) => string;
   hasSomethingToJudge: (content: PostContent) => boolean;
-  /** Posts per request. */
   chunkSize: number;
-  /** Requests in flight at once. */
   concurrency: number;
   bands: Bands;
   onChunkError?: (error: unknown) => void;
 };
 
-/**
- * Judges every post against one search and yields the answers as each request
- * returns. A failed request becomes an error record and the rest carry on. An
- * abort cancels the requests in flight and ends the stream with no more records.
- */
 export async function* askPosts(deps: AskDeps, rawQuery: string, posts: AskPost[], signal?: AbortSignal): AsyncGenerator<AskRecord> {
   const query = cleanQuery(rawQuery);
   if (query === null) return;
@@ -96,7 +77,6 @@ export async function* askPosts(deps: AskDeps, rawQuery: string, posts: AskPost[
   const judgeable: AskPost[] = [];
   const empty: AskScore[] = [];
   for (const post of posts) {
-    // Asked anyway, Jev answers near the unsure line for a post that says nothing.
     if (deps.hasSomethingToJudge(post.content)) judgeable.push(post);
     else empty.push({ postId: post.id, probability: 0 });
   }
@@ -145,12 +125,6 @@ export async function* askPosts(deps: AskDeps, rawQuery: string, posts: AskPost[
   if (!signal?.aborted) yield { type: "done" };
 }
 
-/**
- * The posts a search matched, under the filters that still apply while asking:
- * collection, author, time range, media, and hidden posts. Confident matches
- * come first, then unsure ones, each strongest first. The category selection
- * and the keyword belong to browsing and are set aside.
- */
 export function rankAsk(snapshot: Snapshot, filter: FilterState, scores: AskScore[], bands: Bands, now: number): FilterResult {
   const result = applyFilter(snapshot, { ...filter, topicIds: [], areaIds: [], unfiled: false, keyword: "" }, now);
   const probability = new Map(scores.map((score) => [score.postId, score.probability]));
@@ -182,13 +156,9 @@ async function* readAskStream(body: ReadableStream<Uint8Array>): AsyncGenerator<
 
 export type AskState = {
   query: string;
-  /** "failed" when the request was refused or broke off before it finished. */
   status: "running" | "done" | "failed";
-  /** Posts being judged; null until the server says. */
   total: number | null;
-  /** Posts answered so far by this request. */
   judged: number;
-  /** Posts this request could not get an answer for. */
   failed: number;
   scores: AskScore[];
   bands: Bands | null;
@@ -197,17 +167,10 @@ export type AskState = {
 export type AskRunner = {
   subscribe: (listener: () => void) => () => void;
   getState: () => AskState | null;
-  /** Starts a search, cancelling the one in flight. An empty search is ignored. */
   ask: (query: string) => void;
   clear: () => void;
 };
 
-/**
- * Runs one search at a time against `send` and holds what the screen shows.
- * Only the latest search may change the state, so a late answer to an earlier
- * one is never shown. Asking the same search again keeps its earlier answers
- * on screen while fresh ones replace them.
- */
 export function createAskRunner(send: (query: string, signal: AbortSignal) => Promise<Response>): AskRunner {
   let state: AskState | null = null;
   let inFlight: AbortController | null = null;
@@ -238,7 +201,6 @@ export function createAskRunner(send: (query: string, signal: AbortSignal) => Pr
         }
       }
     } catch {
-      // Handled below: anything short of a finished stream is a failure.
     }
     if (current() && state) set({ ...state, status: finished ? "done" : "failed" });
   };

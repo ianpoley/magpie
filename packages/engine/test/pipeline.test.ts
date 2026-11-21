@@ -28,7 +28,6 @@ function setup(t: TestContext): { files: Files; write: (bookmarks: ExportPost[],
   return { files, write: (bookmarks, likes = []) => void writeExports(dataDir, { bookmarks, likes }) };
 }
 
-/** Opens a run row the way the sync and categorize commands do, then runs the categorize stages on it. */
 async function run(files: Files, deps: PipelineDeps, options?: PipelineOptions) {
   const db = openStore(files.store);
   try {
@@ -207,8 +206,6 @@ test('when no post could be scored the tag stage fails and categories are left a
 test('a post cap bounds how many posts are scored in the whole run', async (t) => {
   const { files, write } = setup(t);
   write(['1', '2', '3', '4', '5'].map((id) => exportPost(id)));
-  // A pinned search gives the first pass something to score, while the first
-  // category list is still to come and brings a second pass with it.
   const db = openStore(files.store);
   seedTopic(db, 'css tricks', { kind: 'pinned' });
   db.close();

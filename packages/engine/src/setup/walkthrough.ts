@@ -1,35 +1,20 @@
 import type { SetupCheck } from '../service/index.ts';
 
-/**
- * `bun run setup`: checks the machine, then takes each first-run step that
- * is not done yet. At a terminal it asks before each one; with `yes` it takes
- * the steps that hold no secret and replace nothing; with neither it only
- * reports. A run on a machine that is already set up asks nothing.
- *
- * Everything it touches comes in through `deps`, so tests drive it with fakes.
- */
 export type WalkthroughDeps = {
-  /** A person is at a terminal: prompts are allowed. */
   interactive: boolean;
-  /** --yes: take the steps that hold no secret and replace nothing, without asking. */
   yes: boolean;
   log: (line: string) => void;
   confirm: (question: string, defaultYes: boolean) => Promise<boolean>;
-  /** Read with echo off; '' means skip. */
   secret: (prompt: string) => Promise<string>;
   checks: () => Promise<SetupCheck[]>;
-  /** The main checkout when this checkout is a linked git worktree. */
   worktreeOf: string | null;
-  /** The old nightly job's plist when migrate can move it. */
   legacy: string | null;
   services: () => Promise<ServicesState>;
   install: () => Promise<void>;
   migrate: () => Promise<{ ok: boolean; message: string }>;
-  /** The X handle once connected; undefined when not connected. */
   connection: () => { handle: string | null } | undefined;
   appUrl: string;
   openApp: (url: string) => Promise<void>;
-  /** Resolves with the connection once it appears, or undefined when the person skips. */
   waitForConnection: () => Promise<{ handle: string | null } | undefined>;
   jevStored: () => Promise<boolean>;
   storeJev: (key: string) => Promise<{ ok: boolean; message: string }>;
@@ -40,15 +25,11 @@ export type WalkthroughDeps = {
 export type ServicesState = {
   installed: boolean;
   running: boolean;
-  /** The data root the installed worker runs against. */
   dataRoot: string | null;
-  /** The data root this checkout uses. */
   here: string;
-  /** Services or config still under the old x-corpus names; installing renames them. */
   legacy?: boolean;
 };
 
-/** `none`: no ~/.claude, so no Claude Code to give the skill to. */
 export type SkillState = 'linked' | 'elsewhere' | 'missing' | 'none';
 
 export type WalkthroughResult = { ok: boolean; done: string[]; todo: string[] };
@@ -59,7 +40,6 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   const { log } = deps;
   const done: string[] = [];
   const todo: string[] = [];
-  /** Ask at a terminal; otherwise `--yes` answers for steps marked safe, and nothing else goes ahead. */
   const agree = async (question: string, options: { defaultYes: boolean; safe: boolean }) => {
     if (deps.interactive) return deps.confirm(question, options.defaultYes);
     return deps.yes && options.safe;
@@ -78,7 +58,6 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     todo.push('Optional, for categories: install the Claude Code CLI and log in (https://claude.com/claude-code).');
   }
 
-  // A worktree borrows the main checkout's data and services; it only reports.
   if (deps.worktreeOf) {
     const main = deps.worktreeOf;
     log('');
@@ -98,7 +77,6 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   await claudeSkill();
   return finish(true);
 
-  /** Returns whether the web app is running here afterwards. */
   async function backgroundSync(): Promise<boolean> {
     log('');
     log('Background sync and the web app');

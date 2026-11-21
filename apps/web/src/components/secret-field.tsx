@@ -5,7 +5,6 @@ import { PasswordInput, PasswordInputControl, PasswordInputToggle } from "@ui-sd
 import { Eye, EyeOff } from "lucide-react";
 import type { ReactNode } from "react";
 
-/** A pasted secret: hidden by default, with a show toggle. Cookie names are set in mono, as X shows them. */
 export function SecretField({
   name,
   label = name,

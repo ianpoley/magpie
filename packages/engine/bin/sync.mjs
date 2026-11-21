@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-//
-//     node packages/engine/bin/sync.mjs [--limit-posts N] [--skip-links] [--skip-evolve]   (or: bun run sync)
-//
-// Exits 0 when the run reached its end, even if a stage failed (the summary
-// and the run row say which). Exits 1 when a run is already in progress or
-// the run could not start, and 2 for a bad argument.
 
 import { RUN_OPTIONS_USAGE, categorizeDeps, printStages, readRunOptions } from './run-cli.mjs';
 
