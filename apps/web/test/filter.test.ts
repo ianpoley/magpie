@@ -233,7 +233,7 @@ test("a category's count is the number of posts selecting it alone lists, with a
     areas: AREAS,
     topics: TOPICS,
     posts: [
-      post("a", { in: { [EVALS]: "confident" } }),
+      post("a", { liked: true, in: { [EVALS]: "confident" } }),
       post("b", { in: { [EVALS]: "confident" } }),
       post("c", { hidden: true, in: { [EVALS]: "confident", [ELECTIONS]: "confident" } }),
       post("loose", {}),
@@ -258,6 +258,12 @@ test("a category's count is the number of posts selecting it alone lists, with a
   assert.equal(off.topics.get(ELECTIONS), 2);
   assert.equal(off.topics.get(ELECTIONS), listed({ topicIds: [ELECTIONS] }));
   assert.equal(off.areas.get(POLITICS), listed({ areaIds: [POLITICS] }));
+
+  const likes = categoryCounts(snap, false, "likes");
+  assert.equal(likes.topics.get(EVALS), 1);
+  assert.equal(likes.topics.get(EVALS), listed({ topicIds: [EVALS], collection: "likes" }));
+  assert.equal(likes.areas.get(AI), listed({ areaIds: [AI], collection: "likes" }));
+  assert.equal(likes.unfiled, listed({ unfiled: true, collection: "likes" }));
 });
 
 test("recently added puts the posts a later sync found first, then newest within a sync", () => {
