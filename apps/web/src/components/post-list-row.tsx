@@ -11,7 +11,7 @@ import type { Post } from "@/lib/types";
 import { AuthorAvatar } from "./author-avatar";
 import { formatDate, formatLikes } from "./format";
 import { Marked, PostText, Thumb } from "./post-body";
-import { AuthorButton, CollectionMarks, PostActions, type PostCardProps, TopicChips } from "./post-card";
+import { AuthorButton, CollectionMarks, MediaTrigger, PostActions, type PostCardProps, TopicChips } from "./post-card";
 
 const hit = (text: string | null | undefined, keyword: string): boolean => !!text && highlightRanges(text, keyword).length > 0;
 
@@ -93,12 +93,12 @@ export function PostListRow(props: PostCardProps) {
         </div>
         {lead ? (
           <div className="pt-0.5 max-sm:hidden">
-            <span className="relative block">
+            <MediaTrigger post={post} dialog={dialog} item={lead.media[0]} index={0} className="relative block rounded-inner">
               <Thumb item={lead.media[0]} className="size-[72px]" />
               {lead.media.length > 1 ? (
                 <span className="absolute right-1 bottom-1 rounded-full bg-ink px-1.5 py-px text-[10px] font-semibold text-surface tabular-nums">{lead.media.length}</span>
               ) : null}
-            </span>
+            </MediaTrigger>
           </div>
         ) : null}
       </div>

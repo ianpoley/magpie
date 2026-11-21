@@ -6,13 +6,15 @@ import { Bookmark, ExternalLink, Globe, Heart, Link2, Quote, Tags, Trash2 } from
 import { useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
-import { leadMedia, mediaNoun } from "@/lib/media";
+import { leadMedia, mediaKind, mediaNoun } from "@/lib/media";
 import { withoutTrailingUrl } from "@/lib/post-links";
 import { aroundHit } from "@/lib/search";
-import type { Chip, Post, Topic } from "@/lib/types";
+import type { Chip, Media, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { formatDate, formatLikes } from "./format";
+import { requestMediaFocus } from "./media-focus";
+import { MediaPreview } from "./media-preview";
 import { Marked, PostText, Thumb } from "./post-body";
 import type { PostTopicsController } from "./post-topics-editor";
 import { dangerIconButton, iconButton } from "./styles";
@@ -138,6 +140,24 @@ export function AuthorButton({ post, keyword, onSelectAuthor, className = "" }: 
 
 const STRIP = "flex min-w-0 items-center gap-2 rounded-inner bg-sunken px-2.5 py-1.5 text-[13px] leading-snug";
 
+export function MediaTrigger({ post, dialog, item, index, className, children }: { post: Post; dialog: PostDialogController; item: Media; index: number; className: string; children: React.ReactNode }) {
+  const kind = mediaKind(item);
+  const verb = kind === "photo" ? "Show photo" : `Play ${kind === "gif" ? "GIF" : "video"}`;
+  return (
+    <DialogTrigger
+      controller={dialog}
+      payload={post.id}
+      aria-label={`${verb} in post by ${post.authorName}`}
+      onClick={() => requestMediaFocus(post.id, index)}
+      className={`focus-ring pointer-events-auto h-auto cursor-pointer border-0 bg-transparent p-0 hover:bg-transparent ${className}`}
+    >
+      <MediaPreview post={post} item={item}>
+        {children}
+      </MediaPreview>
+    </DialogTrigger>
+  );
+}
+
 export function PostCard(props: PostCardProps) {
   const { post, keyword, dialog } = props;
   const date = formatDate(post.createdAt);
@@ -206,18 +226,20 @@ export function PostCard(props: PostCardProps) {
 
         {lead ? (
           <div className="flex w-20 shrink-0 flex-col gap-1.5 sm:w-[120px]">
-            <Thumb item={lead.media[0]} className="size-20 sm:size-[120px]" />
+            <MediaTrigger post={post} dialog={dialog} item={lead.media[0]} index={0} className="block rounded-inner">
+              <Thumb item={lead.media[0]} className="size-20 sm:size-[120px]" />
+            </MediaTrigger>
             {minis.length > 0 ? (
               <div className="grid grid-cols-3 gap-1.5 max-sm:hidden">
                 {minis.map((item, i) => (
-                  <span key={item.url} className="relative">
+                  <MediaTrigger key={item.url} post={post} dialog={dialog} item={item} index={i + 1} className="relative block rounded-inner">
                     <Thumb item={item} className="size-9" small />
                     {i === minis.length - 1 && more > 0 ? (
                       <span className="absolute inset-0 flex items-center justify-center rounded-inner bg-[color-mix(in_oklch,var(--color-ink)_55%,transparent)] text-[11px] font-semibold text-surface tabular-nums">
                         +{more}
                       </span>
                     ) : null}
-                  </span>
+                  </MediaTrigger>
                 ))}
               </div>
             ) : null}
