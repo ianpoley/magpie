@@ -331,9 +331,9 @@ function PostLayer({
                       <Trash2 className="size-4" aria-hidden="true" />
                       <span className="max-sm:hidden">Remove from corpus</span>
                     </Button>
-                    <Button onClick={() => onCopyLink(post)} className="pressable focus-ring h-9 gap-1.5 border-0 px-3.5 shadow-card">
+                    <Button aria-label="Copy link" onClick={() => onCopyLink(post)} className="pressable focus-ring h-9 gap-1.5 border-0 px-3.5 shadow-card max-sm:px-2.5">
                       <Link2 className="size-4 text-ink-muted" aria-hidden="true" />
-                      Copy link
+                      <span className="max-sm:hidden">Copy link</span>
                     </Button>
                     <Button
                       data-variant="solid"
