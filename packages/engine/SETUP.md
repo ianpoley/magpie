@@ -4,17 +4,28 @@ One-time setup on macOS or Linux, from a clone anywhere on disk. After that the 
 
 ## 1. Install
 
-1. Node 26 (`.node-version`; supported range `>=25.8.1 <27`) first on your `PATH` (check `node --version`; nvm can shadow it), and [Bun](https://bun.sh). No Homebrew and no global npm packages: Birdclaw and bird are pinned repo dependencies.
+1. [Bun](https://bun.sh), and Node 26 (`.node-version`; supported range `>=25.8.1 <27`). No Homebrew formulas and no global npm packages: Birdclaw and bird are pinned repo dependencies.
 2. In the clone:
 
 ```bash
-bun install
 bun run setup
 ```
 
-`setup` checks the Node range, the pinned Birdclaw and bird, the Claude CLI and the secret store, and reports what is missing. On Linux the secret store needs libsecret's `secret-tool` and a running Secret Service; without a secret store, secrets fall back to an owner-only `~/.config/x-corpus/secrets.env` and the app warns about it.
+Bun runs a small pre-check first. It runs `bun install`, then finds a Node in range: the first `node` on your `PATH` if it fits, otherwise the newest one in the usual places (Homebrew, `/usr/local`, nvm, fnm, Volta, mise, asdf). It names the one it picked. With none, it says how to install Node 26 and stops. Then the walkthrough runs under that Node:
+
+- **Checks:** the Node range, the pinned Birdclaw and bird, the Claude CLI and the secret store. A failed check stops here with the fix.
+- **Background services:** installs them (step 2 below). On a Mac with the old `birdclaw-nightly` job it offers `migrate` instead (see below). If the services belong to another clone, it asks before pointing them here; the default is no.
+- **Connect X:** opens the web app and waits until you have connected (step 3). Press Enter to skip.
+- **Jev key:** typed hidden; Enter skips (step 4).
+- **Claude skill:** links `packages/skill` into `~/.claude/skills`.
+
+At a terminal it asks before each step. `bun run setup --yes`, or a run with no terminal, never prompts. `--yes` takes only the steps that hold no secret and replace nothing: the services and the skill. Without `--yes` it only reports. Every run ends with what is done and what is still to do, and skips what is already done. In a linked git worktree it only reports on the main checkout.
+
+Each step also has its own command, described below. On Linux the secret store needs libsecret's `secret-tool` and a running Secret Service; without a secret store, secrets fall back to an owner-only `~/.config/x-corpus/secrets.env` and the app warns about it.
 
 ## 2. Install the background services
+
+`setup` does this for you. By hand:
 
 ```bash
 bun run service:install
