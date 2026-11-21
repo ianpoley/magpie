@@ -183,11 +183,12 @@ export function Sidebar({
               {removedCount > 0 ? (
                 <DialogTrigger
                   controller={removedPosts}
-                  className={`${SIDE_ROW} mt-2 h-8 justify-start bg-transparent pr-2 font-semibold text-side-muted hover:bg-side-hover`}
+                  className={`${SIDE_ROW} mt-2 h-8 justify-start bg-transparent pr-1.5 font-semibold text-side-muted hover:bg-side-hover`}
                 >
                   <Trash2 className="size-3.5 shrink-0" aria-hidden="true" />
                   Removed
                   <span className="ml-auto text-[12px] font-medium tabular-nums">{formatCount(removedCount)}</span>
+                  <span aria-hidden="true" className="-mr-1 ml-1 size-6 shrink-0" />
                 </DialogTrigger>
               ) : null}
             </SidebarSection>
