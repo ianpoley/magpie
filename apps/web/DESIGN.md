@@ -42,6 +42,10 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
 - **Ask is an action on the search field, not a mode.** You start it with the Ask button that appears once you type, or with ⌘↵ (Ctrl ↵). Plain Enter never starts an ask, because each one costs money. Once an ask is open, Enter re-runs it after an edit.
 - **Primary fills:** a vertical gradient from `primary-top` to `primary`, with `shadow-primary`. Solid UI SDK buttons and the segmented-control indicator get it automatically.
 - **Cards:** white `surface` on `canvas`, with `rounded-card` (16px) and `shadow-card`, which carries a warm sunrise glow underneath. On hover, `shadow-card-hover` adds a primary-tinted lift. Nothing gets a border for depth.
+- **Post list** (`components/post-list.tsx`), decided 2026-11-20 in `/proto/density`. The list has two layouts, Cards (the default) and Rows. A Cards/Rows switch sits beside Posts/Resources in the title row, not in the pinned row, because you set it once. The choice is kept in the `magpie-layout` cookie, so the server renders it on the first paint. Switching leaves the scroll where it is, so the switch stays under the pointer.
+  - **Cards** (`post-card.tsx`): attachments sit in the card's right margin, out of the reading flow. The lead picture is a 120px square crop, with a filmstrip of 36px crops and a `+n` under it. If the post has no pictures, the quote's pictures are used and labelled "In the quote". A video or GIF gets a play mark. The quote and the linked page are one-line strips. Text clamps at 4 lines, with blank lines collapsed. Nothing is hidden. About 244px a post, against 570px before.
+  - **Rows** (`post-list-row.tsx`): an inbox on one white sheet per month, with hairline dividers. Each row shows the author line (name, handle, date, and glyphs for photos, quote and link) and two lines of text. Under that sit up to three topic chips, the like count and the four actions. A 72px thumbnail goes on the right. Month headings with counts pin under the tool row as one frosted band with it. There are no headings under Most liked or during an Ask, since those aren't in date order. About 122px a post.
+  - A search hit past the clamp moves the text to start just before the hit. A hit in a quote or a link title marks its strip or glyph, so a match never looks false.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces use `rounded-inner` (10px), and avatars use `rounded-avatar` (12px).
 - **Type:**
   - Text is Hanken Grotesk.
@@ -54,6 +58,8 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
 - **Motion:**
   - UI: 150ms ease-out on color and shadow. Presses scale to 0.96. Hover effects only apply behind `(hover: hover) and (pointer: fine)`.
   - Sprite animations: stepped frames (`steps(1)`), never tweened.
+  - Post list: a removed post fades out over 150ms ease-in. Its gap then closes over 200ms `cubic-bezier(0.77, 0, 0.175, 1)`. Undo plays it in reverse: the gap opens, then the post fades in over 200ms `cubic-bezier(0.22, 1, 0.36, 1)`. A match an Ask finds while it runs rises 4px and fades in over 200ms. Pictures fade in over 200ms when they finish loading, and cached ones show at once. With reduced motion on, posts only fade and gaps change at once.
+  - Never animated: list swaps from typing, filtering or sorting, j/k movement, and the Cards/Rows switch.
 
 ## Known gaps
 
@@ -70,6 +76,12 @@ Murmur variations (2026-11-20). None was taken, and plain Murmur stays:
 - **Roost:** the flock perches on the sidebar tree rows.
 - **Migration:** the right gutter as a clickable minimap of the list.
 - **Daylight:** a clock-driven dawn, day, dusk and night theme.
+
+Post density round (2026-11-20, `/proto/density`, on the real list): **Margin ⇄ Index** ✅ was chosen. It's Margin's cards with a switch to Index's rows. No reason was given for passing on the others. The costs below were measured in the prototype and are not the user's reasons.
+- **Current:** a full-width media grid in every card. About 570px a post.
+- **Margin alone** (about 244px a post) and **Index alone** (about 122px a post): taken together instead.
+- **Lens:** "show inline" toggles in the pinned row for each kind (Photos, Quotes, Links, Long text), with set-aside things folded into pips you can open per post. About 242px a post. Its toggles made the pinned row two lines tall.
+- **Reader:** a list beside a pinned reading pane. About 91px a post in the list. It widens main past 800px, so the flock was off.
 
 Header round (2026-11-20, on Murmur):
 - **Current:** eyebrow, a 40px title and a solid Surprise me, then a Search/Ask mode toggle, filters, and a separate view-and-count row. The list started 285px down, the toggle truncated the field, and the count showed three times.

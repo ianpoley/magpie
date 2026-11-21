@@ -1,0 +1,22 @@
+"use client";
+
+import { useLayoutEffect, useRef } from "react";
+
+/**
+ * A remote picture that fades in when it finishes loading, instead of
+ * snapping in over its placeholder. One already loaded (cached, or loaded
+ * before the page hydrated) shows at once and never fades.
+ */
+export function FadeImg({ src, className }: { src: string; className: string }) {
+  const ref = useRef<HTMLImageElement>(null);
+  // Before paint, so a picture that is still loading never flashes in and out.
+  useLayoutEffect(() => {
+    const img = ref.current;
+    if (img && !img.complete) img.setAttribute("data-pending", "");
+  }, [src]);
+  const settle = () => ref.current?.removeAttribute("data-pending");
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally
+    <img ref={ref} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onLoad={settle} onError={settle} className={`img-fade ${className}`} />
+  );
+}

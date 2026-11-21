@@ -3,10 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import { postChips } from "@/lib/filter";
+import { type Entrance, type Ghost, listChanges, withGhosts } from "@/lib/list-motion";
+import { monthRuns } from "@/lib/month-runs";
 import type { FilterState, Post, Topic } from "@/lib/types";
 
 import { formatCount } from "./format";
-import { PostCard, type PostDialogController } from "./post-card";
+import { PostCard, type PostCardProps, type PostDialogController } from "./post-card";
+import type { PostLayout } from "./post-layout";
+import { PostListRow } from "./post-list-row";
 import type { PostTopicsController } from "./post-topics-editor";
 
 const PAGE = 60;
@@ -24,14 +28,22 @@ function Divider({ count, total }: { count: number; total: number }) {
 }
 
 /**
- * The matching posts as cards, 60 at a time, with more added as the end comes
- * into view. Give it a `key` that changes with the filter so the window starts
- * over. Under a category filter, a divider sets unsure matches apart.
+ * The matching posts, 60 at a time, with more added as the end comes into
+ * view. Give it a `key` that changes with the filter so the window starts
+ * over. Under a category filter, a divider sets unsure matches apart. `rows`
+ * lays them out as dense rows under month headings; `ranked` says an Ask
+ * ordered them, and `arriving` that it is still finding more.
+ *
+ * A post removed from the screen stays a moment as a ghost while it leaves,
+ * and comes back the same way if the removal is undone.
  */
 export function PostList({
   posts,
   unsureStart,
   filter,
+  layout,
+  ranked,
+  arriving,
   topicsById,
   dialog,
   topicsEditor,
@@ -43,6 +55,9 @@ export function PostList({
   posts: Post[];
   unsureStart: number | null;
   filter: FilterState;
+  layout: PostLayout;
+  ranked: boolean;
+  arriving: boolean;
   topicsById: Map<number, Topic>;
   dialog: PostDialogController;
   topicsEditor: PostTopicsController;
@@ -68,30 +83,106 @@ export function PostList({
     return () => observer.disconnect();
   }, [hasMore, shown]);
 
-  const visible = posts.slice(0, shown);
+  // Compared on each new list, during render, so a leaving post never drops out for a frame.
+  // Each change that starts motion is a batch, cleared on its own timer, so the screen
+  // re-rendering (an Ask streaming, a sync poll) never cuts an animation short.
+  const [motion, setMotion] = useState({
+    posts,
+    ghosts: [] as Ghost[],
+    entrances: new Map<string, Entrance>(),
+    removed: new Set<string>(),
+    batch: null as { leaving: string[]; entering: string[] } | null,
+  });
+  if (motion.posts !== posts) {
+    const { ghosts, entrances } = listChanges(motion.posts, posts, shown, motion.removed, arriving);
+    if (ghosts.length === 0 && entrances.size === 0) setMotion({ ...motion, posts });
+    else {
+      const listed = new Set(posts.map((post) => post.id));
+      setMotion({
+        posts,
+        ghosts: [...motion.ghosts.filter((ghost) => !listed.has(ghost.post.id)), ...ghosts],
+        entrances: new Map([...motion.entrances, ...entrances]),
+        removed: new Set([...motion.removed, ...ghosts.map((ghost) => ghost.post.id)]),
+        batch: { leaving: ghosts.map((ghost) => ghost.post.id), entering: [...entrances.keys()] },
+      });
+    }
+  }
+  useEffect(() => {
+    const batch = motion.batch;
+    if (!batch) return;
+    // A leave fades for 150ms, then closes its gap for 200ms; a return opens, then fades in.
+    // Reduced motion only fades. No cleanup: a later batch must not cancel this one's timer.
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.setTimeout(() => {
+      setMotion((current) => ({
+        ...current,
+        ghosts: current.ghosts.filter((ghost) => !batch.leaving.includes(ghost.post.id)),
+        entrances: new Map([...current.entrances].filter(([id]) => !batch.entering.includes(id))),
+      }));
+    }, reduced ? 160 : 380);
+  }, [motion.batch]);
+  const leaving = new Set(motion.ghosts.map((ghost) => ghost.post.id));
+  const listed = withGhosts(posts, motion.ghosts);
+  const listedShown = shown + motion.ghosts.length;
+  const listedUnsure = unsureStart === null ? null : unsureStart + motion.ghosts.filter((ghost) => ghost.index < unsureStart).length;
+  const itemProps = (post: Post) => {
+    const leave = leaving.has(post.id);
+    return { className: "post-li", "data-motion": leave ? "leave" : motion.entrances.get(post.id), inert: leave || undefined, "aria-hidden": leave || undefined };
+  };
+
   const unsureCount = unsureStart === null ? 0 : posts.length - unsureStart;
+  const propsFor = (post: Post): PostCardProps => ({
+    post,
+    chips: postChips(post, filter),
+    topicsById,
+    activeTopicIds: filter.topicIds,
+    keyword: filter.keyword,
+    dialog,
+    topicsEditor,
+    onSelectTopic,
+    onSelectAuthor,
+    onCopyLink,
+    onRemove,
+  });
 
   return (
     <>
-      <ul className="flex flex-col gap-3">
-        {visible.map((post, index) => (
-          <FragmentRow key={post.id} divider={unsureCount > 0 && index === unsureStart ? <Divider count={unsureCount} total={posts.length} /> : null}>
-            <PostCard
-              post={post}
-              chips={postChips(post, filter)}
-              topicsById={topicsById}
-              activeTopicIds={filter.topicIds}
-              keyword={filter.keyword}
-              dialog={dialog}
-              topicsEditor={topicsEditor}
-              onSelectTopic={onSelectTopic}
-              onSelectAuthor={onSelectAuthor}
-              onCopyLink={onCopyLink}
-              onRemove={onRemove}
-            />
-          </FragmentRow>
-        ))}
-      </ul>
+      {layout === "rows" ? (
+        <div className="flex flex-col gap-4">
+          {monthRuns(listed, listedShown, listedUnsure, filter, ranked).map((run, index, runs) => (
+            <section key={`${run.key}-${index}`} aria-label={run.label ?? "Posts"} className="flex flex-col gap-2">
+              {run.possible && !runs[index - 1]?.possible && unsureCount > 0 ? (
+                <ul>
+                  <Divider count={unsureCount} total={posts.length} />
+                </ul>
+              ) : null}
+              {run.label ? (
+                // Pins under the tool row as one frosted band with it, so a long scroll always says which month it is in.
+                <h2 className="sticky top-[var(--pinned-h,56px)] z-10 -mx-4 -mt-2 flex items-baseline gap-2 bg-[color-mix(in_oklch,var(--color-canvas)_82%,transparent)] px-5 py-1.5 backdrop-blur-[12px] sm:-mx-8 sm:px-9">
+                  <span className="text-eyebrow text-ink">{run.label}</span>
+                  <span className="text-[12px] font-medium text-ink-muted tabular-nums">{formatCount(run.count)}</span>
+                </h2>
+              ) : null}
+              <ul className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card">
+                {run.posts.map((post) => (
+                  <li key={post.id} {...itemProps(post)}>
+                    <PostListRow {...propsFor(post)} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : (
+        // --list-gap lets a leaving card close its gap too, not just its height.
+        <ul className="flex flex-col gap-3 [--list-gap:0.75rem]">
+          {listed.slice(0, listedShown).map((post, index) => (
+            <FragmentRow key={post.id} item={itemProps(post)} divider={unsureCount > 0 && index === listedUnsure ? <Divider count={unsureCount} total={posts.length} /> : null}>
+              <PostCard {...propsFor(post)} />
+            </FragmentRow>
+          ))}
+        </ul>
+      )}
       {hasMore ? (
         <div ref={sentinel} className="py-6 text-center text-[13px] text-ink-muted" aria-hidden="true">
           Loading more…
@@ -105,11 +196,11 @@ export function PostList({
   );
 }
 
-function FragmentRow({ divider, children }: { divider: React.ReactNode; children: React.ReactNode }) {
+function FragmentRow({ divider, item, children }: { divider: React.ReactNode; item: React.LiHTMLAttributes<HTMLLIElement> & { inert?: boolean }; children: React.ReactNode }) {
   return (
     <>
       {divider}
-      <li>{children}</li>
+      <li {...item}>{children}</li>
     </>
   );
 }

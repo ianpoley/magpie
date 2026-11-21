@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { highlightRanges, matchesKeyword } from "../src/lib/search.ts";
+import { aroundHit, highlightRanges, matchesKeyword } from "../src/lib/search.ts";
 import { post } from "./fixtures/snapshot.ts";
 
 const quoted = {
@@ -87,4 +87,18 @@ test("addresses on X itself are not searched, other addresses are", () => {
 test("phrase highlighting marks the query only as typed", () => {
   assert.deepEqual(highlightRanges("Coding Agent Tools", "agent tools", true), [[7, 18]]);
   assert.deepEqual(highlightRanges("Agent Skills", "agent tools", true), []);
+});
+
+test("a match past the cutoff starts the text just before it, at a word boundary", () => {
+  const text = `${"lead in words ".repeat(12)}the needle is here`;
+  const shown = aroundHit(text, "needle", 40, 12);
+  assert.ok(shown.startsWith("…"));
+  assert.ok(shown.includes("the needle is here"));
+  assert.ok(!shown.startsWith("…ead"), "cuts between words");
+});
+
+test("a match before the cutoff, or no match, leaves the text whole", () => {
+  assert.equal(aroundHit("the needle early", "needle", 40), "the needle early");
+  assert.equal(aroundHit("nothing here", "needle", 0), "nothing here");
+  assert.equal(aroundHit("anything", "", 0), "anything");
 });

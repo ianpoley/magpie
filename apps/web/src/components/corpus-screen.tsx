@@ -38,6 +38,7 @@ import { formatCount } from "./format";
 import { PageHeader, SEARCH_INPUT_ID, type SearchMode, type View } from "./page-header";
 import { postCardOpen } from "./post-card";
 import { PostDialog } from "./post-dialog";
+import { saveLayout, type PostLayout } from "./post-layout";
 import { PostList } from "./post-list";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { createRemovedPostsController, RemovedPosts } from "./removed-posts";
@@ -197,10 +198,23 @@ const selectionInAddress = (): LinkedFilter => {
 };
 
 /** `linked` is the selection the page was opened with; later changes are read from the address bar. */
-export function CorpusScreen({ snapshot, sync: initialSync, now, linked }: { snapshot: Snapshot; sync: SyncState; now: number; linked: LinkedFilter }) {
+export function CorpusScreen({
+  snapshot,
+  sync: initialSync,
+  now,
+  linked,
+  layout: initialLayout,
+}: {
+  snapshot: Snapshot;
+  sync: SyncState;
+  now: number;
+  linked: LinkedFilter;
+  layout: PostLayout;
+}) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
   const [view, setView] = useState<View>("posts");
+  const [layout, setLayout] = useState(initialLayout);
   const [resourceKind, setResourceKind] = useState("all");
   const [expanded, setExpanded] = useState<string[]>(() => [
     ...new Set(snapshot.topics.flatMap((topic) => (topic.areaId !== null && linked.topicIds.includes(topic.id) ? [areaNode(topic.areaId)] : []))),
@@ -445,6 +459,12 @@ export function CorpusScreen({ snapshot, sync: initialSync, now, linked }: { sna
               onTimeRange={(timeRange) => setFilter((current) => ({ ...current, timeRange }))}
               onSort={(sort) => setFilter((current) => ({ ...current, sort }))}
               onMediaOnly={(mediaOnly) => setFilter((current) => ({ ...current, mediaOnly }))}
+              layout={layout}
+              // The scroll is left alone: the switch only shows near the top, and moving the page would pull it from under the pointer.
+              onLayout={(next) => {
+                saveLayout(next);
+                setLayout(next);
+              }}
               view={view}
               onView={setView}
               count={result.posts.length}
@@ -498,6 +518,9 @@ export function CorpusScreen({ snapshot, sync: initialSync, now, linked }: { sna
                   posts={result.posts}
                   unsureStart={result.unsureStart}
                   filter={applied}
+                  layout={layout}
+                  ranked={ask !== null}
+                  arriving={ask?.status === "running"}
                   topicsById={topicsById}
                   dialog={postDialog}
                   topicsEditor={topicsEditor}

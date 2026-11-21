@@ -385,6 +385,59 @@ body {
   box-shadow: var(--shadow-pinned);
 }
 
+/* ---- post list motion (components/post-list.tsx) ---------------------
+ * Removing a post fades it out, then closes its gap. Undo opens the gap, then
+ * fades it back. A match an Ask finds while you watch rises in. Nothing else
+ * in the list moves: typing, filtering, sorting and j/k stay instant. */
+.post-li:is([data-motion="leave"], [data-motion="return"]) {
+  display: grid;
+  > * {
+    min-height: 0;
+    overflow: clip;
+    overflow-clip-margin: 24px;
+  }
+}
+.post-li[data-motion="leave"] {
+  animation: post-space-close 200ms cubic-bezier(0.77, 0, 0.175, 1) 150ms both;
+  > * {
+    animation: post-fade-out 150ms ease-in both;
+  }
+}
+.post-li[data-motion="return"] {
+  animation: post-space-open 200ms cubic-bezier(0.77, 0, 0.175, 1) both;
+  > * {
+    animation: post-fade-in 200ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
+  }
+}
+.post-li[data-motion="arrive"] > * {
+  animation: post-rise-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes post-space-close {
+  from { grid-template-rows: 1fr; }
+  to { grid-template-rows: 0fr; margin-top: calc(-1 * var(--list-gap, 0px)); }
+}
+@keyframes post-space-open {
+  from { grid-template-rows: 0fr; margin-top: calc(-1 * var(--list-gap, 0px)); }
+  to { grid-template-rows: 1fr; }
+}
+@keyframes post-fade-out {
+  to { opacity: 0; scale: 0.98; }
+}
+@keyframes post-fade-in {
+  from { opacity: 0; scale: 0.98; }
+}
+@keyframes post-rise-in {
+  from { opacity: 0; translate: 0 4px; }
+}
+
+/* A picture that is still loading waits invisible, then fades in; one already cached shows at once (components/fade-img.tsx). */
+.img-fade {
+  transition: opacity 200ms ease-out;
+  &[data-pending] {
+    opacity: 0;
+  }
+}
+
 /* Reduced motion: the mark and the empty-state birds rest; the flock draws itself still (components/flock.tsx). */
 @media (prefers-reduced-motion: reduce) {
   .mark-flap,
@@ -399,4 +452,23 @@ body {
   .pinned-row {
     transition: none;
   }
+  /* Posts only fade; gaps open and close at once. */
+  .post-li:is([data-motion="leave"], [data-motion="return"]) {
+    animation: none;
+  }
+  .post-li[data-motion="leave"] > * {
+    animation: post-fade-out-still 150ms ease-in both;
+  }
+  .post-li:is([data-motion="return"], [data-motion="arrive"]) > * {
+    animation: post-fade-in-still 150ms ease-out both;
+  }
+  .img-fade {
+    transition-duration: 120ms;
+  }
+}
+@keyframes post-fade-out-still {
+  to { opacity: 0; }
+}
+@keyframes post-fade-in-still {
+  from { opacity: 0; }
 }
