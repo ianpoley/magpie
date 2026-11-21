@@ -34,6 +34,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
     - When an Ask ends, the swirl splits at its median, and each half flies out to its own gutter.
     - When the gutters are too narrow (under 28 art px), one flock crosses the column at a lower alpha (0.24 instead of 0.42).
   - Birds are drawn at 2 CSS px per art pixel with `image-rendering: pixelated`.
+  - The flock steps and draws at most once every 10ms, so a 120Hz screen draws it at 60fps. Birds move in 2px steps, so the extra frames showed nothing. Screens at 100Hz or less draw every frame.
   - A mouse or pen pointer in a gutter startles the birds within 14 art px of it, and the turn ripples through the flock as a scare does, so the flock parts around it. Over the column, on touch and with reduced motion on, the pointer does nothing.
   - Reactions follow what already happened and never delay or gate an action. They're broadcast through `lib/magpie-events.ts`.
   - With reduced motion on, each flock is drawn still, as one loose body, and the mark and the empty-state birds rest.

@@ -211,6 +211,10 @@ Toward the middle of the screen, where the opened post appears.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/flock.tsx#L157)
 
+#### 0015.109 `createSky loop`
+
+The flock steps and draws at most once every MIN_FRAME_MS (10ms). Birds move in 2px steps at about 40px a second, so frames past 60 a second show nothing new, and a 120Hz screen was running the flock twice as often as it needed. The gate is 10ms rather than 16.7ms so a 90Hz screen still steps every frame instead of falling to 45.
+
 #### 0015.31 `Flock`
 
 Fixed over <main>, behind its content column. <main> must be `relative` and the content column must be its last child and sit above the sky (z-index 1): the sky measures that column to keep birds out from behind text.

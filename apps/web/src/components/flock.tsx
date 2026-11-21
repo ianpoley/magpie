@@ -10,6 +10,7 @@ import { SEARCH_INPUT_ID } from "./page-header";
 
 const P = 2;
 const GAP = 6;
+const MIN_FRAME_MS = 10;
 
 type Sky = { setTarget: (n: number) => void; setAsking: (on: boolean) => void; surprise: () => void; pin: () => void; fall: () => void; destroy: () => void };
 const NOOP: Sky = { setTarget: () => {}, setAsking: () => {}, surprise: () => {}, pin: () => {}, fall: () => {}, destroy: () => {} };
@@ -105,12 +106,13 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
   }
 
   function loop(now: number) {
+    raf = requestAnimationFrame(loop);
+    if (now - last < MIN_FRAME_MS) return;
     const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
     last = now;
     if (asking && ++frame % 6 === 0) measureVortex();
     sim.step(dt);
     draw();
-    raf = requestAnimationFrame(loop);
   }
 
   const onVisibility = () => {
