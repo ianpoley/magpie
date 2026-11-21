@@ -70,13 +70,14 @@ function waitForConnection(readConnection) {
 async function setup(args) {
   const yes = args.includes('--yes');
   const { spawn, spawnSync } = await import('node:child_process');
-  const { existsSync, lstatSync, realpathSync } = await import('node:fs');
+  const { existsSync, lstatSync, realpathSync, rmSync } = await import('node:fs');
   const { homedir } = await import('node:os');
   const { join } = await import('node:path');
   const { codeRoot, mainCheckout, paths, usesLegacyNames } = await import('../src/config.ts');
   const { createSecretStore } = await import('../src/secrets/store.ts');
   const { readConnection } = await import('../src/sync/state.ts');
   const { walkthrough } = await import('../src/setup/walkthrough.ts');
+  const { nightlyLogs } = await import('../src/migrate/legacy.ts');
 
   const code = codeRoot();
   const main = mainCheckout(code);
@@ -146,6 +147,13 @@ async function setup(args) {
     },
     async linkSkill() {
       spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' });
+    },
+    oldLogs() {
+      const { paths: found, bytes } = nightlyLogs(files.logsDir);
+      return { count: found.length, bytes, dir: files.logsDir };
+    },
+    deleteOldLogs() {
+      for (const path of nightlyLogs(files.logsDir).paths) rmSync(path, { force: true });
     },
   });
   if (!result.ok) process.exit(1);

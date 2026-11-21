@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
 import { paths } from '../src/config.ts';
-import { migrate } from '../src/migrate/legacy.ts';
+import { migrate, nightlyLogs } from '../src/migrate/legacy.ts';
 import type { MigrateOptions } from '../src/migrate/legacy.ts';
 import { createSecretStore } from '../src/secrets/store.ts';
 import type { CommandResult } from '../src/service/index.ts';
@@ -359,4 +359,17 @@ test('when no sync finishes in time the migration rolls back, and the legacy Jev
   assert.match(state, /services are removed/);
   assert.ok(!SECRET_VALUES.some((value) => state.includes(value)));
   assertNoSecretsPrinted(machine);
+});
+
+test("nightlyLogs finds only the retired job's dated logs", (t) => {
+  const { dir, cleanup } = tempDir();
+  t.after(cleanup);
+  for (const name of ['nightly-20261120.log', 'nightly-20260716.log', 'worker.out.log', 'migrate-2026-11-20.log', 'nightly-latest.log']) {
+    writeFileSync(join(dir, name), 'x'.repeat(10));
+  }
+  symlinkSync(join(dir, 'gone'), join(dir, 'nightly-20261001.log'));
+  const found = nightlyLogs(dir);
+  assert.deepEqual(found.paths.map((path) => path.slice(dir.length + 1)).sort(), ['nightly-20260716.log', 'nightly-20261120.log']);
+  assert.equal(found.bytes, 20);
+  assert.deepEqual(nightlyLogs(join(dir, 'missing')), { paths: [], bytes: 0 });
 });
