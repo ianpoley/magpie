@@ -10,6 +10,7 @@
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white)
 
 [Overview](#overview) •
+[Quick start](#quick-start) •
 [Get started with an agent](#get-started-with-an-agent) •
 [Manual setup](#manual-setup) •
 [Usage](#usage) •
@@ -41,9 +42,28 @@ flowchart LR
 > [!CAUTION]
 > Birdclaw syncs with your X browser session cookies (`auth_token` and `ct0`). X's terms do not allow this, and X could limit or suspend your account. The cookies give full access to your account, so treat them like a password. By connecting X you accept that risk.
 
+## Quick start
+
+You need macOS or Linux and [Bun](https://bun.sh). Setup finds Node 26 for you, or tells you how to install it.
+
+```bash
+git clone https://github.com/ianpoley/magpie.git
+cd magpie
+bun run setup
+```
+
+`setup` installs the dependencies, checks the machine, and walks you through each step that is not done yet. It asks before each one:
+
+1. Install the background services: the sync worker and the web app on http://127.0.0.1:3030.
+2. Connect X: it opens the web app, where you paste your X cookies into the **Connect X** dialog.
+3. Optional: paste your Jev key to turn on categories. Typing is hidden.
+4. Optional: link the Claude skill, so your agents can search your saved posts.
+
+It ends with what is running and what is left. Run it again at any time: it skips what is done, so on a machine that is set up it asks nothing.
+
 ## Get started with an agent
 
-Most people set this up with a coding agent such as Claude Code. Clone the repo, open your agent in the clone, and paste one of the prompts below.
+You can also let a coding agent such as Claude Code do the setup. Clone the repo, open your agent in the clone, and paste one of the prompts below.
 
 ```bash
 git clone https://github.com/ianpoley/magpie.git
@@ -59,24 +79,22 @@ claude
 ```text
 Set up Magpie on this machine. Read README.md and packages/engine/SETUP.md first.
 
-1. Check that Node 26 (supported range >=25.8.1 <27, see .node-version) and Bun are
-   installed. If one is missing, tell me how to install it and wait. Do not install
-   global npm packages or Homebrew formulas: Birdclaw and bird are repo dependencies.
-2. Run `bun install`, then `bun run setup`. Fix what you can and explain what you can't.
-3. If ~/Library/LaunchAgents has an old birdclaw-nightly job, stop and ask me before
-   doing anything else: that machine needs `bun run migrate`, not a fresh install.
-4. Run `bun run service:status`. If the services are already installed from a
-   different clone path, stop and ask me: installing here would point them at this
-   clone and its (possibly empty) corpus.
-5. Run `bun run service:install`, then `bun run service:status`, and show me the result.
-6. Stop and tell me to open http://127.0.0.1:3030 and press Connect X in the sidebar.
-   Do not ask for, read, or handle my X cookies or my Jev key yourself.
-7. Ask whether I want categories. If yes, tell me to run `bun run secrets:set-jev`
-   myself in a separate terminal (it reads the key with echo off), and check that
-   `claude --version` works.
-8. Ask whether I want the Claude skill. If yes, run `bash packages/skill/install.sh`.
+1. Check that Bun is installed. If it is missing, tell me how to install it and wait.
+   Do not install global npm packages or Homebrew formulas: Birdclaw and bird are
+   repo dependencies, and setup finds Node 26 itself or says how to install it.
+2. Run `bun run setup --yes`. Without a terminal it never prompts: it installs the
+   background services and links the Claude skill, and stops at anything that holds
+   a secret or would replace something (the old birdclaw-nightly job, services
+   installed from another clone, a skill linked elsewhere). Fix what you can and
+   explain what you can't.
+3. If it lists the old birdclaw-nightly job, services from another clone, or a skill
+   linked elsewhere, stop and ask me before doing anything about it.
+4. Do not ask for, read, or handle my X cookies or my Jev key. Tell me to run
+   `bun run setup` myself in a terminal: it opens the web app for Connect X, reads the
+   Jev key with echo off, and skips everything already done.
 
-End with a short summary: what is running, on which port, and what I still need to do.
+End with setup's "Still to do" list and a short summary: what is running, on which
+port, and what I still need to do.
 ```
 
 ### Prompt: get oriented before changing the code
@@ -112,17 +130,19 @@ for this feature, and cite each one with the @handle and post URL.
 ### Prerequisites
 
 - macOS or Linux
-- [Node](https://nodejs.org) 26 (`.node-version`; supported range `>=25.8.1 <27`). If nvm or another version manager puts an older Node first on your `PATH`, switch before `setup` and `service:install`: the services keep the Node they were installed with.
+- [Node](https://nodejs.org) 26 (`.node-version`; supported range `>=25.8.1 <27`). `bun run setup` finds one even when nvm or another version manager puts an older Node first on your `PATH`, and installs the services with it. If you run `service:install` by hand, switch first: the services keep the Node they were installed with.
 - [Bun](https://bun.sh) 1.3
 - Optional, for categories: the [Claude Code CLI](https://claude.com/claude-code), installed and logged in, and a Jev (TypeSafe) API key
 - On Linux: libsecret's `secret-tool` and a running Secret Service, or secrets fall back to an owner-only file
 
 ### Install
 
+`bun run setup` does all of this for you (see [Quick start](#quick-start)). By hand:
+
 ```bash
 bun install
-bun run setup             # checks Node, the pinned tools, the Claude CLI and the secret store; names the next step
-bun run service:install   # builds the web app, installs the x-corpus-web and x-corpus-worker services
+bun run setup --yes       # checks the machine, installs the services and links the skill; never prompts
+bun run service:install   # or just this: builds the web app, installs the x-corpus-web and x-corpus-worker services
 bun run service:status
 ```
 
@@ -219,7 +239,7 @@ Every sync writes plain files you can read from any tool:
 Run from the repo root:
 
 ```bash
-bun run setup            # check the machine
+bun run setup            # first run: install deps, check the machine, walk through what is left (--yes: no prompts)
 bun run service:install  # build, then install or update both services
 bun run service:status
 bun run service:uninstall
