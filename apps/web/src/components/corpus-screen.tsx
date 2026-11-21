@@ -14,6 +14,7 @@ import {
   applyFilter,
   DEFAULT_FILTER,
   inCollection,
+  MOST_SAVED_AUTHORS,
   mostSavedAuthors,
   postChips,
   selectTopicOnly,
@@ -310,7 +311,12 @@ export function CorpusScreen({
     bookmarks: shownPosts.filter((post) => post.bookmarked).length,
     likes: shownPosts.filter((post) => post.liked).length,
   };
-  const authors = mostSavedAuthors(snapshot.posts.filter((post) => inCollection(post, applied.collection)), applied.revealHidden);
+  const authors = mostSavedAuthors(
+    snapshot.posts.filter((post) => inCollection(post, applied.collection)),
+    applied.revealHidden,
+    MOST_SAVED_AUTHORS,
+    applied.author,
+  );
   const authorHandles = new Set(shownPosts.map((post) => post.authorHandle.toLowerCase()));
   const authorName =
     applied.author === null
