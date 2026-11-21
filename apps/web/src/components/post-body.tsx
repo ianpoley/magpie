@@ -169,7 +169,7 @@ export function Thumb({ item, className, small = false }: { item: Media; classNa
   );
 }
 
-export function Quoted({ quoted, keyword, parentId }: { quoted: QuotedPost; keyword: string; parentId: string }) {
+export function Quoted({ quoted, keyword, parentId, action }: { quoted: QuotedPost; keyword: string; parentId: string; action?: React.ReactNode }) {
   const handle = quoted.authorHandle ?? "";
   const name = quoted.authorName ?? (handle || "Quoted post");
   return (
@@ -178,6 +178,7 @@ export function Quoted({ quoted, keyword, parentId }: { quoted: QuotedPost; keyw
         <AuthorAvatar handle={handle || name} name={name} url={quoted.authorAvatarUrl} size="sm" ring={false} />
         <span className="truncate font-semibold text-ink">{name}</span>
         {handle ? <span className="truncate text-ink-muted">@{handle}</span> : null}
+        {action ? <span className="ml-auto flex shrink-0">{action}</span> : null}
       </div>
       {quoted.text ? <PostText text={quoted.text} keyword={keyword} links className="text-[14px]" /> : null}
       <MediaGrid media={quoted.media} postId={quoted.id ?? parentId} />

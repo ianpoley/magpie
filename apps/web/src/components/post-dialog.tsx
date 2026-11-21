@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@ui-sdk/react/button";
-import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
+import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
 import { ChevronDown, ChevronUp, ExternalLink, Link2, Tags, Trash2, X } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
@@ -22,6 +22,8 @@ import { TopicChip } from "./topic-chip";
 const LAYER =
   "w-[min(42rem,calc(100%-1.5rem))] max-h-none gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none " +
   "data-starting-style:translate-y-3 data-starting-style:scale-[0.97] data-ending-style:scale-[0.97]";
+const PILL =
+  "focus-ring pressable inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-[12px] font-semibold text-ink-muted no-underline shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-sunken hover:text-ink data-open:bg-sunken data-open:text-ink";
 const CARD = "post-card flex max-h-[calc(100dvh-5rem)] min-h-0 flex-col overflow-hidden rounded-[20px] bg-(--ui-background) shadow-(--ui-shadow)";
 
 function frontHeight(front: boolean) {
@@ -212,7 +214,25 @@ function PostLayer({
                     />
                   ) : null}
                   <LinkedPages pages={post.linkedPages} keyword={keyword} />
-                  {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} parentId={post.id} /> : null}
+                  {post.quoted ? (
+                    <Quoted
+                      quoted={post.quoted}
+                      keyword={keyword}
+                      parentId={post.id}
+                      action={
+                        post.quoted.id && postsById.has(post.quoted.id) ? (
+                          <DialogTrigger controller={child} payload={post.quoted.id} className={PILL}>
+                            Open post
+                          </DialogTrigger>
+                        ) : post.quoted.id ? (
+                          <a href={`https://x.com/i/status/${post.quoted.id}`} target="_blank" rel="noreferrer" aria-label="Open on X: the quoted post" className={PILL}>
+                            Open on X
+                            <ExternalLink className="size-3.5" aria-hidden="true" />
+                          </a>
+                        ) : null
+                      }
+                    />
+                  ) : null}
                   <MediaGrid media={post.media} postId={post.id} />
                   <ul className="flex flex-wrap items-center gap-1.5">
                     {chips.map((chip) => {
@@ -236,7 +256,7 @@ function PostLayer({
                       <PopoverTrigger
                         controller={topicsEditor}
                         payload={post.id}
-                        className="focus-ring pressable inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-[12px] font-semibold text-ink-muted shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-sunken hover:text-ink data-open:bg-sunken data-open:text-ink"
+                        className={PILL}
                       >
                         <Tags className="size-3.5" aria-hidden="true" />
                         Edit topics
