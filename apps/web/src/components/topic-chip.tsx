@@ -1,5 +1,7 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
+
 export function TopicChip({
   name,
   possible = false,
@@ -20,11 +22,11 @@ export function TopicChip({
     <button
       type="button"
       onClick={onSelect}
-      aria-label={possible ? `Filter to ${name}, a possible match` : `Filter to ${name}`}
-      className={`focus-ring pressable relative inline-flex h-6 max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:inset-x-0 ${tone}`}
+      aria-label={possible ? `Filter to ${name}, suggested by AI` : `Filter to ${name}`}
+      className={`focus-ring pressable relative inline-flex h-6 max-w-full cursor-pointer items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:inset-x-0 ${tone}`}
     >
+      {possible ? <Sparkles className="size-3 shrink-0" aria-hidden="true" /> : null}
       <span className="truncate">{name}</span>
-      {possible ? <span className="text-[10px] font-semibold tracking-[0.04em] uppercase">possible</span> : null}
     </button>
   );
 }
