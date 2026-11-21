@@ -122,6 +122,7 @@ export function PostList({
     topicsById,
     activeTopicIds: filter.topicIds,
     keyword: filter.keyword,
+    showLikes: filter.sort === "most_liked",
     dialog,
     topicsEditor,
     onSelectTopic,

@@ -12,7 +12,7 @@ import { aroundHit } from "@/lib/search";
 import type { Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { formatDate } from "./format";
+import { formatDate, formatLikes } from "./format";
 import { Marked, PostText, Thumb } from "./post-body";
 import type { PostTopicsController } from "./post-topics-editor";
 import { dangerIconButton, iconButton } from "./styles";
@@ -87,6 +87,7 @@ export type PostCardProps = {
   topicsById: Map<number, Topic>;
   activeTopicIds: number[];
   keyword: string;
+  showLikes: boolean;
   dialog: PostDialogController;
   topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
@@ -167,6 +168,7 @@ export function PostCard(props: PostCardProps) {
               <p className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">
                 @<Marked text={post.authorHandle} keyword={keyword} />
                 {date ? <span> · {date}</span> : null}
+                {props.showLikes ? <span className="tabular-nums"> · {formatLikes(post.likeCount)}</span> : null}
               </p>
             </div>
             <CollectionMarks post={post} />

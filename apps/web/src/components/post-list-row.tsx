@@ -9,7 +9,7 @@ import { aroundHit, highlightRanges } from "@/lib/search";
 import type { Post } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { formatDate } from "./format";
+import { formatDate, formatLikes } from "./format";
 import { Marked, PostText, Thumb } from "./post-body";
 import { AuthorButton, CollectionMarks, PostActions, type PostCardProps, TopicChips } from "./post-card";
 
@@ -76,6 +76,7 @@ export function PostListRow(props: PostCardProps) {
                 @<Marked text={post.authorHandle} keyword={keyword} />
               </span>
               {date ? <span className="shrink-0 text-ink-muted tabular-nums">· {date}</span> : null}
+              {props.showLikes ? <span className="shrink-0 text-ink-muted tabular-nums">· {formatLikes(post.likeCount)}</span> : null}
             </p>
             <Carries post={post} keyword={keyword} />
             <span className="ml-auto">
