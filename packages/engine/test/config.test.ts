@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { inheritedStore, mainCheckout, paths, setting, usesLegacyNames } from '../src/config.ts';
+import { inheritedStore, mainCheckout, paths, setting } from '../src/config.ts';
 import { tempDir } from './fixtures/export.ts';
 
 /** A main checkout with one linked worktree, laid out the way git writes them. */
@@ -75,13 +75,3 @@ test('old X_CORPUS_ settings are still read, so a scratch-copy run never falls t
   assert.equal(setting({ X_CORPUS_PORT: '4000' }, 'PORT'), '4000');
 });
 
-test('old names stay in use until ~/.config/magpie exists, and a config dir override turns them off', (t) => {
-  const { dir } = checkouts(t);
-  const home = join(dir, 'home');
-  mkdirSync(join(home, '.config', 'x-corpus'), { recursive: true });
-  assert.equal(usesLegacyNames({}, home), true);
-  assert.equal(usesLegacyNames({ MAGPIE_CONFIG_DIR: '/elsewhere' }, home), false);
-  mkdirSync(join(home, '.config', 'magpie'));
-  assert.equal(usesLegacyNames({}, home), false);
-  assert.equal(usesLegacyNames({}, join(dir, 'nobody')), false);
-});

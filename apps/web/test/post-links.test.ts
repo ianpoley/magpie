@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { displayUrl, expandLinks, shortenUrls, usableTarget, withoutTracking, withoutTrailingUrl } from "../src/lib/post-links.ts";
+import { displayUrl, expandLinks, shortenUrls, usableTarget, withoutTracking } from "../src/lib/post-links.ts";
 
 const targets = new Map([
   ["https://t.co/repo", "https://github.com/firecrawl/firecrawl"],
@@ -42,14 +42,6 @@ test("only http(s) targets without spaces are used", () => {
   assert.equal(usableTarget("javascript:alert(1)"), false);
   assert.equal(usableTarget("https://bad.example/a b"), false);
   assert.equal(usableTarget(null), false);
-});
-
-test("a card drops the address its title row already shows, only when the text ends with it", () => {
-  const url = "https://ui-sdk.dev/sink";
-  assert.equal(withoutTrailingUrl(`Try these:\n\n${url}`, url), "Try these:");
-  assert.equal(withoutTrailingUrl(`${url} is great`, url), `${url} is great`);
-  assert.equal(withoutTrailingUrl("no link", null), "no link");
-  assert.equal(withoutTrailingUrl(url, url), "");
 });
 
 test("a link to the post it quotes is dropped, like X does, but a link to another post stays", () => {

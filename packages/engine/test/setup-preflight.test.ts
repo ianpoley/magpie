@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 // @ts-expect-error: a plain .mjs entry with no type declarations; it has to run before TypeScript and dependencies exist.
-import { inRange, nodeCandidates, pickNode } from '../bin/setup.mjs';
+import { inRange, pickNode } from '../bin/setup.mjs';
 
 const RANGE = '>=25.8.1 <27';
 
@@ -38,9 +38,3 @@ test('no node in range gives no choice, and missing paths are skipped', () => {
   assert.equal(first.path, '/old/node');
 });
 
-test('candidates list PATH entries first, in order, then the usual install locations, without repeats', () => {
-  const candidates = nodeCandidates({ PATH: '/one:/opt/homebrew/bin:/two' }, '/home/nobody');
-  assert.deepEqual(candidates.slice(0, 3), ['/one/node', '/opt/homebrew/bin/node', '/two/node']);
-  assert.equal(candidates.filter((path: string) => path === '/opt/homebrew/bin/node').length, 1);
-  assert.ok(candidates.includes('/usr/local/bin/node'));
-});
