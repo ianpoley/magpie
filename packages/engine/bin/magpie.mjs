@@ -70,13 +70,13 @@ function waitForConnection(readConnection) {
 async function setup(args) {
   const yes = args.includes('--yes');
   const { spawn, spawnSync } = await import('node:child_process');
-  const { existsSync, lstatSync, realpathSync, rmSync } = await import('node:fs');
-  const { homedir } = await import('node:os');
+  const { rmSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { codeRoot, mainCheckout, paths, usesLegacyNames } = await import('../src/config.ts');
   const { createSecretStore } = await import('../src/secrets/store.ts');
   const { readConnection } = await import('../src/sync/state.ts');
   const { walkthrough } = await import('../src/setup/walkthrough.ts');
+  const { skillLinkState } = await import('../src/setup/skill-link.ts');
   const { nightlyLogs } = await import('../src/migrate/legacy.ts');
 
   const code = codeRoot();
@@ -88,7 +88,6 @@ async function setup(args) {
     return found ? { handle: found.handle } : undefined;
   };
   const skillDir = join(code, 'packages', 'skill');
-  const skillLink = join(homedir(), '.claude', 'skills', 'magpie');
 
   const result = await walkthrough({
     interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
@@ -133,19 +132,7 @@ async function setup(args) {
       if (!stored.ok) return { ok: false, message: stored.message };
       return { ok: true, message: stored.backend === 'keychain' ? 'in the OS secret store' : `in ${files.secrets}, owner-only` };
     },
-    skill() {
-      if (!existsSync(join(homedir(), '.claude'))) return 'none';
-      try {
-        lstatSync(skillLink);
-      } catch {
-        return 'missing';
-      }
-      try {
-        return realpathSync(skillLink) === realpathSync(skillDir) ? 'linked' : 'elsewhere';
-      } catch {
-        return 'elsewhere';
-      }
-    },
+    skill: skillLinkState,
     async linkSkill() {
       spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' });
     },
