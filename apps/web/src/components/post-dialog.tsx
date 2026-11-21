@@ -133,6 +133,13 @@ function PostLayer({
           const date = formatDate(post.createdAt);
           const chips = chipsFor(post);
           const quotedBy = quotedByFor(post);
+          const mentions = {
+            known: isAuthor,
+            select: (handle: string) => {
+              onShowAuthor(handle);
+              root.close();
+            },
+          };
           const similar = similarFor(post).filter((other) => !quotedBy.includes(other));
           const text = withoutTrailingUrl(post.text, post.linkedPages[0]?.url ?? null);
           const { previous, next } = neighborsOf(post.id);
@@ -205,13 +212,7 @@ function PostLayer({
                       text={text}
                       keyword={keyword}
                       links
-                      mentions={{
-                        known: isAuthor,
-                        select: (handle) => {
-                          onShowAuthor(handle);
-                          root.close();
-                        },
-                      }}
+                      mentions={mentions}
                       className="text-[16px]"
                     />
                   ) : null}
@@ -221,6 +222,7 @@ function PostLayer({
                       quoted={post.quoted}
                       keyword={keyword}
                       parentId={post.id}
+                      mentions={mentions}
                       action={
                         post.quoted.id && postsById.has(post.quoted.id) ? (
                           <DialogTrigger controller={child} payload={post.quoted.id} className={PILL}>

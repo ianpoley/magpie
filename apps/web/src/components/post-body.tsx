@@ -1,5 +1,6 @@
 import { ExternalLink, Globe, Play } from "lucide-react";
 
+import { authorHue } from "@/lib/author-hues";
 import { mediaKind } from "@/lib/media";
 import { displayUrl, trimUrl, URL_PATTERN } from "@/lib/post-links";
 import { highlightRanges } from "@/lib/search";
@@ -169,18 +170,42 @@ export function Thumb({ item, className, small = false }: { item: Media; classNa
   );
 }
 
-export function Quoted({ quoted, keyword, parentId, action }: { quoted: QuotedPost; keyword: string; parentId: string; action?: React.ReactNode }) {
+export function Quoted({
+  quoted,
+  keyword,
+  parentId,
+  mentions,
+  action,
+}: {
+  quoted: QuotedPost;
+  keyword: string;
+  parentId: string;
+  mentions?: Mentions;
+  action?: React.ReactNode;
+}) {
   const handle = quoted.authorHandle ?? "";
   const name = quoted.authorName ?? (handle || "Quoted post");
   return (
     <blockquote className="flex flex-col gap-2 rounded-inner bg-sunken p-3">
       <div className="flex items-center gap-2 text-[13px]">
         <AuthorAvatar handle={handle || name} name={name} url={quoted.authorAvatarUrl} size="sm" ring={false} />
-        <span className="truncate font-semibold text-ink">{name}</span>
+        {handle && mentions?.known(handle) ? (
+          <button
+            type="button"
+            title={`Show posts by ${name}`}
+            onClick={() => mentions.select(handle)}
+            className="focus-ring min-w-0 cursor-pointer truncate rounded-[4px] border-0 bg-transparent p-0 text-left font-semibold decoration-current/40 underline-offset-2 hover:underline"
+            style={{ color: authorHue(handle).fg }}
+          >
+            {name}
+          </button>
+        ) : (
+          <span className="truncate font-semibold text-ink">{name}</span>
+        )}
         {handle ? <span className="truncate text-ink-muted">@{handle}</span> : null}
         {action ? <span className="ml-auto flex shrink-0">{action}</span> : null}
       </div>
-      {quoted.text ? <PostText text={quoted.text} keyword={keyword} links className="text-[14px]" /> : null}
+      {quoted.text ? <PostText text={quoted.text} keyword={keyword} links mentions={mentions} className="text-[14px]" /> : null}
       <MediaGrid media={quoted.media} postId={quoted.id ?? parentId} />
     </blockquote>
   );
