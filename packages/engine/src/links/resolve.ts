@@ -54,6 +54,7 @@ class Unreadable extends Error {
 }
 
 const NPM_REGISTRY = 'https://registry.npmjs.org';
+const YOUTUBE_OEMBED = 'https://www.youtube.com/oembed';
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 1000;
@@ -238,6 +239,36 @@ async function readPackage(page: URL, name: string, http: HttpFetch): Promise<Ou
   }
 }
 
+/** The watch address of a YouTube video `url` names, or null when it names none. */
+function youtubeVideo(url: string): string | null {
+  const own = canonicalize(url);
+  return own !== null && own.key.startsWith('youtube:') ? own.url : null;
+}
+
+/**
+ * A YouTube page served to a client that is not a browser carries no title, so
+ * a video is described by YouTube's oEmbed record instead: its title, and its
+ * channel as the description.
+ */
+async function readVideo(page: URL, watch: string, http: HttpFetch): Promise<Outcome> {
+  try {
+    const response = await http({
+      url: `${YOUTUBE_OEMBED}?format=json&url=${encodeURIComponent(watch)}`,
+      timeoutMs: LINKS.timeoutMs,
+      maxBytes: LINKS.htmlCapBytes,
+      headers: { accept: 'application/json' },
+    });
+    if (response.status !== 200) throw new Error(`youtube oembed http ${response.status}`);
+    const fields = JSON.parse(response.body) as Record<string, unknown> | null;
+    const title = typeof fields === 'object' && fields !== null && typeof fields.title === 'string' ? plainText(fields.title, TITLE_MAX) : null;
+    if (title === null) throw new Error('youtube oembed sent no title');
+    const channel = typeof fields?.author_name === 'string' ? plainText(fields.author_name, DESCRIPTION_MAX) : null;
+    return { status: 'resolved', finalUrl: page.href, title, description: channel };
+  } catch (error) {
+    throw new Unreadable(errorText(error), page.href);
+  }
+}
+
 async function follow(start: URL, http: HttpFetch, lookup: HostLookup): Promise<Outcome> {
   let url = start;
   for (let redirects = 0; ; redirects++) {
@@ -248,6 +279,8 @@ async function follow(start: URL, http: HttpFetch, lookup: HostLookup): Promise<
 
     const packageName = npmPackageName(url);
     if (packageName !== null) return readPackage(url, packageName, http);
+    const watch = youtubeVideo(url.href);
+    if (watch !== null) return readVideo(url, watch, http);
 
     // An address that answers, or that a redirect pointed at, is where the
     // link ends even if its page cannot be read. A shortener's never is.
@@ -529,6 +562,37 @@ async function lookupHomepages(db: DatabaseSync, deps: LinkDeps, counts: LinkCou
  * homepage. A link that fails is recorded and retried on a later run; nothing
  * a single link or GitHub does makes the stage throw.
  */
+/**
+ * Videos resolved before they were read from oEmbed were titled by their host.
+ * Each is read once more. One that still cannot be read stays a resource under
+ * its host, and is not asked about again.
+ */
+async function rereadVideos(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts): Promise<void> {
+  const stale = db
+    .prepare(`SELECT url, final_url FROM links WHERE status = 'resolved' AND title = host AND attempts = 1 ORDER BY url`)
+    .all()
+    .flatMap((row) => {
+      const watch = youtubeVideo(String(row.final_url));
+      return watch === null ? [] : [{ url: String(row.url), page: new URL(String(row.final_url)), watch }];
+    });
+  const read = db.prepare(
+    `UPDATE links SET title = ?, description = ?, attempts = attempts + 1, last_attempt_at = ?, last_error = NULL WHERE url = ?`,
+  );
+  const missed = db.prepare(`UPDATE links SET attempts = attempts + 1, last_attempt_at = ?, last_error = ? WHERE url = ?`);
+  for (const { url, page, watch } of stale) {
+    counts.attempted++;
+    const at = deps.now().toISOString();
+    try {
+      const outcome = await readVideo(page, watch, deps.http);
+      if (outcome.status !== 'resolved') continue;
+      read.run(outcome.title, outcome.description, at, url);
+      counts.resolved++;
+    } catch (error) {
+      missed.run(at, errorText(error).slice(0, ERROR_MAX), url);
+    }
+  }
+}
+
 export async function resolveLinks(db: DatabaseSync, deps: LinkDeps): Promise<LinkCounts> {
   const counts: LinkCounts = {
     attempted: 0,
@@ -542,6 +606,7 @@ export async function resolveLinks(db: DatabaseSync, deps: LinkDeps): Promise<Li
     aliases: 0,
   };
   await resolveDue(db, deps, counts);
+  await rereadVideos(db, deps, counts);
   assignResources(db, deps.now());
   if (await lookupHomepages(db, deps, counts)) assignResources(db, deps.now());
 

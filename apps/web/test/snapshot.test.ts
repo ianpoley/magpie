@@ -159,6 +159,7 @@ test("posts linking to one resource share it, and link titles are searchable", (
       url: "https://github.com/acme/motion",
       host: "github.com",
       title: "acme/motion",
+      description: null,
       postIds: ["1", "2", "3", "4"],
     },
   ]);

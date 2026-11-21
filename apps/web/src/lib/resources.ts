@@ -1,4 +1,5 @@
-import type { Post, ResourceGroup, Snapshot } from "./types.ts";
+import { URL_PATTERN } from "./post-links.ts";
+import type { Post, Resource, ResourceGroup, Snapshot } from "./types.ts";
 
 /**
  * The resources the given posts link to, most-saved first. Each lists the
@@ -15,4 +16,26 @@ export function resourcesFor(snapshot: Snapshot, posts: Post[]): ResourceGroup[]
     groups.push({ resource, posts: indexes.map((index) => posts[index]) });
   }
   return groups.sort((a, b) => b.posts.length - a.posts.length || a.resource.id - b.resource.id);
+}
+
+const YOUTUBE_WATCH = /^https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})$/;
+
+/** A still from a YouTube video, from the address the engine files it under; null for anything else. */
+export function videoStill(url: string): string | null {
+  const id = YOUTUBE_WATCH.exec(url)?.[1];
+  return id === undefined ? null : `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+}
+
+/**
+ * What to call a resource. A title that is only its host says nothing (every
+ * video once read "youtube.com"), so the first saving post's words stand in,
+ * without its links, marked as a quote of the post. A post that is only a link
+ * names who shared it instead.
+ */
+export function resourceName(resource: Resource, posts: Post[]): { text: string; fromPost: boolean } {
+  const title = resource.title?.trim();
+  if (title && title !== resource.host) return { text: title, fromPost: false };
+  const words = posts.map((post) => post.text.replace(URL_PATTERN, " ").replace(/\s+/g, " ").trim()).find(Boolean);
+  if (words) return { text: words, fromPost: true };
+  return posts[0] ? { text: `Shared by ${posts[0].authorName}`, fromPost: false } : { text: resource.host ?? resource.url, fromPost: false };
 }
