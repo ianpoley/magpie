@@ -211,3 +211,15 @@ Empties the Removed list, the way emptying a trash can works. It stores one time
 The rows themselves stay, with `removed_at` set. Purged posts are usually still bookmarked or liked on X, so a deleted row would come back as a new, visible post on the next sync. The existing `removed_at` tombstone already keeps them out on every code version, including the services that run from the main checkout. A purge only hides the posts; it doesn't erase them from disk.
 
 A watermark in `meta`, not a new column or table, means no migration. A migration made from a worktree trips the guard in `openStore` (0002.2), because worktrees share the main checkout's store. `removed_at` values are fixed-width ISO strings, so comparing them as text gives time order.
+
+### `packages/engine/src/store/schema.ts`, added later
+
+#### 0002.21 `areas.set_by_owner`
+
+Marks an area whose hidden state the owner set by hand. `locked` is too coarse: a rename sets it too. `setAreaHidden` sets both from now on.
+
+The migration adds the column with default 0 and backfills 1 for active automatic areas that are locked, or whose `hidden` differs from the old `is_dev` default. Only a hand edit can produce that mismatch. Renamed areas get flagged as well, which errs safe: they are left alone by re-sort.
+
+The same migration inserts the `category_focus_legacy` row in `meta`, only when an active automatic area already exists. The config reader uses it to tell an upgraded store from a new one (0001.9).
+
+Re-sort touches only active automatic areas that are not flagged. System areas are never flagged and never re-sorted.

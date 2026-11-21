@@ -40,7 +40,7 @@ Names are matched whole, ignoring case; a name that is not found prints the clos
 
 ### Hidden areas
 
-The user hides some areas and topics by default (for example non-dev ones such as politics). Their posts are left out of **every** command, keyword search included, and `categories` does not list them. Add `--include-hidden` only when the user asks for that material explicitly:
+The user has hidden some areas and topics. Their posts are left out of **every** command, keyword search included, and `categories` does not list them. Add `--include-hidden` only when the user asks for that material explicitly:
 
 ```bash
 node ~/.claude/skills/magpie/query.mjs topic politics --include-hidden

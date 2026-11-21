@@ -49,7 +49,7 @@ A child that dies before reading its input breaks the pipe; the close handler re
 
 Builds the first category list for a store that has none.
 
-Claude reads the visible posts in batches and proposes candidate topics, then one more call merges the candidates into areas containing topics. The list is written in one transaction together with the "Initial categories" change-log entry, which cannot be undone. Areas Claude marks as not about development start hidden.
+Claude reads the visible posts in batches and proposes candidate topics, then one more call merges the candidates into areas containing topics. The list is written in one transaction together with the "Initial categories" change-log entry, which cannot be undone. In show-everything mode nothing is hidden automatically. In focus mode Claude judges each new area against the owner's focus text and the areas the owner showed or hid by hand, and areas outside the focus start hidden. Discovery waits until setup records a choice. The `is_dev` column is no longer written; only the migration backfill reads it.
 
 Does nothing when an automatic topic already exists in any state, or when there are no visible posts. Any failed call leaves the store untouched.
 

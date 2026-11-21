@@ -746,3 +746,11 @@ Where the query occurs in the text. Each word is marked on its own, longest firs
 The text from a little before the first match, when that match sits more than `after` characters in, so a clamped row or card still shows why it matched. It cuts at a word boundary and marks the cut with an ellipsis.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/search.ts#L24-L28)
+
+### `apps/web/src/app/settings/page.tsx`
+
+#### 0015.109 `Settings`
+
+Settings is its own route, `/settings`, opened from a row in the sidebar footer, so the corpus screen's query-param state stays out of it. A back link returns to `/`. It holds the category focus setting, the X connection, the Jev key, and read-only status for background sync and the Claude skill link.
+
+Changing the focus saves it first, then asks whether to re-sort existing areas, showing a preview of what would change. Apply writes only the previewed changes, and only to areas still unflagged and active. Choosing not to re-sort keeps the saved setting for new areas. The page is in `apps/web/src/components/settings-screen.tsx`; the preview dialog is `apps/web/src/components/resort-dialog.tsx`.

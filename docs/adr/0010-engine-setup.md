@@ -116,3 +116,13 @@ A worktree borrows the main checkout's data and services; it only reports.
 #### 0010.16 `oldNightlyLogs`
 
 The retired nightly job wrote a full JSON dump into `logs/nightly-<date>.log` every night, about 25 MB each, and migrate removes the job but not its logs. Setup offers to delete them only at a terminal: `--yes` is for agents, and deleting files is not something an agent should do unasked. While the old job is still installed the step is skipped, since that job still writes them.
+
+### `packages/engine/src/setup/skill-link.ts`, added later
+
+#### 0010.17 `skill-link`
+
+The Claude skill link check moved out of `bin/magpie.mjs` into the engine, so the web Settings page reads the same `SkillState` the CLI does. The CLI imports it from here.
+
+#### 0010.18 `focus step`
+
+The web setup has a third step: show everything (the default) or only show my focus, with a free-text focus box. Only the web setup asks. The CLI walkthrough does not, because X is connected only in the web app. Discovery and evolve wait until a choice is recorded, and saving the choice requests a sync so the first discovery runs right away. Tagging still runs meanwhile.
