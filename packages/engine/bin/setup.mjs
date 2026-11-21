@@ -109,7 +109,7 @@ function main() {
   }
 
   const env = { ...process.env, PATH: [dirname(chosen.path), process.env.PATH].filter(Boolean).join(delimiter) };
-  const ran = spawnSync(chosen.path, [join(ROOT, 'packages', 'engine', 'bin', 'x-corpus.mjs'), 'setup', ...process.argv.slice(2)], {
+  const ran = spawnSync(chosen.path, [join(ROOT, 'packages', 'engine', 'bin', 'magpie.mjs'), 'setup', ...process.argv.slice(2)], {
     cwd: ROOT,
     env,
     stdio: 'inherit',

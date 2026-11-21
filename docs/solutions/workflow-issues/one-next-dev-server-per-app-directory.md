@@ -38,11 +38,11 @@ Two things were wrong in the working belief. A different port does not make a se
 ```bash
 bun run build
 cd apps/web
-X_CORPUS_STORE=/path/to/scratch/copy.sqlite ./node_modules/.bin/next start -H 127.0.0.1 -p 3077
+MAGPIE_STORE=/path/to/scratch/copy.sqlite ./node_modules/.bin/next start -H 127.0.0.1 -p 3077
 ```
 
 - The build writes to `apps/web/.next/` and the dev server works under `apps/web/.next/dev/`, so the two coexist. In this session a build and a `next start` on another port ran several times beside the dev server on 3000 without disturbing it.
-- `X_CORPUS_STORE` is read when the store is opened, not at build time, so one build serves any copy.
+- `MAGPIE_STORE` is read when the store is opened, not at build time, so one build serves any copy.
 - Make the copy with SQLite's `VACUUM INTO` through `node:sqlite`, as this session did; SQLite writes the copy from one consistent read of the database. Keep the copy outside the repo's `state/` directory.
 - Keep `-H 127.0.0.1`. The app has no auth and its server actions edit the store.
 
@@ -69,7 +69,7 @@ Killing by name is wider than it looks: a pattern match cannot tell this app's s
 Before, per worker (the shape of what the sessions did, not a verbatim command):
 
 ```bash
-cd apps/web && X_CORPUS_STORE=$COPY bunx next dev -p 3107 &   # refused while another dev server holds the lock; prints a kill hint
+cd apps/web && MAGPIE_STORE=$COPY bunx next dev -p 3107 &   # refused while another dev server holds the lock; prints a kill hint
 # ... follow the hint or restart, then checks ...
 pkill -f "next dev"                                            # stops every dev server, including the user's
 ```
@@ -79,7 +79,7 @@ After:
 ```bash
 bun run build
 cd apps/web
-X_CORPUS_STORE=$COPY ./node_modules/.bin/next start -H 127.0.0.1 -p 3077 &
+MAGPIE_STORE=$COPY ./node_modules/.bin/next start -H 127.0.0.1 -p 3077 &
 server_pid=$!
 # ... checks against http://127.0.0.1:3077 ...
 kill "$server_pid"
@@ -90,5 +90,5 @@ A production build has no hot reload. A worker that is iterating on UI code rebu
 ## Related
 
 - `apps/web/README.md`, "Run it"
-- `packages/engine/src/config.ts`: `paths()` and the `X_CORPUS_STORE` override
+- `packages/engine/src/config.ts`: `paths()` and the `MAGPIE_STORE` override
 - `docs/solutions/build-errors/turbopack-static-import-of-engine-workspace-package.md`: why the engine loads at runtime; because `paths()` reads the environment on each call, one build serves any store file

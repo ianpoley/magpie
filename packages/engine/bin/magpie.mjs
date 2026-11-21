@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 //
-//     node packages/engine/bin/x-corpus.mjs <command>   (or: bun run setup, bun run service:install, ...)
+//     node packages/engine/bin/magpie.mjs <command>   (or: bun run setup, bun run service:install, ...)
 //
 // Exits 0 on success, 1 when the command failed and 2 for a bad argument.
 
 import { readFileSync } from 'node:fs';
 
-const USAGE = `Usage: x-corpus.mjs <command>
+const USAGE = `Usage: magpie.mjs <command>
 
 Commands:
   setup [--yes]                        check this machine, then take each first-run step not done yet: background
@@ -30,7 +30,7 @@ try {
 } catch (error) {
   if (error?.code !== 'ERR_UNKNOWN_FILE_EXTENSION') throw error;
   const range = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')).engines?.node;
-  console.error(`x-corpus needs Node ${range}; this is Node ${process.version}.`);
+  console.error(`magpie needs Node ${range}; this is Node ${process.version}.`);
   process.exit(1);
 }
 const { errorText } = await import('../src/util.ts');
@@ -81,7 +81,7 @@ async function setup(args) {
   const { existsSync, lstatSync, realpathSync } = await import('node:fs');
   const { homedir } = await import('node:os');
   const { join } = await import('node:path');
-  const { codeRoot, mainCheckout, paths } = await import('../src/config.ts');
+  const { codeRoot, mainCheckout, paths, usesLegacyNames } = await import('../src/config.ts');
   const { createSecretStore } = await import('../src/secrets/store.ts');
   const { readConnection } = await import('../src/sync/state.ts');
   const { walkthrough } = await import('../src/setup/walkthrough.ts');
@@ -95,7 +95,7 @@ async function setup(args) {
     return found ? { handle: found.handle } : undefined;
   };
   const skillDir = join(code, 'packages', 'skill');
-  const skillLink = join(homedir(), '.claude', 'skills', 'x-corpus');
+  const skillLink = join(homedir(), '.claude', 'skills', 'magpie');
 
   const result = await walkthrough({
     interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
@@ -113,6 +113,7 @@ async function setup(args) {
         running: status.units.every((unit) => unit.running),
         dataRoot: status.dataRoot,
         here: status.here,
+        legacy: status.legacyUnits.length > 0 || usesLegacyNames(),
       };
     },
     install: () => service.installService({ log: (line) => log(`  ${line}`) }),
@@ -164,6 +165,9 @@ async function status() {
   for (const unit of report.units) {
     const state = !unit.installed ? 'not installed' : unit.running ? 'running' : unit.loaded ? 'loaded, not running' : 'installed, not loaded';
     console.log(`[status] ${unit.name.padEnd(16)} ${state}${unit.installed ? `  (${unit.file})` : ''}`);
+  }
+  for (const name of report.legacyUnits) {
+    console.log(`[status] ${name.padEnd(16)} still installed under its old name: run bun run setup (or bun run service:install) to rename it`);
   }
   const { worker } = report;
   if (worker === null) console.log('[status] worker heartbeat  none: the worker has not run here');

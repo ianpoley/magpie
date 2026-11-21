@@ -13,7 +13,7 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
-              group: ["@x-corpus/engine", "@x-corpus/engine/*"],
+              group: ["@magpie/engine", "@magpie/engine/*"],
               allowTypeImports: true,
               message: "Load engine code through src/lib/engine.ts; a static import breaks the Turbopack build.",
             },

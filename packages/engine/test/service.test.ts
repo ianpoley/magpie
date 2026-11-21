@@ -14,7 +14,7 @@ import { renderUnit } from '../src/service/systemd.ts';
 import { writeConnection, writeWorkerStatus } from '../src/sync/state.ts';
 import { tempDir } from './fixtures/export.ts';
 
-const CLI = fileURLToPath(new URL('../bin/x-corpus.mjs', import.meta.url));
+const CLI = fileURLToPath(new URL('../bin/magpie.mjs', import.meta.url));
 const NODE = '/opt/node-26/bin/node';
 const SPEC_INPUT = { nodePath: NODE, codeRoot: '/srv/clone', repoRoot: '/srv/clone', home: '/home/someone', port: 3030 };
 const SECRET_SESSION = { authToken: 'tok0123456789abcdef', ct0: 'ct00123456789' };
@@ -43,7 +43,7 @@ const plistString = (plist: string, key: string) =>
 
 test('on macOS each service is a plist that runs the captured node directly with an explicit PATH, restarts on failure and logs under logs/', () => {
   const specs = serviceSpecs(SPEC_INPUT);
-  assert.deepEqual(specs.map((spec) => spec.name), ['x-corpus-web', 'x-corpus-worker']);
+  assert.deepEqual(specs.map((spec) => spec.name), ['magpie-web', 'magpie-worker']);
   for (const spec of specs) {
     const plist = renderPlist(spec);
     assert.equal(plistString(plist, 'Label'), spec.name);
@@ -52,7 +52,7 @@ test('on macOS each service is a plist that runs the captured node directly with
     const path = plistEnv(plist).PATH.split(':');
     assert.equal(path[0], '/opt/node-26/bin');
     assert.ok(path.includes('/home/someone/.local/bin'));
-    assert.equal(plistEnv(plist).X_CORPUS_ROOT, '/srv/clone');
+    assert.equal(plistEnv(plist).MAGPIE_ROOT, '/srv/clone');
     assert.match(plist, /<key>RunAtLoad<\/key>\s*<true\/>/);
     assert.match(plist, /<key>KeepAlive<\/key>\s*<dict>\s*<key>SuccessfulExit<\/key>\s*<false\/>\s*<\/dict>/);
     assert.ok(plistString(plist, 'StandardOutPath')?.startsWith('/srv/clone/logs/'));
@@ -78,21 +78,21 @@ test('on Linux each service is a user unit of Type=exec that restarts on failure
     const pathLine = lines.find((line) => line.startsWith('Environment="PATH='));
     assert.ok(pathLine?.startsWith('Environment="PATH=/opt/node-26/bin:'), pathLine);
     assert.ok(pathLine?.includes(':/home/someone/.local/bin'), pathLine);
-    assert.ok(lines.includes('Environment="X_CORPUS_ROOT=/srv/clone"'), unit);
+    assert.ok(lines.includes('Environment="MAGPIE_ROOT=/srv/clone"'), unit);
     assert.ok(lines.some((line) => line.startsWith('StandardOutput=append:/srv/clone/logs/')), unit);
     assert.doesNotMatch(unit, /ianpoley/);
   }
 });
 
-test('the web service serves next start on loopback, on port 3030 unless X_CORPUS_PORT says otherwise', async (t) => {
+test('the web service serves next start on loopback, on port 3030 unless MAGPIE_PORT says otherwise', async (t) => {
   const web = (port?: number) => serviceSpecs({ ...SPEC_INPUT, ...(port ? { port } : {}) })[0];
   assert.deepEqual(programArguments(renderPlist(web())).slice(2), ['start', '-H', '127.0.0.1', '-p', '3030']);
   assert.match(renderUnit(web(4000)), /^ExecStart=\S+ \S+next start -H 127\.0\.0\.1 -p 4000$/m);
 
-  // The installer reads the port from X_CORPUS_PORT.
+  // The installer reads the port from MAGPIE_PORT.
   const machine = fakeMachine(t, 'darwin');
-  await installService({ ...machine.options, env: { ...machine.options.env, X_CORPUS_PORT: '4000' } });
-  assert.deepEqual(programArguments(machine.unit('x-corpus-web')).slice(-2), ['-p', '4000']);
+  await installService({ ...machine.options, env: { ...machine.options.env, MAGPIE_PORT: '4000' } });
+  assert.deepEqual(programArguments(machine.unit('magpie-web')).slice(-2), ['-p', '4000']);
 });
 
 type Machine = {
@@ -142,13 +142,13 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
       nodePath,
       nodeVersion: 'v26.5.0',
       codeRoot: root,
-      env: { X_CORPUS_ROOT: root, X_CORPUS_CONFIG_DIR: configDir, X_CORPUS_SECRET_BACKEND: 'file' },
+      env: { MAGPIE_ROOT: root, MAGPIE_CONFIG_DIR: configDir, MAGPIE_SECRET_BACKEND: 'file' },
       log: () => {},
       run: async (command, args): Promise<CommandResult> => {
         machine.calls.push([command, ...args].join(' '));
         const done = (code = 0, stdout = ''): CommandResult => ({ code, stdout, stderr: code === 0 ? '' : 'refused' });
         if (command === nodePath && args[1] === 'build') {
-          for (const name of ['x-corpus-web', 'x-corpus-worker']) {
+          for (const name of ['magpie-web', 'magpie-worker']) {
             machine.unitsAtBuild[name] = existsSync(fileOf(name)) ? readFileSync(fileOf(name), 'utf8') : null;
           }
           return done(machine.buildExit);
@@ -194,39 +194,39 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
 test('install stops the web service, builds, writes both plists, then loads and starts both; installing again updates them', async (t) => {
   const machine = fakeMachine(t, 'darwin');
   mkdirSync(machine.unitDir, { recursive: true });
-  writeFileSync(join(machine.unitDir, 'x-corpus-web.plist'), 'old web plist');
-  machine.loaded.add('x-corpus-web');
+  writeFileSync(join(machine.unitDir, 'magpie-web.plist'), 'old web plist');
+  machine.loaded.add('magpie-web');
 
   await installService(machine.options);
 
   // The build ran against the old unit files, after the web service was stopped.
-  assert.deepEqual(machine.unitsAtBuild, { 'x-corpus-web': 'old web plist', 'x-corpus-worker': null });
+  assert.deepEqual(machine.unitsAtBuild, { 'magpie-web': 'old web plist', 'magpie-worker': null });
   const step = (prefix: string) => machine.calls.findIndex((call) => call.startsWith(prefix));
-  assert.ok(step('launchctl bootout gui/501/x-corpus-web') < step(`${machine.options.nodePath} `), machine.calls.join('\n'));
+  assert.ok(step('launchctl bootout gui/501/magpie-web') < step(`${machine.options.nodePath} `), machine.calls.join('\n'));
   assert.ok(step(`${machine.options.nodePath} `) < step('launchctl bootstrap'));
   assert.ok(step('launchctl bootstrap') < step('launchctl kickstart'));
-  for (const name of ['x-corpus-web', 'x-corpus-worker']) {
+  for (const name of ['magpie-web', 'magpie-worker']) {
     assert.ok(machine.calls.includes(`launchctl bootstrap gui/501 ${join(machine.unitDir, `${name}.plist`)}`));
     assert.ok(machine.calls.includes(`launchctl kickstart -k gui/501/${name}`));
     assert.equal(programArguments(machine.unit(name))[0], machine.options.nodePath);
   }
-  assert.deepEqual([...machine.loaded].sort(), ['x-corpus-web', 'x-corpus-worker']);
+  assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
   assert.ok(statSync(join(machine.root, 'logs')).isDirectory());
 
   // The update path: both are loaded now, and installing again replaces them.
   await installService(machine.options);
-  assert.deepEqual([...machine.loaded].sort(), ['x-corpus-web', 'x-corpus-worker']);
+  assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
 });
 
 test('a failed build leaves the old units in place and loads nothing', async (t) => {
   const machine = fakeMachine(t, 'darwin');
   mkdirSync(machine.unitDir, { recursive: true });
-  writeFileSync(join(machine.unitDir, 'x-corpus-web.plist'), 'old web plist');
+  writeFileSync(join(machine.unitDir, 'magpie-web.plist'), 'old web plist');
   machine.buildExit = 1;
 
   await assert.rejects(installService(machine.options), /build/);
-  assert.equal(machine.unit('x-corpus-web'), 'old web plist');
-  assert.equal(existsSync(join(machine.unitDir, 'x-corpus-worker.plist')), false);
+  assert.equal(machine.unit('magpie-web'), 'old web plist');
+  assert.equal(existsSync(join(machine.unitDir, 'magpie-worker.plist')), false);
   assert.equal(machine.calls.some((call) => call.startsWith('launchctl bootstrap')), false);
 });
 
@@ -262,7 +262,7 @@ test('install on macOS refuses while the old nightly job is installed and points
   await assert.rejects(installService(machine.options), /bun run migrate/);
   assert.deepEqual(machine.calls, []);
   await installService({ ...machine.options, migrating: true });
-  assert.ok(machine.loaded.has('x-corpus-worker'));
+  assert.ok(machine.loaded.has('magpie-worker'));
 });
 
 test('install goes ahead when the old job is installed but its cookie file is gone, since migrate would have nothing to move', async (t) => {
@@ -270,7 +270,7 @@ test('install goes ahead when the old job is installed but its cookie file is go
   mkdirSync(machine.unitDir, { recursive: true });
   writeFileSync(join(machine.unitDir, 'com.ianpoley.birdclaw-nightly.plist'), 'old job');
   await installService(machine.options);
-  assert.ok(machine.loaded.has('x-corpus-worker'));
+  assert.ok(machine.loaded.has('magpie-worker'));
 });
 
 for (const platform of ['darwin', 'linux'] as const) {
@@ -288,15 +288,15 @@ test('on Linux install writes both units, reloads systemd, enables and restarts 
   const machine = fakeMachine(t, 'linux');
   await installService(machine.options);
   await installService(machine.options);
-  for (const name of ['x-corpus-web', 'x-corpus-worker']) {
+  for (const name of ['magpie-web', 'magpie-worker']) {
     assert.ok(machine.unit(name).includes(`ExecStart=${machine.options.nodePath} `));
   }
   const reload = machine.calls.lastIndexOf('systemctl --user daemon-reload');
-  const enable = machine.calls.lastIndexOf('systemctl --user enable x-corpus-web.service x-corpus-worker.service');
-  const restart = machine.calls.lastIndexOf('systemctl --user restart x-corpus-web.service x-corpus-worker.service');
+  const enable = machine.calls.lastIndexOf('systemctl --user enable magpie-web.service magpie-worker.service');
+  const restart = machine.calls.lastIndexOf('systemctl --user restart magpie-web.service magpie-worker.service');
   assert.ok(reload >= 0 && reload < enable && enable < restart, machine.calls.join('\n'));
-  assert.ok(machine.calls.includes('systemctl --user stop x-corpus-web.service'));
-  assert.deepEqual([...machine.loaded].sort(), ['x-corpus-web', 'x-corpus-worker']);
+  assert.ok(machine.calls.includes('systemctl --user stop magpie-web.service'));
+  assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
 });
 
 async function storeSecrets(machine: Machine) {
@@ -354,8 +354,8 @@ test('status reports each unit, the worker heartbeat, the recorded backend and t
   assert.deepEqual(
     status.units.map((unit) => [unit.name, unit.installed, unit.running]),
     [
-      ['x-corpus-web', true, true],
-      ['x-corpus-worker', true, true],
+      ['magpie-web', true, true],
+      ['magpie-worker', true, true],
     ],
   );
   assert.ok(status.worker !== null && status.worker.heartbeatAgeMs >= 30_000 && status.worker.heartbeatAgeMs < 60_000);
@@ -382,7 +382,7 @@ test('status before install reports nothing installed and no heartbeat', async (
 });
 
 test('setup on Node 24.17 fails the Node check naming the required range, and checks nothing else', async () => {
-  const checks = await setupChecks({ nodeVersion: 'v24.17.0', env: { X_CORPUS_SECRET_BACKEND: 'file' } });
+  const checks = await setupChecks({ nodeVersion: 'v24.17.0', env: { MAGPIE_SECRET_BACKEND: 'file' } });
   assert.equal(checks.length, 1);
   assert.equal(checks[0].level, 'fail');
   assert.match(checks[0].detail, />=25\.8\.1 <27/);
@@ -391,7 +391,7 @@ test('setup on Node 24.17 fails the Node check naming the required range, and ch
 
 test('setup on a supported Node finds the pinned Birdclaw and bird, and never records a secret backend', async (t) => {
   const configDir = dir(t);
-  const checks = await setupChecks({ nodeVersion: 'v26.5.0', env: { X_CORPUS_CONFIG_DIR: configDir, X_CORPUS_SECRET_BACKEND: 'file' } });
+  const checks = await setupChecks({ nodeVersion: 'v26.5.0', env: { MAGPIE_CONFIG_DIR: configDir, MAGPIE_SECRET_BACKEND: 'file' } });
   const byName = Object.fromEntries(checks.map((check) => [check.name, check]));
   assert.equal(byName.node.level, 'ok');
   assert.equal(byName.birdclaw.level, 'ok');
@@ -406,9 +406,114 @@ test('secrets set-jev stores the key read from stdin and never prints it', (t) =
   const result = spawnSync(process.execPath, [CLI, 'secrets', 'set-jev'], {
     input: `${JEV_KEY}\n`,
     encoding: 'utf8',
-    env: { ...process.env, X_CORPUS_CONFIG_DIR: configDir, X_CORPUS_SECRET_BACKEND: 'file', TYPESAFE_API_KEY: '' },
+    env: { ...process.env, MAGPIE_CONFIG_DIR: configDir, MAGPIE_SECRET_BACKEND: 'file', TYPESAFE_API_KEY: '' },
   });
   assert.equal(result.status, 0, result.stderr);
   assert.ok(!result.stdout.includes(JEV_KEY) && !result.stderr.includes(JEV_KEY));
   assert.match(readFileSync(join(configDir, 'secrets.env'), 'utf8'), new RegExp(`TYPESAFE_API_KEY='${JEV_KEY}'`));
+});
+
+/**
+ * A Mac still installed under the x-corpus names: both old LaunchAgents
+ * loaded, ~/.config/x-corpus with the keychain recorded as the backend, and
+ * both secrets in a fake keychain under the old service name. The fake
+ * worker writes a heartbeat when the renamed worker is started, unless told
+ * not to.
+ */
+function legacyMac(t: TestContext, options: { heartbeat?: boolean } = {}) {
+  const machine = fakeMachine(t, 'darwin');
+  delete machine.options.env.MAGPIE_CONFIG_DIR;
+  const home = machine.options.home!;
+  const oldConfig = join(home, '.config', 'x-corpus');
+  const newConfig = join(home, '.config', 'magpie');
+  mkdirSync(oldConfig, { recursive: true });
+  writeFileSync(join(oldConfig, 'secret-backend.json'), JSON.stringify({ backend: 'keychain', chosenAt: '2026-11-20T00:00:00Z' }));
+  writeConnection(join(oldConfig, 'x-connection.json'), { handle: 'someone', connectedAt: '2026-11-20T00:00:00Z' });
+  mkdirSync(machine.unitDir, { recursive: true });
+  for (const name of ['x-corpus-web', 'x-corpus-worker']) {
+    writeFileSync(join(machine.unitDir, `${name}.plist`), `<plist><key>X_CORPUS_ROOT</key><string>${machine.root}</string></plist>`);
+    machine.loaded.add(name);
+  }
+
+  const keychain = new Map<string, string>([
+    ['x-corpus/x-session', JSON.stringify(SECRET_SESSION)],
+    ['x-corpus/typesafe-api-key', JEV_KEY],
+  ]);
+  machine.options.secretBackend = (service) => ({
+    get: async (account) => ({ ok: true, value: keychain.get(`${service}/${account}`) ?? null }),
+    set: async (account, value) => {
+      keychain.set(`${service}/${account}`, value);
+      return { ok: true };
+    },
+    delete: async (account) => {
+      keychain.delete(`${service}/${account}`);
+      return { ok: true };
+    },
+  });
+  machine.options.handoverWaitMs = 200;
+  machine.options.handoverPollMs = 10;
+  const run = machine.options.run!;
+  machine.options.run = async (command, args, runOptions) => {
+    const result = await run(command, args, runOptions);
+    if (options.heartbeat !== false && command === 'launchctl' && args[0] === 'kickstart' && args[2]?.endsWith('/magpie-worker')) {
+      writeWorkerStatus(join(machine.root, 'state', 'worker.json'), {
+        pid: 4242,
+        heartbeatAt: new Date(Date.now() + 1_000).toISOString(),
+        state: 'idle',
+        schedule: 'scheduled',
+        nextRunAt: null,
+        lastAttempt: null,
+        secretBackend: 'keychain',
+      });
+    }
+    return result;
+  };
+  return { machine, keychain, oldConfig, newConfig };
+}
+
+test('install renames an x-corpus install: new services, secrets and config, and only then removes the old ones', async (t) => {
+  const { machine, keychain, oldConfig, newConfig } = legacyMac(t);
+  const status = await serviceStatus(machine.options);
+  assert.deepEqual(status.legacyUnits, ['x-corpus-web', 'x-corpus-worker']);
+  assert.equal(status.dataRoot, machine.root);
+
+  await installService(machine.options);
+
+  assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
+  for (const name of ['x-corpus-web', 'x-corpus-worker']) assert.equal(existsSync(join(machine.unitDir, `${name}.plist`)), false);
+  assert.equal(existsSync(oldConfig), false);
+  assert.equal(JSON.parse(readFileSync(join(newConfig, 'x-connection.json'), 'utf8')).handle, 'someone');
+  assert.deepEqual([...keychain.keys()].sort(), ['magpie/typesafe-api-key', 'magpie/x-session']);
+  assert.equal(keychain.get('magpie/typesafe-api-key'), JEV_KEY);
+  assert.deepEqual((await serviceStatus(machine.options)).legacyUnits, []);
+});
+
+test('a failed build during the rename puts the x-corpus install back as it was', async (t) => {
+  const { machine, keychain, oldConfig, newConfig } = legacyMac(t);
+  machine.buildExit = 1;
+  await assert.rejects(installService(machine.options), /undone/);
+
+  assert.deepEqual([...machine.loaded].sort(), ['x-corpus-web', 'x-corpus-worker']);
+  assert.equal(existsSync(oldConfig), true);
+  assert.equal(existsSync(newConfig), false);
+  assert.deepEqual([...keychain.keys()].sort(), ['x-corpus/typesafe-api-key', 'x-corpus/x-session']);
+  assert.equal(existsSync(join(machine.unitDir, 'magpie-worker.plist')), false);
+});
+
+test('a renamed worker that never writes a heartbeat undoes the rename and restarts the old services', async (t) => {
+  const { machine, keychain, oldConfig, newConfig } = legacyMac(t, { heartbeat: false });
+  await assert.rejects(installService(machine.options), /no heartbeat/);
+
+  assert.deepEqual([...machine.loaded].sort(), ['x-corpus-web', 'x-corpus-worker']);
+  assert.equal(existsSync(oldConfig), true);
+  assert.equal(existsSync(newConfig), false);
+  assert.deepEqual([...keychain.keys()].sort(), ['x-corpus/typesafe-api-key', 'x-corpus/x-session']);
+  for (const name of ['magpie-web', 'magpie-worker']) assert.equal(existsSync(join(machine.unitDir, `${name}.plist`)), false);
+});
+
+test('uninstall also removes services still under their x-corpus names', async (t) => {
+  const { machine } = legacyMac(t);
+  await uninstallService(machine.options);
+  assert.deepEqual([...machine.loaded], []);
+  for (const name of ['x-corpus-web', 'x-corpus-worker']) assert.equal(existsSync(join(machine.unitDir, `${name}.plist`)), false);
 });

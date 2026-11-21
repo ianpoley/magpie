@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /*
- * x-corpus query — search the user's saved X (Twitter) bookmarks & likes.
+ * magpie query — search the user's saved X (Twitter) bookmarks & likes.
  *
  * Reads the normalized JSONL exported by the birdclaw nightly/3-hourly job:
- *   $X_CORPUS_DIR/bookmarks.normalized.jsonl
- *   $X_CORPUS_DIR/likes.normalized.jsonl
- * X_CORPUS_DIR defaults to <clone>/data, where <clone> is found from the real
+ *   $MAGPIE_DIR/bookmarks.normalized.jsonl
+ *   $MAGPIE_DIR/likes.normalized.jsonl
+ * MAGPIE_DIR defaults to <clone>/data, where <clone> is found from the real
  * path of this file (the ~/.claude/skills symlink points back into the clone).
  *
  * Each record: {type,id,handle,name,created,url,text}
@@ -14,13 +14,13 @@
  * agent can weave them into the current task.
  *
  * Category commands read the store the sync job keeps, read-only:
- *   $X_CORPUS_STORE, else $X_CORPUS_DIR/../state/corpus.sqlite,
+ *   $MAGPIE_STORE, else $MAGPIE_DIR/../state/corpus.sqlite,
  *   else <clone>/state/corpus.sqlite.
  * Posts in areas or topics the user hides by default are left out of every
  * command unless --include-hidden is given. Posts the user removed from the
  * corpus are left out of every command, and no flag brings them back.
  *
- * This file is run from ~/.claude/skills/x-corpus under whatever node the
+ * This file is run from ~/.claude/skills/magpie under whatever node the
  * calling session has, so it imports nothing outside node itself.
  *
  * Usage:
@@ -56,7 +56,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 function usage() {
-  console.log(`x-corpus query — search the user's saved X bookmarks & likes
+  console.log(`magpie query — search the user's saved X bookmarks & likes
 
 Usage:
   node query.mjs <terms...> [--source bookmarks|likes|all] [--limit N]
@@ -80,10 +80,10 @@ Examples:
   node query.mjs resources evals`);
 }
 
-const STORE = process.env.X_CORPUS_STORE
-  || (process.env.X_CORPUS_DIR
-    ? join(process.env.X_CORPUS_DIR, '..', 'state', 'corpus.sqlite')
-    : join(CLONE_ROOT, 'state', 'corpus.sqlite'));
+// Each override is also read under its name from before the rename, X_CORPUS_*.
+const ENV_STORE = process.env.MAGPIE_STORE || process.env.X_CORPUS_STORE;
+const ENV_DIR = process.env.MAGPIE_DIR || process.env.X_CORPUS_DIR;
+const STORE = ENV_STORE || (ENV_DIR ? join(ENV_DIR, '..', 'state', 'corpus.sqlite') : join(CLONE_ROOT, 'state', 'corpus.sqlite'));
 const KNOWN_SCHEMA_VERSION = 3;
 const CATEGORIES_SCHEMA_VERSION = 2;
 const REMOVAL_SCHEMA_VERSION = 3;
@@ -124,7 +124,7 @@ async function openStore() {
   if (version > KNOWN_SCHEMA_VERSION) {
     db.close();
     return fail(`The store at ${STORE} has schema version ${version}; this script knows version ${KNOWN_SCHEMA_VERSION}. `
-      + `Update the x-corpus skill.`);
+      + `Update the magpie skill.`);
   }
   if (version < CATEGORIES_SCHEMA_VERSION) {
     db.close();
@@ -332,7 +332,7 @@ function runResources(db, name) {
 
 if (command) {
   const store = await openStore();
-  if (!store) fail(`No category store at ${STORE}. The sync job creates it; keyword search (node query.mjs <terms...>) works without it. Override the path with X_CORPUS_STORE.`);
+  if (!store) fail(`No category store at ${STORE}. The sync job creates it; keyword search (node query.mjs <terms...>) works without it. Override the path with MAGPIE_STORE.`);
   const { db } = store;
   if (command === 'categories') runCategories(db);
   else if (command === 'topic') runTopic(db, terms.join(' '));
@@ -343,7 +343,7 @@ if (command) {
   process.exit(0);
 }
 
-const DIR = process.env.X_CORPUS_DIR || join(CLONE_ROOT, 'data');
+const DIR = ENV_DIR || join(CLONE_ROOT, 'data');
 
 function load(file) {
   const p = join(DIR, file);
@@ -359,7 +359,7 @@ if (opts.source === 'all' || opts.source === 'bookmarks') records.push(...load('
 if (opts.source === 'all' || opts.source === 'likes') records.push(...load('likes.normalized.jsonl'));
 
 if (!records.length) {
-  console.error(`No corpus found in ${DIR}. Is the birdclaw sync set up? Override with X_CORPUS_DIR.`);
+  console.error(`No corpus found in ${DIR}. Is the birdclaw sync set up? Override with MAGPIE_DIR.`);
   process.exit(1);
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "x-corpus",
+  "name": "magpie",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -9,21 +9,21 @@
     "node": ">=25.8.1 <27"
   },
   "scripts": {
-    "dev": "bun --filter @x-corpus/web dev",
-    "build": "bun --filter @x-corpus/web build",
-    "start": "bun --filter @x-corpus/web start",
-    "lint": "bun --filter @x-corpus/web lint",
-    "sync": "bun --filter @x-corpus/engine sync",
+    "dev": "bun --filter @magpie/web dev",
+    "build": "bun --filter @magpie/web build",
+    "start": "bun --filter @magpie/web start",
+    "lint": "bun --filter @magpie/web lint",
+    "sync": "bun --filter @magpie/engine sync",
     "setup": "bun packages/engine/bin/setup.mjs",
-    "service:install": "node packages/engine/bin/x-corpus.mjs service install",
-    "service:uninstall": "node packages/engine/bin/x-corpus.mjs service uninstall",
-    "service:status": "node packages/engine/bin/x-corpus.mjs service status",
-    "secrets:set-jev": "node packages/engine/bin/x-corpus.mjs secrets set-jev",
-    "migrate": "node packages/engine/bin/x-corpus.mjs migrate",
-    "build:markdown": "bun --filter @x-corpus/engine build:markdown",
+    "service:install": "node packages/engine/bin/magpie.mjs service install",
+    "service:uninstall": "node packages/engine/bin/magpie.mjs service uninstall",
+    "service:status": "node packages/engine/bin/magpie.mjs service status",
+    "secrets:set-jev": "node packages/engine/bin/magpie.mjs secrets set-jev",
+    "migrate": "node packages/engine/bin/magpie.mjs migrate",
+    "build:markdown": "bun --filter @magpie/engine build:markdown",
     "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs' 'apps/web/test/**/*.test.ts'",
-    "typecheck": "bun --filter @x-corpus/engine typecheck && bun --filter @x-corpus/web typecheck",
-    "categorize": "bun --filter @x-corpus/engine categorize"
+    "typecheck": "bun --filter @magpie/engine typecheck && bun --filter @magpie/web typecheck",
+    "categorize": "bun --filter @magpie/engine categorize"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

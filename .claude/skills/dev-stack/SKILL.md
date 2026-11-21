@@ -1,6 +1,6 @@
 ---
 name: dev-stack
-description: Start the local dev stack for Magpie (x-corpus) — the Next.js web app dev server in apps/web — or reuse the one already running, and report its URL and PID. Use when asked to start, run, launch, boot or open the app, the dev server, or the local stack, or when a browser check needs the app running.
+description: Start the local dev stack for Magpie — the Next.js web app dev server in apps/web — or reuse the one already running, and report its URL and PID. Use when asked to start, run, launch, boot or open the app, the dev server, or the local stack, or when a browser check needs the app running.
 model: sonnet
 argument-hint: "[port]"
 ---
@@ -27,7 +27,7 @@ Optional argument: a preferred port (default `3000`).
    - If the PID is dead, the lock is stale (a hard-killed server leaves it behind). Continue: a new `next dev` takes over a stale lock.
    - The file has no `.json` extension, so `require()` fails on it. Use `JSON.parse(fs.readFileSync(...))` or `sed -E 's/.*"pid":([0-9]+).*/\1/'`.
 
-3. **Pick a free port.** Start at the requested port (default `3000`) and go up by one until `lsof -nP -iTCP:<port> -sTCP:LISTEN` prints nothing. Do not rely on Next to find a free port: it binds `127.0.0.1:<port>` even when another process holds `*:<port>`, and then it takes that process's loopback traffic without an error. Never use `3030`, the installed `x-corpus-web` service.
+3. **Pick a free port.** Start at the requested port (default `3000`) and go up by one until `lsof -nP -iTCP:<port> -sTCP:LISTEN` prints nothing. Do not rely on Next to find a free port: it binds `127.0.0.1:<port>` even when another process holds `*:<port>`, and then it takes that process's loopback traffic without an error. Never use `3030`, the installed `magpie-web` service.
 
 4. **Start in the background**, detached, with output in `logs/` (gitignored):
 
@@ -47,5 +47,5 @@ Optional argument: a preferred port (default `3000`).
 ## Notes
 
 - The server serves the live store. Read-only browser checks may use it. Checks that write (category edits, pins, post removal, undo) need a production build against a scratch copy (see the solution doc).
-- If this branch adds a store migration (`packages/engine/src/store/schema.ts`), the engine refuses to upgrade the main checkout's store from a worktree. Set `X_CORPUS_ROOT` to a scratch copy of the data root to work on it.
+- If this branch adds a store migration (`packages/engine/src/store/schema.ts`), the engine refuses to upgrade the main checkout's store from a worktree. Set `MAGPIE_ROOT` to a scratch copy of the data root to work on it.
 - `next dev` may rewrite the managed block in `apps/web/AGENTS.md`. If `git status` shows that file changed, it comes from Next, not from you.

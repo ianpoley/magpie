@@ -27,14 +27,14 @@ export const stateDir = join(root, "state");
 const birdLog = join(scratch.dir, "bird.log");
 const bird = join(scratch.dir, "bird");
 
-process.env.X_CORPUS_ROOT = root;
-process.env.X_CORPUS_STORE = join(stateDir, "corpus.sqlite");
-process.env.X_CORPUS_CONFIG_DIR = configDir;
-process.env.X_CORPUS_SECRET_BACKEND = "file";
-process.env.X_CORPUS_KEYCHAIN_SERVICE = "x-corpus-web-test";
+process.env.MAGPIE_ROOT = root;
+process.env.MAGPIE_STORE = join(stateDir, "corpus.sqlite");
+process.env.MAGPIE_CONFIG_DIR = configDir;
+process.env.MAGPIE_SECRET_BACKEND = "file";
+process.env.MAGPIE_KEYCHAIN_SERVICE = "magpie-web-test";
 process.env.BIRDCLAW_HOME = join(scratch.dir, "birdclaw");
-process.env.X_CORPUS_BIRD_BIN = bird;
-process.env.X_CORPUS_BIRDCLAW_BIN = bird;
+process.env.MAGPIE_BIRD_BIN = bird;
+process.env.MAGPIE_BIRDCLAW_BIN = bird;
 
 writeFileSync(
   bird,

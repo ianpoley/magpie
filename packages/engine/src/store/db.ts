@@ -43,7 +43,7 @@ export function openStore(path: string, options: { readOnly?: boolean; inherited
       const version = assertKnownVersion(db);
       if (inheritedFrom && version > 0 && version < SCHEMA_VERSION) {
         throw new Error(
-          `The store at ${path} belongs to the main checkout ${inheritedFrom} and is at schema version ${version}; this worktree's code would upgrade it to version ${SCHEMA_VERSION}, which the installed services would then refuse. Set X_CORPUS_ROOT to a copy of that data root, or land the migration on the main checkout first.`,
+          `The store at ${path} belongs to the main checkout ${inheritedFrom} and is at schema version ${version}; this worktree's code would upgrade it to version ${SCHEMA_VERSION}, which the installed services would then refuse. Set MAGPIE_ROOT to a copy of that data root, or land the migration on the main checkout first.`,
         );
       }
       db.exec('PRAGMA journal_mode = WAL');

@@ -57,7 +57,7 @@ export function exportPost(id: string, options: PostOptions = {}): ExportPost {
 }
 
 export function tempDir(): { dir: string; cleanup: () => void } {
-  const dir = mkdtempSync(join(tmpdir(), 'x-corpus-test-'));
+  const dir = mkdtempSync(join(tmpdir(), 'magpie-test-'));
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 

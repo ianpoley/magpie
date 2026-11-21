@@ -12,12 +12,12 @@ execution: code
 
 ## Goal Capsule
 
-- **Objective:** Anyone who clones the open-source x-corpus repo can install it on their own macOS or Linux machine. After that, it keeps their X bookmarks and likes current in the background, with their X credentials stored securely and all data kept on that machine.
-- **Means:** An engine-owned sync worker and the web app run as two user-level background services that x-corpus installs, reading secrets from the OS secret store (KTD1, KTD4, KTD8).
+- **Objective:** Anyone who clones the open-source magpie repo can install it on their own macOS or Linux machine. After that, it keeps their X bookmarks and likes current in the background, with their X credentials stored securely and all data kept on that machine.
+- **Means:** An engine-owned sync worker and the web app run as two user-level background services that magpie installs, reading secrets from the OS secret store (KTD1, KTD4, KTD8).
 - **Product authority:** The owner (the repo author) is the sole decision-maker. Decisions below were made in dialogue on 2026-11-20 and govern this plan. Hosting, multi-user, and sign-in are not active scope.
 - **Authority:** Product Contract requirements win on product behavior. Key Technical Decisions win on mechanism within the requirements they cite. A unit overrides neither.
 - **Execution profile:** One pull request, eight units in dependency order (U1 → U8). U1 opens with a live feasibility check that gates the rest.
-- **Stop conditions:** Stop and report when the U1 check shows a launchd-run process cannot read a keychain item without a prompt on macOS, when Next.js 16.4.6 or the engine fails on Node 26, or when a session-settled decision proves unworkable. Never run `migrate` against the owner's real install, install the real services, write real x-corpus keychain items, or delete `~/.birdclaw/bird.env` or `~/.config/x-corpus/secrets.env` during implementation. The owner runs the migration after merge.
+- **Stop conditions:** Stop and report when the U1 check shows a launchd-run process cannot read a keychain item without a prompt on macOS, when Next.js 16.4.6 or the engine fails on Node 26, or when a session-settled decision proves unworkable. Never run `migrate` against the owner's real install, install the real services, write real magpie keychain items, or delete `~/.birdclaw/bird.env` or `~/.config/magpie/secrets.env` during implementation. The owner runs the migration after merge.
 - **Who finishes:** `ce-work` builds and verifies every unit. The owner runs `bun run migrate` on their Mac after merging.
 - **Open blockers:** None.
 
@@ -27,7 +27,7 @@ execution: code
 
 ### Summary
 
-x-corpus runs its own sync on a schedule. A single command installs it as a background service that runs the web app and a sync worker side by side. In the web UI, the owner connects X once by pasting their session cookies. The cookies are checked against X, stored in the OS keychain, and used only when Birdclaw runs. The sync status panel shows the next run and has a "Sync now" button. Everything stays local, single-owner, and loopback-only, and the Claude skill keeps reading local files as it does today.
+magpie runs its own sync on a schedule. A single command installs it as a background service that runs the web app and a sync worker side by side. In the web UI, the owner connects X once by pasting their session cookies. The cookies are checked against X, stored in the OS keychain, and used only when Birdclaw runs. The sync status panel shows the next run and has a "Sync now" button. Everything stays local, single-owner, and loopback-only, and the Claude skill keeps reading local files as it does today.
 
 ### Problem Frame
 
@@ -35,7 +35,7 @@ The corpus stays fresh today only because of setup that exists on one Mac. A lau
 
 The repo is going open source. Someone who clones it today gets the web app and engine but no background sync. To get one, they have to hand-edit a plist, rewrite paths, install tools globally, and put their own X session cookies in a plaintext file. Even then it only works on macOS. Those cookies give full access to the X account, so storing them in plaintext is the part with real consequences.
 
-The original question was about hosting the app on a web server. Dialogue settled that x-corpus stays local so the data and the Claude skill stay on the owner's machine. Making a cloned copy maintain itself is the remaining need.
+The original question was about hosting the app on a web server. Dialogue settled that magpie stays local so the data and the Claude skill stay on the owner's machine. Making a cloned copy maintain itself is the remaining need.
 
 ### Key Decisions
 
@@ -52,9 +52,9 @@ The original question was about hosting the app on a web server. Dialogue settle
 
 **Sync runner**
 
-- R1. The full sync runs inside x-corpus's own processes on a schedule: Birdclaw bookmarks and likes, JSON export, markdown and JSONL build, then categorize. The launchd plist and `birdclaw-nightly.sh` are retired.
+- R1. The full sync runs inside magpie's own processes on a schedule: Birdclaw bookmarks and likes, JSON export, markdown and JSONL build, then categorize. The launchd plist and `birdclaw-nightly.sh` are retired.
 - R2. The schedule defaults to every 3 hours and can be changed in a config file, not in the UI.
-- R3. When x-corpus starts and the last scheduled run is overdue, a run starts right away.
+- R3. When magpie starts and the last scheduled run is overdue, a run starts right away.
 - R4. Only one run happens at a time, whether it comes from the schedule, Sync now, or a manual CLI run. This covers the whole run, not only categorize.
 - R5. Each run keeps recording the X sync result and each stage's outcome where today's sync status reads them, so current status reporting does not regress.
 - R6. A CLI command still runs a sync by hand.
@@ -62,14 +62,14 @@ The original question was about hosting the app on a web server. Dialogue settle
 
 **Background service**
 
-- R8. One command installs x-corpus as a user-level background service on macOS and Linux that survives reboot and login. Another command removes it.
+- R8. One command installs magpie as a user-level background service on macOS and Linux that survives reboot and login. Another command removes it.
 - R9. The service runs the web app and the sync worker together. A development server never starts its own scheduler.
 
 **X credentials**
 
 - R10. A Connect X screen accepts the owner's `auth_token` and `ct0`. It checks them against X and saves them only if they work, then shows "connected as @handle".
-- R11. Stored X cookies live in the OS secret store (macOS Keychain, Linux Secret Service), scoped to x-corpus.
-- R12. When no usable secret store exists, x-corpus falls back to an owner-only (`0600`) file outside the repo, and the UI and CLI show a persistent warning while it is in use.
+- R11. Stored X cookies live in the OS secret store (macOS Keychain, Linux Secret Service), scoped to magpie.
+- R12. When no usable secret store exists, magpie falls back to an owner-only (`0600`) file outside the repo, and the UI and CLI show a persistent warning while it is in use.
 - R13. Cookie values never reach the browser, logs, the repo, or any export. Birdclaw receives them only for the duration of a sync call.
 - R14. The owner can replace the cookies or disconnect, and disconnecting deletes them from storage.
 - R15. Every secret the engine reads from its secrets file (today only the Jev key, `TYPESAFE_API_KEY`) moves into the same secret store as the cookies, so the default setup keeps no plaintext secrets. Claude stays on the owner's Claude Code CLI login.
@@ -87,11 +87,11 @@ The original question was about hosting the app on a web server. Dialogue settle
 - R21. Setup checks the Node version that the pinned Birdclaw requires (Birdclaw 0.9.5 needs Node 25.8.1 or newer, below 27). On a mismatch it stops with a message that names the required range.
 - R22. Runtime code, service definitions, and setup docs contain no owner-specific paths or identifiers, such as `/Users/ianpoley`, the `com.ianpoley` label, or `@ianpoley`.
 - R23. The README says that Birdclaw syncs using the owner's X browser session cookies, which X's terms do not allow, and what the owner risks by doing so.
-- R24. The x-corpus Claude skill and the local JSONL and markdown outputs keep working unchanged.
+- R24. The magpie Claude skill and the local JSONL and markdown outputs keep working unchanged.
 
 **Migrating the existing install**
 
-- R25. The owner's current install migrates in place in this order: import the cookies from `~/.birdclaw/bird.env` and every secret in `~/.config/x-corpus/secrets.env` into the secret store, stop the old launchd job without removing it, install the background service, and wait for the service to finish one successful sync. Only then delete both plaintext files and remove the old launchd job. If any step fails, the new service is removed and the old job is started again, so the old setup stays intact and working.
+- R25. The owner's current install migrates in place in this order: import the cookies from `~/.birdclaw/bird.env` and every secret in `~/.config/magpie/secrets.env` into the secret store, stop the old launchd job without removing it, install the background service, and wait for the service to finish one successful sync. Only then delete both plaintext files and remove the old launchd job. If any step fails, the new service is removed and the old job is started again, so the old setup stays intact and working.
 - R26. Migration keeps the corpus data, `state/corpus.sqlite` with its edits and change log, and the Birdclaw database.
 
 ```mermaid
@@ -104,7 +104,7 @@ flowchart TB
   BC --> X[X]
   WRK --> STORE[(data/, markdown/, state/corpus.sqlite)]
   STORE --> WEB
-  STORE --> SKILL[x-corpus Claude skill]
+  STORE --> SKILL[magpie Claude skill]
 ```
 
 ### Key Flows
@@ -115,7 +115,7 @@ flowchart TB
   - **Outcome:** Background syncs run every 3 hours with no files edited by hand.
   - **Covered by:** R7, R8, R10, R11, R20, R21
 - F2. Scheduled sync
-  - **Trigger:** The interval elapses, or x-corpus starts while a run is overdue.
+  - **Trigger:** The interval elapses, or magpie starts while a run is overdue.
   - **Steps:** The worker checks that no run is in progress, reads the cookies from the secret store, runs the full sync, and records each stage's outcome.
   - **Outcome:** The status panel shows the finished run and the next scheduled time.
   - **Covered by:** R1, R2, R3, R4, R5, R17
@@ -142,7 +142,7 @@ stateDiagram-v2
 
 ### Acceptance Examples
 
-- AE1. **Covers R3.** Given the last run finished 5 hours ago and the machine was asleep, when x-corpus starts, a sync starts right away instead of waiting for the next 3-hour mark.
+- AE1. **Covers R3.** Given the last run finished 5 hours ago and the machine was asleep, when magpie starts, a sync starts right away instead of waiting for the next 3-hour mark.
 - AE2. **Covers R4, R18.** Given a scheduled run is in progress, when the owner clicks Sync now, no second run starts and the control shows the current run.
 - AE3. **Covers R4.** Given a scheduled run is in progress, when the owner runs the CLI sync command, the command reports that a run is already in progress and exits without syncing.
 - AE4. **Covers R10.** Given the owner pastes an expired `auth_token`, when they submit Connect X, nothing is stored and the screen says X rejected the cookies.
@@ -161,14 +161,14 @@ stateDiagram-v2
 
 **Deferred for later**
 
-- Server mode: deploying x-corpus to a web server, with storage and a sign-in in front of it.
+- Server mode: deploying magpie to a web server, with storage and a sign-in in front of it.
 - Better Auth with X sign-in.
 - A browser extension that reads X cookies in one click and refreshes them automatically.
 - A data-center IP risk disclosure and opt-in for hosted syncing.
 - Multiple users per install, with per-user credentials, Birdclaw roots, and corpora. The store keeps no owner column (YAGNI under local-only).
 - Windows support.
 - Changing the cadence from the UI.
-- A Claude skill that queries a remote x-corpus server.
+- A Claude skill that queries a remote magpie server.
 - The official X API (xurl) as a second transport.
 
 **Outside this product's identity**
@@ -197,7 +197,7 @@ stateDiagram-v2
 
 - `packages/engine/bin/birdclaw-nightly.sh`: the current sync steps, hardcoded root, `bird.env` loading, and `sync-status.json` write.
 - `packages/engine/launchd/com.ianpoley.birdclaw-nightly.plist`: schedule at 00, 03, 06, 09, 12, 15, 18 and 21:00, with RunAtLoad false.
-- `packages/engine/src/config.ts`: `X_CORPUS_*` overrides, the secrets path, and the Claude CLI path.
+- `packages/engine/src/config.ts`: `MAGPIE_*` overrides, the secrets path, and the Claude CLI path.
 - `packages/engine/src/lock.ts` and `packages/engine/bin/categorize.mjs`: the pid lock, currently held only by categorize.
 - `packages/engine/src/store/schema.ts`: the `runs` and `run_stages` tables. `apps/web/src/components/sync-status.tsx` and `apps/web/src/lib/read-snapshot.ts` read them.
 - `apps/web/src/proxy.ts`: the loopback host guard.
@@ -216,13 +216,13 @@ stateDiagram-v2
 ### Key Technical Decisions
 
 - KTD1. **On macOS, all secret reads and writes go through `/usr/bin/security`, and writes are sent on stdin to `security -i`.** A keychain item's access list trusts the binary that created it. `/usr/bin/security` has a stable Apple signature, while Homebrew's `node` has only a per-build hash that changes on every upgrade and would bring back the prompt. The `-A` (allow any app) flag is never used. A native binding (`@napi-rs/keyring` 2.1.2) was rejected because the accessing binary would be `node`, and on Linux it silently falls back to an in-memory store unless that is pinned. `keytar` is archived. Governs R11.
-- KTD2. **On Linux, use `secret-tool` (libsecret), with the secret on stdin. The backend is chosen once, at the first write, by a write/read/delete probe with a hard timeout.** The chosen backend (`keychain` or `file`) is recorded in a non-secret file in `~/.config/x-corpus/`. Every later reader and writer uses the recorded backend, and a later write that fails returns the same typed `locked` or `unavailable` result as a read, instead of probing again. Changing backends is never automatic: the owner runs `service uninstall --purge-secrets` and connects again. Disconnect and purge delete from both backends. A later read failure is reported as "secret store locked or unavailable" and never falls back to the file, so the web and worker processes cannot end up on different stores and plaintext is never written silently. The file fallback is `~/.config/x-corpus/secrets.env`, mode `0600`, owner-only. Until a backend is recorded (the owner's Mac before `migrate`), a read of `typesafe-api-key` falls back to `TYPESAFE_API_KEY` in the environment and then to a read-only parse of the existing `secrets.env`, exactly as today. That keeps the legacy job tagging posts until migration. Every other secret reads as not set. Governs R11, R12, R15.
-- KTD3. **The X cookie pair is stored as one secret item (`x-session`, a JSON object holding `authToken` and `ct0`), and the Jev key as a second item (`typesafe-api-key`). Both are under the keychain service name `x-corpus`.** A single item means a reader can never see a mismatched pair partway through a reconnect. Pasted values must match a strict character allowlist (letters, digits, `%._-`) and length bounds before any I/O. This keeps them safe on `security -i`'s line-oriented stdin: the JSON value is single-quoted on the `security -i` line, which tokenizes it as one argument (checked read-only on this Mac), and the allowlist means a value can never contain a single quote. Governs R10, R13, R15.
-- KTD4. **Two user-level services, `x-corpus-web` and `x-corpus-worker`, each run `node` directly as program argument 0, using the absolute node path captured at install.** On macOS these are LaunchAgents managed with `launchctl bootstrap gui/$UID`, `bootout` and `kickstart`, with `KeepAlive` set to restart on failure. On Linux they are `systemd --user` units with `Restart=on-failure` and `WantedBy=default.target`. Both units get an explicit `PATH` that starts with the captured node's directory and includes `~/.local/bin` for the Claude CLI. The web service runs `next start -H 127.0.0.1` on port 3030 (overridable with `X_CORPUS_PORT`), so it never collides with `next dev` on 3000. Running node directly rather than through a bash wrapper avoids the reported LaunchAgent keychain hang. (session-settled: user-approved — chosen over the Next.js server process hosting the scheduler: hot reloads and a production-build requirement make it fragile.) Governs R8, R9.
+- KTD2. **On Linux, use `secret-tool` (libsecret), with the secret on stdin. The backend is chosen once, at the first write, by a write/read/delete probe with a hard timeout.** The chosen backend (`keychain` or `file`) is recorded in a non-secret file in `~/.config/magpie/`. Every later reader and writer uses the recorded backend, and a later write that fails returns the same typed `locked` or `unavailable` result as a read, instead of probing again. Changing backends is never automatic: the owner runs `service uninstall --purge-secrets` and connects again. Disconnect and purge delete from both backends. A later read failure is reported as "secret store locked or unavailable" and never falls back to the file, so the web and worker processes cannot end up on different stores and plaintext is never written silently. The file fallback is `~/.config/magpie/secrets.env`, mode `0600`, owner-only. Until a backend is recorded (the owner's Mac before `migrate`), a read of `typesafe-api-key` falls back to `TYPESAFE_API_KEY` in the environment and then to a read-only parse of the existing `secrets.env`, exactly as today. That keeps the legacy job tagging posts until migration. Every other secret reads as not set. Governs R11, R12, R15.
+- KTD3. **The X cookie pair is stored as one secret item (`x-session`, a JSON object holding `authToken` and `ct0`), and the Jev key as a second item (`typesafe-api-key`). Both are under the keychain service name `magpie`.** A single item means a reader can never see a mismatched pair partway through a reconnect. Pasted values must match a strict character allowlist (letters, digits, `%._-`) and length bounds before any I/O. This keeps them safe on `security -i`'s line-oriented stdin: the JSON value is single-quoted on the `security -i` line, which tokenizes it as one argument (checked read-only on this Mac), and the allowlist means a value can never contain a single quote. Governs R10, R13, R15.
+- KTD4. **Two user-level services, `magpie-web` and `magpie-worker`, each run `node` directly as program argument 0, using the absolute node path captured at install.** On macOS these are LaunchAgents managed with `launchctl bootstrap gui/$UID`, `bootout` and `kickstart`, with `KeepAlive` set to restart on failure. On Linux they are `systemd --user` units with `Restart=on-failure` and `WantedBy=default.target`. Both units get an explicit `PATH` that starts with the captured node's directory and includes `~/.local/bin` for the Claude CLI. The web service runs `next start -H 127.0.0.1` on port 3030 (overridable with `MAGPIE_PORT`), so it never collides with `next dev` on 3000. Running node directly rather than through a bash wrapper avoids the reported LaunchAgent keychain hang. (session-settled: user-approved — chosen over the Next.js server process hosting the scheduler: hot reloads and a production-build requirement make it fragile.) Governs R8, R9.
 - KTD5. **Birdclaw and bird are spawned with an explicit `env` object holding `AUTH_TOKEN`, `CT0`, `BIRDCLAW_BIRD_COMMAND`, `PATH` and `HOME`, never argv. They are never spawned unless both cookies are present.** Without both cookies, bird falls back to reading browser cookies through the Keychain (`@steipete/bird` `dist/lib/cookies.js`). That is exactly the prompt R11 exists to avoid. Nothing else in the run (categorize, the Claude CLI) inherits the cookies. Error text taken from child output is cleaned of anything matching either cookie value and capped before it is stored or logged. Governs R13.
 - KTD6. **The repo pins Node `>=25.8.1 <27` (an `engines` field plus `.node-version` set to 26), and exact-pins `birdclaw@0.9.5` and `@steipete/bird@0.8.0` as engine dependencies.** Both are published on npm and both are MIT. Birdclaw declares that Node range, and one runtime is simpler than shipping a second Node for it. Setup fails with a message naming the range when the running Node is outside it (R21). `BIRDCLAW_BIRD_COMMAND` points at the pinned bird, which replaces the script's nvm search. `BIRDCLAW_HOME` keeps its default `~/.birdclaw` so the migration keeps the existing Birdclaw database (R26). Governs R20, R21.
 - KTD7. **Backfill state is per collection and lives outside the store, in the scheduler state file.** The first sync of a collection runs `birdclaw sync <collection> --mode bird --all --refresh`, and later syncs keep today's `--early-stop --max-pages 50`. Migration marks both collections as already backfilled. A backfill call gets its own timeout of 6 hours, separate from the preflight and incremental timeouts. Birdclaw's bird mode keeps nothing from a failed `--all` child, so after a failed backfill the collection retries it at most once per 24 hours and runs the incremental sync on the runs in between. Governs R7.
-- KTD8. **The web app and the worker talk only through files.** The worker writes `state/worker.json` (heartbeat, idle or running, next run, last attempt) atomically. Sync now creates `state/sync-request` with a timestamp. The connection record, `~/.config/x-corpus/x-connection.json`, is shared and non-secret: handle, `connectedAt` (the connection generation), and any auth rejection tagged with the generation it applied to. A loopback socket or HTTP control port was rejected because it adds a second listener and auth surface for no gain at a 30-second tick. Whether a run is in progress comes only from a live owner pid in `state/run.lock`, so CLI runs show too. Governs R17, R18.
+- KTD8. **The web app and the worker talk only through files.** The worker writes `state/worker.json` (heartbeat, idle or running, next run, last attempt) atomically. Sync now creates `state/sync-request` with a timestamp. The connection record, `~/.config/magpie/x-connection.json`, is shared and non-secret: handle, `connectedAt` (the connection generation), and any auth rejection tagged with the generation it applied to. A loopback socket or HTTP control port was rejected because it adds a second listener and auth surface for no gain at a 30-second tick. Whether a run is in progress comes only from a live owner pid in `state/run.lock`, so CLI runs show too. Governs R17, R18.
 - KTD9. **Auth handling.**
   - Every run starts with a `bird whoami` preflight stage (`x_auth`).
   - A failure whose text or code shows a network problem (`ENOTFOUND`, `EAI_AGAIN`, `ECONNRESET`, `ETIMEDOUT`, `fetch failed`, `HTTP 429`, `HTTP 5xx`, a child timeout) is transient: the stage fails and the KTD10 backoff applies.
@@ -234,11 +234,11 @@ stateDiagram-v2
   - Connect X uses the same check. A rejection stores nothing and returns `x_rejected`. An ambiguous whoami failure with a passing probe stores the cookies and shows "Connected", and the handle fills in at the next successful whoami.
 
   Governs R10, R16.
-- KTD10. **The scheduler is a pure decision function over persisted state (last scheduled run, consecutive failures, backoff, pending request, connection) and the current time. A 30-second tick calls it.** Timers stop while the machine sleeps, so a wall-clock comparison catches up on wake (R3). A failed or transient attempt schedules a retry 1, 5, then 15 minutes later, then returns to the normal interval, so X and the keychain are never hit every tick. The interval comes from `SYNC_INTERVAL_HOURS` in `~/.config/x-corpus/settings.env` (default 3), read on each tick. Governs R2, R3.
+- KTD10. **The scheduler is a pure decision function over persisted state (last scheduled run, consecutive failures, backoff, pending request, connection) and the current time. A 30-second tick calls it.** Timers stop while the machine sleeps, so a wall-clock comparison catches up on wake (R3). A failed or transient attempt schedules a retry 1, 5, then 15 minutes later, then returns to the normal interval, so X and the keychain are never hit every tick. The interval comes from `SYNC_INTERVAL_HOURS` in `~/.config/magpie/settings.env` (default 3), read on each tick. Governs R2, R3.
 - KTD11. **One whole-run lock, `state/run.lock`, is taken by the run orchestrator and by the standalone categorize CLI.** `runPipeline` no longer takes a lock, no longer sweeps interrupted runs, and no longer reads `data/sync-status.json`. It accepts an already-open run row and an upstream result. The orchestrator owns the sweep. The lock file records the owner pid plus the boot identity (`sysctl -n kern.boottime` on macOS, `/proc/sys/kernel/random/boot_id` on Linux). A lock from a different boot, or one holding this process's own pid, is stale whether or not that pid is alive, because a pid reused after a reboot must not lock the worker out or show a phantom "Syncing now". The web's in-progress check (KTD8) applies the same rule. The standalone categorize CLI keeps reading `data/sync-status.json` for `upstream_sync` when that file exists, which the legacy script still writes, and records `unknown` only when it is absent. Governs R4, R5.
 - KTD12. **The run row starts when the whole run starts.** New stage names come first, `x_auth`, `x_bookmarks`, `x_likes`, `export`, `markdown`, followed by the existing categorize stages. `upstream_sync` is derived from the two X stages. Stage names are free text in `run_stages`, so no schema migration is needed and the skill's `KNOWN_SCHEMA_VERSION` stays as it is (R24). The markdown step keeps spawning `bin/build-markdown.mjs`, not refactoring it, because its output is the skill's JSONL contract. Governs R1, R5, R24.
 - KTD13. **Migration proves the new path under the real service before deleting anything.** The order is: verify the cookies from `bird.env` with the KTD9 check, import secrets, write the connection record (handle and a new generation), `bootout` the old LaunchAgent (its plist stays), install both services, request a sync, and wait (with a timeout) for a completed run whose X stages are `ok`. Only then delete the plaintext files, `data/sync-status.json` and the old plist. A rejected or unreachable check stops the migration before anything is written. Any failure uninstalls the new services, deletes the backend record and the connection record (so the legacy Jev read from KTD2 applies again), and bootstraps the old job again. The old label is read from an argument whose default is the owner's legacy label, so it lives only in the migration's legacy constant. Migrating onto the file fallback is refused with an explanation, because it would only swap one plaintext file for another. (session-settled: user-approved — chosen over deleting `bird.env` first and then cutting over: a partial failure would leave no working credentials.) Governs R25, R26.
-- KTD14. **One CLI, `packages/engine/bin/x-corpus.mjs`, with subcommands `setup`, `service install|uninstall|status`, `secrets set-jev`, `sync`, and `migrate`. Root `package.json` scripts wrap them.** `service install` also serves as the update path: it stops the web service, runs `next build`, rewrites both unit files, and restarts both. `service uninstall` removes the units and keeps the secrets and data unless `--purge-secrets` is passed. `secrets set-jev` reads the key from stdin with echo off, so a fresh clone can add a Jev key without editing files. Governs R6, R8, R15, R20.
+- KTD14. **One CLI, `packages/engine/bin/magpie.mjs`, with subcommands `setup`, `service install|uninstall|status`, `secrets set-jev`, `sync`, and `migrate`. Root `package.json` scripts wrap them.** `service install` also serves as the update path: it stops the web service, runs `next build`, rewrites both unit files, and restarts both. `service uninstall` removes the units and keeps the secrets and data unless `--purge-secrets` is passed. `secrets set-jev` reads the key from stdin with echo off, so a fresh clone can add a Jev key without editing files. Governs R6, R8, R15, R20.
 
 ### High-Level Technical Design
 
@@ -247,10 +247,10 @@ Processes and the files they share:
 ```mermaid
 flowchart TB
   subgraph Services[User-level services, captured node path]
-    WEB[x-corpus-web: next start 127.0.0.1:3030]
-    WRK[x-corpus-worker: tick every 30s]
+    WEB[magpie-web: next start 127.0.0.1:3030]
+    WRK[magpie-worker: tick every 30s]
   end
-  CLI[x-corpus CLI: sync, migrate, service, secrets]
+  CLI[magpie CLI: sync, migrate, service, secrets]
   WEB -->|create| REQ[state/sync-request]
   WRK -->|consume when idle| REQ
   WRK -->|write| WJ[state/worker.json]
@@ -258,7 +258,7 @@ flowchart TB
   WRK -->|hold during run| LOCK[state/run.lock]
   CLI -->|hold during run| LOCK
   WEB -->|read owner pid| LOCK
-  WEB -->|Connect X: write generation| CONN[~/.config/x-corpus/x-connection.json]
+  WEB -->|Connect X: write generation| CONN[~/.config/magpie/x-connection.json]
   WRK -->|record rejection for generation| CONN
   WEB -->|write after probe| SEC[(Secret store: security / secret-tool / 0600 file)]
   WRK -->|read via recorded backend| SEC
@@ -331,7 +331,7 @@ flowchart TB
 - A sync request older than 10 minutes is dropped, so a click in dev doesn't fire days later.
 - Sync now when X is not connected says to connect X first.
 - While a run is in progress or a sync request is pending, the status panel polls a small loopback status route every 5 seconds, then stops. It also fetches the status once on window focus and once when the displayed next-run time passes, and starts polling if that shows a run. Nothing else polls.
-- Secrets and the connection record are per user (`~/.config/x-corpus`, keychain service `x-corpus`). Data and state are per clone, so connecting X from a worktree dev server replaces the cookies the service uses. The README documents this.
+- Secrets and the connection record are per user (`~/.config/magpie`, keychain service `magpie`). Data and state are per clone, so connecting X from a worktree dev server replaces the cookies the service uses. The README documents this.
 - After `git pull`, the owner reruns `bun run service:install` to rebuild and restart. A Node upgrade that removes the captured node path stops the services until that rerun, and `service status` reports it.
 
 ### Risks & Dependencies
@@ -365,7 +365,7 @@ flowchart TB
 #### Deferred to Follow-Up Work
 
 - Remove `packages/engine/bin/birdclaw-nightly.sh`, `packages/engine/launchd/com.ianpoley.birdclaw-nightly.plist`, and the legacy-label default in the migration once the owner has migrated. Until then they are the AE7 fallback.
-- Add the `@typescript-eslint/no-restricted-imports` rule for `@x-corpus/engine` that `docs/solutions/build-errors/turbopack-static-import-of-engine-workspace-package.md` recommends.
+- Add the `@typescript-eslint/no-restricted-imports` rule for `@magpie/engine` that `docs/solutions/build-errors/turbopack-static-import-of-engine-workspace-package.md` recommends.
 
 #### Considered and not built
 
@@ -382,7 +382,7 @@ flowchart TB
 
 ### U1. Secret store
 
-- **Goal:** One engine module stores, reads and deletes the x-corpus secrets on macOS, on Linux, and in the file fallback, without a prompt under a background service.
+- **Goal:** One engine module stores, reads and deletes the magpie secrets on macOS, on Linux, and in the file fallback, without a prompt under a background service.
 - **Requirements:** R11, R12, R13, R14, R15; KTD1, KTD2, KTD3.
 - **Dependencies:** None.
 - **Files:**
@@ -392,7 +392,7 @@ flowchart TB
   - `packages/engine/src/jev/client.ts` (the key read becomes async through the store)
   - `packages/engine/bin/categorize.mjs`
   - `apps/web/src/app/api/ask/route.ts` (await the async client)
-  - `packages/engine/src/config.ts` (config dir, settings, backend-record and connection-record paths, with `X_CORPUS_CONFIG_DIR` override, plus `X_CORPUS_KEYCHAIN_SERVICE` (default `x-corpus`) and a test-only `X_CORPUS_SECRET_BACKEND=file` that forces the file backend)
+  - `packages/engine/src/config.ts` (config dir, settings, backend-record and connection-record paths, with `MAGPIE_CONFIG_DIR` override, plus `MAGPIE_KEYCHAIN_SERVICE` (default `magpie`) and a test-only `MAGPIE_SECRET_BACKEND=file` that forces the file backend)
   - `packages/engine/test/secret-store.test.ts` (new)
 - **Approach:**
   1. Live check first. Write an `x-session`-shaped JSON value such as `{"authToken":"abc%2E_-","ct0":"def"}` through the new backend's own `set`, under a throwaway service name. Then have a throwaway LaunchAgent with a test label run `node` directly and read it back through `get`, requiring an exact match. Run the read once right after load and once after a `kickstart`. Record the result in the PR, then remove the item and the agent. If it prompts, hangs or mismatches, stop (Goal Capsule).
@@ -426,7 +426,7 @@ flowchart TB
   - `packages/engine/package.json` (exact `birdclaw` and `@steipete/bird` dependencies)
   - `bun.lock`
   - `packages/engine/src/x/birdclaw.ts` (new: `whoami`, `sync(collection, mode)`, `export(collection, outFile)`, failure classification)
-  - `packages/engine/src/config.ts` (paths for markdown, logs and Birdclaw home, plus `X_CORPUS_BIRD_BIN` and `X_CORPUS_BIRDCLAW_BIN` overrides that replace the resolved pinned bins, used by every verification run)
+  - `packages/engine/src/config.ts` (paths for markdown, logs and Birdclaw home, plus `MAGPIE_BIRD_BIN` and `MAGPIE_BIRDCLAW_BIN` overrides that replace the resolved pinned bins, used by every verification run)
   - `packages/engine/test/birdclaw.test.ts` (new)
 - **Approach:**
   1. Resolve both packages' bin entry files from the engine package. Run them with the captured `process.execPath` and set `BIRDCLAW_BIRD_COMMAND` to the pinned bird.
@@ -526,7 +526,7 @@ flowchart TB
   - `packages/engine/src/service/launchd.ts` (new: render the plist and run the `launchctl` commands)
   - `packages/engine/src/service/systemd.ts` (new: render the units and run the `systemctl --user` commands)
   - `packages/engine/src/service/index.ts` (new: platform selection, install/uninstall/status, build step)
-  - `packages/engine/bin/x-corpus.mjs` (new)
+  - `packages/engine/bin/magpie.mjs` (new)
   - `package.json` (scripts `setup`, `service:install`, `service:uninstall`, `service:status`, `secrets:set-jev`, `migrate`)
   - `packages/engine/test/service.test.ts` (new)
 - **Approach:**
@@ -534,12 +534,12 @@ flowchart TB
   2. Command runners are injected, so tests never touch real launchd or systemd.
   3. Install runs `setup` checks, stops the web service, runs `next build`, writes the units, and starts or kickstarts both.
   4. `setup` checks the environment: Node range, pinned Birdclaw and bird resolvable, the Claude CLI found (optional), and secret store usability. Secret store usability is probed under a throwaway service name and records no backend. `service status` reports units loaded, worker heartbeat age, the recorded secret backend, and whether the captured node path still exists and is in range.
-  5. Labels and unit names are `x-corpus-web` and `x-corpus-worker`, with no owner identifiers (R22).
+  5. Labels and unit names are `magpie-web` and `magpie-worker`, with no owner identifiers (R22).
 - **Execution note:** This is mostly packaging. Prefer rendered-output tests plus one `setup` run on this machine over a real install, which the Goal Capsule forbids.
 - **Test scenarios:**
   - On darwin, two plists are rendered, each with program argument 0 equal to the captured node path, an explicit `PATH` starting with its directory and containing `~/.local/bin`, `KeepAlive` on failure, and log paths under `logs/`. Neither plist contains a secret or "ianpoley".
   - On linux, two units are rendered with `Type=exec`, `Restart=on-failure`, a nonzero `RestartSec`, `WantedBy=default.target`, and the same node path and `PATH`.
-  - The web unit runs `next start -H 127.0.0.1 -p 3030`, and `X_CORPUS_PORT=4000` changes it.
+  - The web unit runs `next start -H 127.0.0.1 -p 3030`, and `MAGPIE_PORT=4000` changes it.
   - Install with fake runners calls stop, build, write, bootstrap and kickstart in that order. A failed build leaves the old units in place.
   - Uninstall removes both units and keeps secrets, and `--purge-secrets` also deletes them.
   - `setup` on Node 24.17 exits nonzero with a message naming `>=25.8.1 <27`.
@@ -600,7 +600,7 @@ flowchart TB
   - `describe()` returns each panel state from step 5 for its inputs. Needs reconnect plus the fallback warning returns needs reconnect with the warning line. A pending request returns "Sync requested" with the action disabled.
   - `connectX` with an ambiguous whoami failure and a passing bookmark probe stores the pair and returns "Connected" with no handle.
   - A snapshot read while the store file exists but its open fails returns the empty state instead of throwing.
-- **Verification:** The web tests pass and `bun run build` passes. A browser check against `next start` shows Connect X, a rejection message, the next run, Sync now (requested, then running), and the fallback warning. It runs with a temp root and config dir, `X_CORPUS_KEYCHAIN_SERVICE` set to a throwaway name or `X_CORPUS_SECRET_BACKEND=file`, and stub bird and birdclaw bins.
+- **Verification:** The web tests pass and `bun run build` passes. A browser check against `next start` shows Connect X, a rejection message, the next run, Sync now (requested, then running), and the fallback warning. It runs with a temp root and config dir, `MAGPIE_KEYCHAIN_SERVICE` set to a throwaway name or `MAGPIE_SECRET_BACKEND=file`, and stub bird and birdclaw bins.
 
 ### U7. Migration of the existing install
 
@@ -609,7 +609,7 @@ flowchart TB
 - **Dependencies:** U1, U5.
 - **Files:**
   - `packages/engine/src/migrate/legacy.ts` (new)
-  - `packages/engine/bin/x-corpus.mjs` (`migrate` subcommand)
+  - `packages/engine/bin/magpie.mjs` (`migrate` subcommand)
   - `packages/engine/test/migrate.test.ts` (new)
 - **Approach:**
   1. Follow the KTD13 order with injected filesystem, adapter, secret-store, service and launchctl runners. The KTD9 check of the `bird.env` cookies runs before any write. The connection record is written after the secrets and before the services are installed.
@@ -644,7 +644,7 @@ flowchart TB
 - **Approach:**
   1. Remove the owner-specific strings and the `~/x-corpus` assumptions listed in the repo research. The legacy script, plist and the migration's legacy constant are left alone (preservation note).
   2. Add the cookie and ToS paragraph (R23), the per-user secrets note (Assumptions), the update path (`service:install` after pull), and the port. Also add that the service listens on loopback with no sign-in, so it assumes a machine where only the owner has a login: any other local account could open the app, read the corpus, and connect or disconnect X.
-  3. The skill resolves its root from `realpath` of its own file, so the `~/.claude/skills` symlink points back to the clone. `X_CORPUS_DIR` and `X_CORPUS_STORE` keep overriding it.
+  3. The skill resolves its root from `realpath` of its own file, so the `~/.claude/skills` symlink points back to the clone. `MAGPIE_DIR` and `MAGPIE_STORE` keep overriding it.
 - **Test scenarios:**
   - A skill test runs `query.mjs` through a symlink in a temp dir that points at a temp clone and reads that clone's store with no env overrides.
   - A search for `ianpoley` and `/Users/` across runtime code (`packages/*/src`, `packages/*/bin`, `apps/web/src` except `proto/`), service renderers and setup docs (`README.md`, `packages/*/README.md`, `packages/engine/SETUP.md`, `packages/skill/SKILL.md`) finds nothing beyond the legacy script, the legacy plist and the migration's legacy constant (Verification Contract).
@@ -662,7 +662,7 @@ flowchart TB
 | Production build | `bun run build` on Node 26 | U2, U6 |
 | Live keychain check | Throwaway LaunchAgent reads a throwaway `security` item with no prompt, then both are removed | U1 |
 | Setup | `bun run setup` reports Node range, pinned tools, Claude CLI and secret store accurately | U5 |
-| Browser check | `next start` on a spare port, with a temp `X_CORPUS_ROOT` and `X_CORPUS_CONFIG_DIR`, a throwaway `X_CORPUS_KEYCHAIN_SERVICE` or `X_CORPUS_SECRET_BACKEND=file`, and stub `X_CORPUS_BIRD_BIN` and `X_CORPUS_BIRDCLAW_BIN`. Check Connect X, rejection, next run, Sync now, and the fallback warning | U6 |
+| Browser check | `next start` on a spare port, with a temp `MAGPIE_ROOT` and `MAGPIE_CONFIG_DIR`, a throwaway `MAGPIE_KEYCHAIN_SERVICE` or `MAGPIE_SECRET_BACKEND=file`, and stub `MAGPIE_BIRD_BIN` and `MAGPIE_BIRDCLAW_BIN`. Check Connect X, rejection, next run, Sync now, and the fallback warning | U6 |
 | Owner-string search | `git grep -n -e ianpoley -e '/Users/'` limited to runtime code, service renderers and setup docs as U8 lists, excluding the legacy script and plist and the migration's legacy constant: no hits. Plans, solutions docs and tests that assert on these strings are out of scope | U8 |
 
 All verification uses temp roots, temp config dirs and throwaway keychain items. Nothing touches the owner's real secrets, real LaunchAgents or real store.

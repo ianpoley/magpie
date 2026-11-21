@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
+import type { Runner, ServiceManager, ServiceSpec, UnitName } from './manager.ts';
 import { must } from './manager.ts';
 
 const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -54,10 +54,10 @@ export function renderPlist(spec: ServiceSpec): string {
 export function launchd(options: { home: string; uid: number; run: Runner }): ServiceManager {
   const { home, uid, run } = options;
   const domain = `gui/${uid}`;
-  const target = (name: ServiceName) => `${domain}/${name}`;
-  const unitPath = (name: ServiceName) => join(home, 'Library', 'LaunchAgents', `${name}.plist`);
-  const print = (name: ServiceName) => run('launchctl', ['print', target(name)]);
-  const bootout = async (name: ServiceName) => {
+  const target = (name: UnitName) => `${domain}/${name}`;
+  const unitPath = (name: UnitName) => join(home, 'Library', 'LaunchAgents', `${name}.plist`);
+  const print = (name: UnitName) => run('launchctl', ['print', target(name)]);
+  const bootout = async (name: UnitName) => {
     if ((await print(name)).code === 0) await must(run, 'launchctl', ['bootout', target(name)]);
   };
 
@@ -69,7 +69,7 @@ export function launchd(options: { home: string; uid: number; run: Runner }): Se
       return args ? unescape(args[1]) : null;
     },
     dataRootOf(text) {
-      const root = /<key>X_CORPUS_ROOT<\/key>\s*<string>([^<]*)<\/string>/.exec(text);
+      const root = /<key>(?:MAGPIE|X_CORPUS)_ROOT<\/key>\s*<string>([^<]*)<\/string>/.exec(text);
       return root ? unescape(root[1]) : null;
     },
     stop: bootout,

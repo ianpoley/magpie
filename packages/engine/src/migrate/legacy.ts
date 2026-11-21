@@ -21,7 +21,7 @@ import type { XAdapter } from '../x/birdclaw.ts';
 /**
  * Moves an install that syncs through the old nightly LaunchAgent, with its
  * cookies in ~/.birdclaw/bird.env and its Jev key in
- * ~/.config/x-corpus/secrets.env, onto the OS secret store and the two
+ * ~/.config/magpie/secrets.env, onto the OS secret store and the two
  * background services. The new setup has to finish one good sync before
  * anything of the old one is deleted, and any failure puts the old one back.
  */
@@ -252,8 +252,8 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
     if (did.services) {
       await step(
         uninstall,
-        'The x-corpus web and worker services are removed.',
-        (message) => `The x-corpus services could NOT be removed (${message}). Remove them with: bun run service:uninstall`,
+        'The magpie web and worker services are removed.',
+        (message) => `The magpie services could NOT be removed (${message}). Remove them with: bun run service:uninstall`,
       );
     }
     if (did.secrets) {

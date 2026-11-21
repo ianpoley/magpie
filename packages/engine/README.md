@@ -1,4 +1,4 @@
-# @x-corpus/engine: sync, export, categorize, services
+# @magpie/engine: sync, export, categorize, services
 
 Keeps a local, self-updating archive of your X bookmarks and likes. Setup steps are in the repo `README.md` and `SETUP.md`.
 
@@ -6,13 +6,13 @@ Keeps a local, self-updating archive of your X bookmarks and likes. Setup steps 
 
 Two user-level background services run the system:
 
-- `x-corpus-worker` wakes on a schedule (every `SYNC_INTERVAL_HOURS`, default 3, in `~/.config/x-corpus/settings.env`) and runs one whole sync. It also picks up sync requests from the web app's Sync now and Connect X.
-- `x-corpus-web` serves the web app on http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides).
+- `magpie-worker` wakes on a schedule (every `SYNC_INTERVAL_HOURS`, default 3, in `~/.config/magpie/settings.env`) and runs one whole sync. It also picks up sync requests from the web app's Sync now and Connect X.
+- `magpie-web` serves the web app on http://127.0.0.1:3030 (`MAGPIE_PORT` overrides).
 
 ## Files
 
 ```
-bin/x-corpus.mjs          # the CLI: setup, service install|uninstall|status, secrets set-jev, sync, migrate
+bin/magpie.mjs          # the CLI: setup, service install|uninstall|status, secrets set-jev, sync, migrate
 bin/sync.mjs              # one whole sync under the run lock: X check, bookmarks + likes, export JSON, build markdown/jsonl, categorize
 bin/worker.mjs            # the scheduler process the worker service runs
 bin/build-markdown.mjs    # birdclaw JSON -> per-post .md + index.md + normalized .jsonl
@@ -40,7 +40,7 @@ Thresholds and limits live in `src/config.ts`. All Jev question wording lives in
 
 **Credentials**
 
-- X cookies and the Jev key are in the OS secret store (macOS Keychain, Linux Secret Service), service `x-corpus`. Connect X in the web app; store the Jev key with `bun run secrets:set-jev`. When no secret store is available they fall back to an owner-only `~/.config/x-corpus/secrets.env`, and the app warns.
+- X cookies and the Jev key are in the OS secret store (macOS Keychain, Linux Secret Service), service `magpie`. Connect X in the web app; store the Jev key with `bun run secrets:set-jev`. When no secret store is available they fall back to an owner-only `~/.config/magpie/secrets.env`, and the app warns.
 - Claude: the Claude Code CLI, using your existing login. The services' PATH includes `~/.local/bin`. It runs with no built-in tools, no MCP servers, and no slash commands, and its output is accepted only when it matches a JSON schema. If the CLI is missing or fails, category upkeep is skipped for that run and tagging still completes.
 
 **Run by hand**

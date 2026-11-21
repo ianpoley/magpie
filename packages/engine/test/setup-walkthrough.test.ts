@@ -154,7 +154,7 @@ test('--yes stops at services that belong to another clone and at an existing sk
   const result = await walkthrough(m.deps);
   assert.deepEqual(m.did, []);
   assert.ok(result.done.includes('Left the services on /other-clone.'));
-  assert.ok(result.done.includes('Left the existing x-corpus skill as it is.'));
+  assert.ok(result.done.includes('Left the existing magpie skill as it is.'));
 });
 
 test('at a terminal, services for another clone are moved here only on an explicit yes, which defaults to no', async () => {
@@ -207,4 +207,17 @@ test('a failed install is reported and does not offer to connect X', async () =>
   assert.ok(result.todo.some((line) => line.includes('the web app build failed')));
   assert.ok(result.todo.some((line) => line.includes('Connect X once the web app runs')));
   assert.ok(!m.asked.some((question) => question.includes('Open the web app')));
+});
+
+test('an install still under the x-corpus names is renamed only when asked at a terminal; --yes leaves it and says how', async () => {
+  const legacy = { installed: false, running: false, dataRoot: '/clone', legacy: true };
+  const atTerminal = machine({ services: legacy, connected: true, jev: true, skill: 'linked' });
+  await walkthrough(atTerminal.deps);
+  assert.deepEqual(atTerminal.asked, ['Rename and reinstall now?']);
+  assert.deepEqual(atTerminal.did, ['install']);
+
+  const agent = machine({ interactive: false, yes: true, services: legacy, connected: true, jev: true, skill: 'linked' });
+  const result = await walkthrough(agent.deps);
+  assert.deepEqual(agent.did, []);
+  assert.ok(result.todo.includes('Rename the install from x-corpus to magpie: bun run service:install'));
 });

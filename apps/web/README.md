@@ -1,8 +1,8 @@
-# x-corpus web
+# magpie web
 
 The corpus screen: every post you bookmarked or liked on X, in one list you can filter by category, collection, author, keyword, time range, and media.
 
-It reads the local store the sync worker writes (`state/corpus.sqlite`, or the file `X_CORPUS_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
+It reads the local store the sync worker writes (`state/corpus.sqlite`, or the file `MAGPIE_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
 
 ## Run it
 
@@ -15,7 +15,7 @@ bun run dev        # http://127.0.0.1:3000
 
 `bun run dev -- -p 3001` picks another port. `bun run build` then `bun run start` serves the production build.
 
-For day-to-day use, `bun run service:install` runs the production build as the `x-corpus-web` background service on http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides), next to the `x-corpus-worker` that syncs. Setup, update and migration steps are in the repo `README.md`. The service has no sign-in and listens on loopback only, so it assumes a machine where only you have a login. Secrets and the X connection are per user while data is per clone: connecting X from a dev server in another clone replaces the cookies the service uses. A dev server in a linked git worktree serves the main checkout's corpus, so its edits change your real store.
+For day-to-day use, `bun run service:install` runs the production build as the `magpie-web` background service on http://127.0.0.1:3030 (`MAGPIE_PORT` overrides), next to the `magpie-worker` that syncs. Setup, update and migration steps are in the repo `README.md`. The service has no sign-in and listens on loopback only, so it assumes a machine where only you have a login. Secrets and the X connection are per user while data is per clone: connecting X from a dev server in another clone replaces the cookies the service uses. A dev server in a linked git worktree serves the main checkout's corpus, so its edits change your real store.
 
 The page reads the store on every request and again whenever you return to the window, so a sync that finished in the background shows up without a reload. If the store does not exist yet, the screen says so and stays empty until the first sync.
 
@@ -63,7 +63,7 @@ Filtering runs in the browser over one snapshot of the store, so every control r
 
 - `DESIGN.md` is the design system (Murmur). Use its tokens; add a token in OKLCH with contrast checked before using a new color.
 - `AGENTS.md` covers the framework and component rules: read the bundled Next.js and UI SDK docs before using an API, and build controls from `@ui-sdk/react` wherever a component fits.
-- Engine code is loaded only through `src/lib/engine.ts`. A static import of `@x-corpus/engine` breaks the build.
+- Engine code is loaded only through `src/lib/engine.ts`. A static import of `@magpie/engine` breaks the build.
 
 ## Checks
 
