@@ -1,9 +1,9 @@
 ---
-name: x-corpus
-description: Search the user's own saved X (Twitter) bookmarks and likes — a local, auto-updating corpus of posts they curated as insightful — for ideas, inspiration, techniques, tools, libraries, or prior art relevant to the current work. Use when building or improving a feature and it would help to draw on what the user has already vouched for (e.g. "any bookmarks about animations?", "what have I saved about auth?", "pull inspiration from my likes for this UI"), or proactively when a coding task overlaps a topic the user likely bookmarked. Machine-local; reads the x-corpus clone this skill is linked from. Not for general web research — only the user's saved posts.
+name: magpie
+description: Search the user's own saved X (Twitter) bookmarks and likes — a local, auto-updating corpus of posts they curated as insightful — for ideas, inspiration, techniques, tools, libraries, or prior art relevant to the current work. Use when building or improving a feature and it would help to draw on what the user has already vouched for (e.g. "any bookmarks about animations?", "what have I saved about auth?", "pull inspiration from my likes for this UI"), or proactively when a coding task overlaps a topic the user likely bookmarked. Machine-local; reads the magpie clone this skill is linked from. Not for general web research — only the user's saved posts.
 ---
 
-# x-corpus — the user's saved X bookmarks & likes
+# magpie — the user's saved X bookmarks & likes
 
 The user keeps a local, self-updating archive of everything they've **bookmarked** and **liked** on X (Twitter), refreshed every ~3 hours by a background job. It's a curated signal of what *this user* finds insightful — tools, techniques, design patterns, libraries, references. Tap it to ground new work in things they've already vouched for, instead of generic suggestions.
 
@@ -25,9 +25,9 @@ There are two ways in: **categories** (the posts are sorted into areas and topic
 ### Categories
 
 ```bash
-node ~/.claude/skills/x-corpus/query.mjs categories
-node ~/.claude/skills/x-corpus/query.mjs topic <area or topic name> [--limit N] [--full] [--json]
-node ~/.claude/skills/x-corpus/query.mjs resources <area or topic name> [--limit N] [--json]
+node ~/.claude/skills/magpie/query.mjs categories
+node ~/.claude/skills/magpie/query.mjs topic <area or topic name> [--limit N] [--full] [--json]
+node ~/.claude/skills/magpie/query.mjs resources <area or topic name> [--limit N] [--json]
 ```
 
 - `categories` — every area and its topics, each with a one-line definition, the number of posts confidently in it, and how many more are unsure matches.
@@ -43,8 +43,8 @@ Names are matched whole, ignoring case; a name that is not found prints the clos
 The user hides some areas and topics by default (for example non-dev ones such as politics). Their posts are left out of **every** command, keyword search included, and `categories` does not list them. Add `--include-hidden` only when the user asks for that material explicitly:
 
 ```bash
-node ~/.claude/skills/x-corpus/query.mjs topic politics --include-hidden
-node ~/.claude/skills/x-corpus/query.mjs categories --include-hidden
+node ~/.claude/skills/magpie/query.mjs topic politics --include-hidden
+node ~/.claude/skills/magpie/query.mjs categories --include-hidden
 ```
 
 ### Removed posts
@@ -56,7 +56,7 @@ The user can remove a post from the corpus in the web app. A removed post is lef
 Run the bundled, dependency-free search script:
 
 ```bash
-node ~/.claude/skills/x-corpus/query.mjs <terms...> [flags]
+node ~/.claude/skills/magpie/query.mjs <terms...> [flags]
 ```
 
 Flags:
@@ -72,9 +72,9 @@ Flags:
 
 Examples:
 ```bash
-node ~/.claude/skills/x-corpus/query.mjs animation react --limit 8
-node ~/.claude/skills/x-corpus/query.mjs "state machine" --source bookmarks --json
-node ~/.claude/skills/x-corpus/query.mjs terminal ui --author steipete --full
+node ~/.claude/skills/magpie/query.mjs animation react --limit 8
+node ~/.claude/skills/magpie/query.mjs "state machine" --source bookmarks --json
+node ~/.claude/skills/magpie/query.mjs terminal ui --author steipete --full
 ```
 
 Ranking: posts hitting more of your **distinct** query terms rank first, then by term frequency, then recency. Give 2–4 focused topic keywords; broaden or swap terms if results are thin. Each result shows `@handle`, date, the post URL, and the text.
@@ -85,14 +85,14 @@ Ranking: posts hitting more of your **distinct** query terms rank first, then by
 3. Extract the concrete idea, tool, or technique and fold it into the work. **Cite the `@handle` + URL** so the user can trace where it came from.
 
 ## Where the data lives
-- `<clone>` is the x-corpus checkout this skill is installed from. The skill finds it from its own real path, following the `~/.claude/skills/x-corpus` symlink, so the clone can be anywhere on disk.
+- `<clone>` is the magpie checkout this skill is installed from. The skill finds it from its own real path, following the `~/.claude/skills/magpie` symlink, so the clone can be anywhere on disk.
 - **Search-ready:** `<clone>/data/{bookmarks,likes}.normalized.jsonl` — one `{type,id,handle,name,created,url,text}` record per line. This is what `query.mjs` reads.
 - **Browsable:** `<clone>/markdown/{bookmarks,likes}/` — one `.md` per post (YAML frontmatter + quoted text) plus `index.md`.
 - **Categories:** `<clone>/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts.
-- Set `X_CORPUS_DIR` to override the base data dir. The store is then looked for at `<X_CORPUS_DIR>/../state/corpus.sqlite`; set `X_CORPUS_STORE` to point at it directly.
+- Set `MAGPIE_DIR` to override the base data dir. The store is then looked for at `<MAGPIE_DIR>/../state/corpus.sqlite`; set `MAGPIE_STORE` to point at it directly.
 - The category commands need node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store and no command runs, keyword search included: tell the user to update it.
-- This skill's source is `packages/skill/` in the x-corpus repo, installed as a symlink by `packages/skill/install.sh`.
+- This skill's source is `packages/skill/` in the magpie repo, installed as a symlink by `packages/skill/install.sh`.
 
 Notes:
 - **Bookmarks** are a complete backfill (~1000+). **Likes** may be partial — X rate-limits that endpoint, so the archive fills in over time.
-- Corpus freshness: synced in the background every few hours (default 3) by the x-corpus worker service.
+- Corpus freshness: synced in the background every few hours (default 3) by the magpie worker service.

@@ -28,11 +28,11 @@ execution: code
 
 ### Summary
 
-Build the real corpus screen in `apps/web`, in the shape of the Grove prototype and covering every saved post. Add automatic two-level categories that Claude proposes and grows and that Jev applies to every post. Posts that fit nowhere go to a visible Unfiled pile. Users can also run "ask-anything" topic searches and pin them, and each category gets a Resources view that groups posts by the library, repo, or article they point at. The x-corpus Claude skill gets the same categories and resources.
+Build the real corpus screen in `apps/web`, in the shape of the Grove prototype and covering every saved post. Add automatic two-level categories that Claude proposes and grows and that Jev applies to every post. Posts that fit nowhere go to a visible Unfiled pile. Users can also run "ask-anything" topic searches and pin them, and each category gets a Resources view that groups posts by the library, repo, or article they point at. The magpie Claude skill gets the same categories and resources.
 
 ### Problem Frame
 
-The user bookmarks and likes dev resources on X: evals, UI components, animations, agents, and similar. That gives 2,281 unique posts from 1,364 authors, synced every 3 hours. Finding one later depends on remembering an exact keyword. That works neither by hand nor through the x-corpus skill, whose search only ranks keyword hits. There is also no way to see everything saved on a topic.
+The user bookmarks and likes dev resources on X: evals, UI components, animations, agents, and similar. That gives 2,281 unique posts from 1,364 authors, synced every 3 hours. Finding one later depends on remembering an exact keyword. That works neither by hand nor through the magpie skill, whose search only ranks keyword hits. There is also no way to see everything saved on a topic.
 
 Many posts are a short line plus a `t.co` link, so the meaning lives at the link's destination, and the export doesn't contain it. Folders or manual tags would fix discoverability, but the user doesn't want upkeep. They will stop trusting the system the moment a recent save is missing from the category it plainly belongs to.
 
@@ -109,7 +109,7 @@ Many posts are a short line plus a `t.co` link, so the meaning lives at the link
 
 **Claude skill**
 
-- R26. The x-corpus skill can list areas and topics with counts, return the posts in a category, and return a category's resources. It respects hidden-by-default areas unless asked. It cannot edit categories.
+- R26. The magpie skill can list areas and topics with counts, return the posts in a category, and return a category's resources. It respects hidden-by-default areas unless asked. It cannot edit categories.
 - R27. The skill's existing keyword search keeps working unchanged alongside category queries.
 
 ### Key Flows
@@ -209,7 +209,7 @@ Considered and not built:
 ### Dependencies / Assumptions
 
 - The app runs locally on the user's Mac for a single user; no hosting or auth.
-- The TypeSafe API key lives in `~/.config/x-corpus/secrets.env` as `TYPESAFE_API_KEY`, outside the repo; nothing loads it yet.
+- The TypeSafe API key lives in `~/.config/magpie/secrets.env` as `TYPESAFE_API_KEY`, outside the repo; nothing loads it yet.
 - Unattended Claude access is needed for discovery and evolution. It uses the user's Claude Code login (KTD4).
 - The export doesn't resolve link destinations: of 4,476 URL entities, 4,472 have `expandedUrl` equal to the short `url`, including 2,663 `t.co` links. Birdclaw's `url_expansions` table holds only 3 demo rows. Link resolution (R8, R23) is new work.
 - Jev answers typed judgments only and cannot name categories (TypeSafe docs, model jaggedness page). Post text is untrusted input that can try to steer answers.
@@ -219,7 +219,7 @@ Considered and not built:
 
 Deferred to implementation (none blocks the build):
 
-- Does the headless Claude Code login work from launchd without a prompt? U12 proves it with a scheduled-job run. The fallback is a long-lived token from `claude setup-token` stored in `~/.config/x-corpus/secrets.env`, which needs the user (KTD4).
+- Does the headless Claude Code login work from launchd without a prompt? U12 proves it with a scheduled-job run. The fallback is a long-lived token from `claude setup-token` stored in `~/.config/magpie/secrets.env`, which needs the user (KTD4).
 - What are this TypeSafe organization's rate limits? The docs publish none. U10 measures ask-anything latency and sets chunk size and concurrency from the result (KTD12).
 - Do the starting evolution thresholds in KTD8 produce sensible topics on the real corpus? U12's backfill is the first evidence; the numbers live in one config module.
 
@@ -233,7 +233,7 @@ For the user, after the build (the plan proceeds on the stated default):
 - `apps/web/DESIGN.md`: the Grove decision record and rules, plus the rejected directions.
 - `apps/web/AGENTS.md`: the UI SDK usage rules and Grove token rules.
 - `packages/engine/bin/birdclaw-nightly.sh`, `packages/engine/bin/build-markdown.mjs`: the current sync and export. The normalized record is `{type,id,handle,name,created,url,text}`.
-- `~/.claude/skills/x-corpus/query.mjs` (machine-local, outside the repo): the current keyword-only skill. It reads `X_CORPUS_DIR`, defaulting to `~/x-corpus/data`.
+- `~/.claude/skills/magpie/query.mjs` (machine-local, outside the repo): the current keyword-only skill. It reads `MAGPIE_DIR`, defaulting to `~/x-corpus/data`.
 - TypeSafe docs (https://docs.typesafe.ai/llms.txt):
   - the Noul and Choice primitives;
   - the fan-out pattern and the companion-Noul "none fit" pattern;
@@ -242,7 +242,7 @@ For the user, after the build (the plan proceeds on the stated default):
   - the Twitch chat filter cookbook, the closest multi-label example.
 - Research added during planning:
   - TypeSafe docs, read 2026-11-19: `sdk/javascript`, `primitives/noul`, `patterns/fan-out`, `patterns/companion-noul`, `models`, `api/errors`, `cookbooks/parallel_questions`, `model-jaggedness`. Facts used: one request carries any number of questions within 64k tokens per request and 32k per question; a Noul returns P(yes) directly; most calls finish in about 100 ms; pricing is per input token; the SDK retries 408, 429, and 5xx twice by default with a 10 s timeout; rate limits are per organization and unpublished.
-  - Local runtime, probed 2026-11-19: `/opt/homebrew/bin/node` is v26.5.0 and the nvm node is v24.17.0. Both load `node:sqlite` and run `.ts` files directly. Claude Code 2.1.328 is at `~/.local/bin/claude` and supports `--print`, `--tools ""`, `--json-schema`, and `--output-format json`. `TYPESAFE_API_KEY` is set in `~/.config/x-corpus/secrets.env`; no Anthropic API key exists on the machine.
+  - Local runtime, probed 2026-11-19: `/opt/homebrew/bin/node` is v26.5.0 and the nvm node is v24.17.0. Both load `node:sqlite` and run `.ts` files directly. Claude Code 2.1.328 is at `~/.local/bin/claude` and supports `--print`, `--tools ""`, `--json-schema`, and `--output-format json`. `TYPESAFE_API_KEY` is set in `~/.config/magpie/secrets.env`; no Anthropic API key exists on the machine.
   - Corpus shape, measured 2026-11-19: 2,281 unique posts, 943,721 characters of text, longest post 15,146 characters, 485 with a quoted post, 1,166 with media, 1,626 with at least one URL.
   - Next.js docs shipped in `apps/web/node_modules/next/dist/docs/01-app/01-getting-started/`: `08-caching.md`, `09-revalidating.md`, `07-mutating-data.md`.
   - UI SDK docs shipped in `apps/web/node_modules/@ui-sdk/react/docs/`: `llms.txt`, `server-rendering.md`, and `components/` (tree, segmented-control, dialog, drawer, menu, popover, toggle, switch, input, autocomplete, token-input, avatar, scroll-area, collapsible, tooltip, toast).
@@ -268,9 +268,9 @@ For the user, after the build (the plan proceeds on the stated default):
 - KTD9. **The first discovery pass aims for 6 to 9 areas and 30 to 50 topics, built in two steps.** Claude reads the corpus in batches of about 300 truncated posts and proposes candidate topics per batch; a final call merges the candidates into one two-level list with a one-line definition per topic and a `dev` flag per area. Non-dev areas start hidden (R5, R18). The whole corpus does not fit one call reliably, and the Unfiled loop in KTD8 fills whatever the first pass misses. The first pass is logged as one "Initial categories" entry that cannot be undone as a unit.
 - KTD10. **Links are resolved once and cached.** Each `t.co` link is followed to its final URL with a redirect cap, an 8 s timeout, and at most 8 requests in flight; the page's title and description are read from the first 256 KB of HTML. Links that end on `x.com` or `twitter.com` are recorded as not a resource and not fetched further. A failed link is retried on later syncs, up to 4 attempts with a growing gap, then left as unresolved. A page whose title matches a bot-wall or login pattern is stored as unresolved, so "Just a moment..." never becomes a title. A post is tagged with whatever metadata exists at the time and re-scored once when a link of its resolves later (R8).
 - KTD11. **A resource is identified by a canonical key derived from the final URL.** GitHub URLs reduce to `github:owner/repo`, npm to `npm:package`, YouTube to `youtube:id`, and anything else to host plus path with tracking parameters, fragment, `www.`, and trailing slash removed. A host is aliased to a GitHub repo, so a library's site and its repo group together, only when three things hold: the host is the declared homepage of exactly one repo in the corpus, the homepage path is the root, and the host is not on a shared-host list such as `github.io`, `vercel.com`, `medium.com`, `substack.com`, `youtube.com`, or `npmjs.com`. Every path on an aliased host then maps to the repo (R23, AE9). The homepage lookup uses GitHub's unauthenticated API, is cached, and fills in across syncs when rate-limited.
-- KTD12. **Ask-anything runs on the web server and fans one question out over every post in chunked requests.** Each request carries about 40 questions, one per post, and requests run in parallel. Each question carries the same post content the tagger uses, built by the same module: text, quoted text, and each resolved link's title, description, and host, truncated to the ask limit. Results stream to the screen as chunks return, ranked by probability with the KTD6 bands (R21). The server reads `TYPESAFE_API_KEY` from `~/.config/x-corpus/secrets.env`; the key never reaches the browser. A new query cancels the one in flight. Pinning stores the query as a locked topic together with the scores just computed, and later syncs score new posts against it like any other topic (R22).
+- KTD12. **Ask-anything runs on the web server and fans one question out over every post in chunked requests.** Each request carries about 40 questions, one per post, and requests run in parallel. Each question carries the same post content the tagger uses, built by the same module: text, quoted text, and each resolved link's title, description, and host, truncated to the ask limit. Results stream to the screen as chunks return, ranked by probability with the KTD6 bands (R21). The server reads `TYPESAFE_API_KEY` from `~/.config/magpie/secrets.env`; the key never reaches the browser. A new query cancels the one in flight. Pinning stores the query as a locked topic together with the scores just computed, and later syncs score new posts against it like any other topic (R22).
 - KTD13. **The web app sends the whole visible corpus to the browser once and filters in memory.** 2,281 posts are about 1 MB, and every filter in R19 and R20 then responds without a round trip. The snapshot loader calls `connection()` from `next/server` before opening the store and renders inside a Suspense boundary. `node:sqlite` is synchronous, so without `connection()` the read would be prerendered at build time under `cacheComponents: true` (`08-caching.md`). The web server binds to loopback only: the `dev` and `start` scripts pass `-H 127.0.0.1`, because the app has no auth and its server actions edit the store. Writes go through server actions that update the store and refresh the route. The list renders in pages of about 60 cards. The sync job cannot notify the web server, so the screen refreshes its snapshot when the window regains focus.
-- KTD14. **The skill's source moves into the repo at `packages/skill/` and is installed as a symlink at `~/.claude/skills/x-corpus`.** Today it lives only outside the repo, so changes to it appear in no diff. It stays dependency-free: category commands read the store through `node:sqlite` in read-only mode, and the keyword path keeps reading the normalized JSONL unchanged (R26, R27).
+- KTD14. **The skill's source moves into the repo at `packages/skill/` and is installed as a symlink at `~/.claude/skills/magpie`.** Today it lives only outside the repo, so changes to it appear in no diff. It stays dependency-free: category commands read the store through `node:sqlite` in read-only mode, and the keyword path keeps reading the normalized JSONL unchanged (R26, R27).
 - KTD15. **The live 3-hourly job is not touched until the last unit.** launchd runs `packages/engine/bin/birdclaw-nightly.sh` from this working tree on every branch. New stages live in a separate entry point that the nightly script calls last, behind the script's existing `|| echo WARN` pattern, so a failure in the new stages never blocks the export. A lock file prevents a manual run and a scheduled run from overlapping.
 
 ### High-Level Technical Design
@@ -288,7 +288,7 @@ flowchart TB
   A -->|server actions write| S
   A -->|ask-anything| J
   A --> B[Browser: in-memory filtering]
-  S -->|read-only| K[x-corpus skill]
+  S -->|read-only| K[magpie skill]
   N[data/*.normalized.jsonl] --> K
 ```
 
@@ -504,7 +504,7 @@ state/corpus.sqlite             gitignored
   - `packages/engine/test/tagger.test.ts`, `packages/engine/test/membership.test.ts`
   - `packages/engine/package.json` (adds `@typesafe-ai/sdk`)
 - **Approach:**
-  1. The Jev client is an interface with a real implementation over `@typesafe-ai/sdk` and a fake for tests. `secrets.ts` parses `~/.config/x-corpus/secrets.env` without a shell.
+  1. The Jev client is an interface with a real implementation over `@typesafe-ai/sdk` and a fake for tests. `secrets.ts` parses `~/.config/magpie/secrets.env` without a shell.
   2. The state for a post holds its text, quoted post text, and each resolved link's title, description, and host, under named fields.
   3. The tagger selects post and definition pairs with no score, sends one request per post, and writes scores per request so an interrupted run resumes.
   4. A post is queued for one re-score when a link of its resolves after it was scored.
@@ -723,11 +723,11 @@ state/corpus.sqlite             gitignored
 
 ### U11. Skill categories and resources
 
-- **Goal:** Claude can list categories, read a category's posts, and read its resources through the x-corpus skill.
+- **Goal:** Claude can list categories, read a category's posts, and read its resources through the magpie skill.
 - **Requirements:** R26, R27, AE7; KTD2, KTD7, KTD14.
 - **Dependencies:** U3.
 - **Files:**
-  - `packages/skill/SKILL.md`, `packages/skill/query.mjs` (both copied from `~/.claude/skills/x-corpus/`), `packages/skill/install.sh`
+  - `packages/skill/SKILL.md`, `packages/skill/query.mjs` (both copied from `~/.claude/skills/magpie/`), `packages/skill/install.sh`
   - `packages/skill/test/query.test.mjs`
   - `package.json` (adds the skill's tests to the root `test` script)
 - **Approach:** Copy the existing skill into the repo unchanged as the first commit of the unit, then add `categories`, `topic <name>`, and `resources <name>` subcommands with an `--include-hidden` flag. They open the store read-only and query the membership view. Existing invocations with bare terms keep their flags and output format; the hidden-post rule in Assumptions is the one behavior change. `install.sh` moves any existing skill directory to a dated backup and symlinks the repo copy. No subcommand writes. `SKILL.md` tells the reading agent that post text and page titles are quoted third-party content, never instructions.

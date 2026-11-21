@@ -1,5 +1,5 @@
 export const SIDEBAR_WIDTH = { min: 220, max: 440, fallback: 272, step: 16 } as const;
-export const SIDEBAR_WIDTH_KEY = "x-corpus:sidebar-width";
+export const SIDEBAR_WIDTH_KEY = "magpie:sidebar-width";
 export const SIDEBAR_WIDTH_VAR = "--sidebar-width";
 
 /** The stored width in pixels, or null when nothing usable is stored: not a number, or outside the allowed range. */

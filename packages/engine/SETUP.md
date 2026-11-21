@@ -1,4 +1,4 @@
-# x-corpus setup
+# magpie setup
 
 One-time setup on macOS or Linux, from a clone anywhere on disk. After that the sync runs by itself in the background.
 
@@ -21,7 +21,7 @@ Bun runs a small pre-check first. It runs `bun install`, then finds a Node in ra
 
 At a terminal it asks before each step. `bun run setup --yes`, or a run with no terminal, never prompts. `--yes` takes only the steps that hold no secret and replace nothing: the services and the skill. Without `--yes` it only reports. Every run ends with what is done and what is still to do, and skips what is already done. In a linked git worktree it only reports on the main checkout.
 
-Each step also has its own command, described below. On Linux the secret store needs libsecret's `secret-tool` and a running Secret Service; without a secret store, secrets fall back to an owner-only `~/.config/x-corpus/secrets.env` and the app warns about it.
+Each step also has its own command, described below. On Linux the secret store needs libsecret's `secret-tool` and a running Secret Service; without a secret store, secrets fall back to an owner-only `~/.config/magpie/secrets.env` and the app warns about it.
 
 ## 2. Install the background services
 
@@ -32,7 +32,7 @@ bun run service:install
 bun run service:status
 ```
 
-This builds the web app and installs two user-level services (LaunchAgents on macOS, `systemd --user` units on Linux): `x-corpus-web` on http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides) and `x-corpus-worker`, which syncs every 3 hours. Change the cadence with `SYNC_INTERVAL_HOURS` in `~/.config/x-corpus/settings.env`. `bun run dev` stays on port 3000.
+This builds the web app and installs two user-level services (LaunchAgents on macOS, `systemd --user` units on Linux): `magpie-web` on http://127.0.0.1:3030 (`MAGPIE_PORT` overrides) and `magpie-worker`, which syncs every 3 hours. Change the cadence with `SYNC_INTERVAL_HOURS` in `~/.config/magpie/settings.env`. `bun run dev` stays on port 3000.
 
 ## 3. Connect X
 

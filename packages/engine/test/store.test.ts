@@ -214,9 +214,9 @@ test('a store borrowed from the main checkout is never migrated from a worktree,
   old.exec(readFileSync(join(import.meta.dirname, 'fixtures', 'store-v2.sql'), 'utf8'));
   old.close();
 
-  assert.throws(() => openStore(path, { inheritedFrom: '/home/someone/x-corpus' }), (error: Error) => {
-    assert.match(error.message, /main checkout \/home\/someone\/x-corpus/);
-    assert.match(error.message, /X_CORPUS_ROOT/);
+  assert.throws(() => openStore(path, { inheritedFrom: '/home/someone/magpie' }), (error: Error) => {
+    assert.match(error.message, /main checkout \/home\/someone\/magpie/);
+    assert.match(error.message, /MAGPIE_ROOT/);
     return true;
   });
   const check = new DatabaseSync(path, { readOnly: true });
@@ -227,7 +227,7 @@ test('a store borrowed from the main checkout is never migrated from a worktree,
 test('a borrowed store already at the current schema opens read-write as usual', (t) => {
   const path = storePath(t);
   openStore(path).close();
-  const db = openStore(path, { inheritedFrom: '/home/someone/x-corpus' });
+  const db = openStore(path, { inheritedFrom: '/home/someone/magpie' });
   t.after(() => db.close());
   assert.equal(Number(db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()?.value), SCHEMA_VERSION);
 });

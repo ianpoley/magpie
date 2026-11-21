@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -84,7 +84,7 @@ export const SECRETS = {
   /** How long one call to the OS secret tool may run before it counts as locked. */
   timeoutMs: 10_000,
   /** The keychain service (macOS) or `service` attribute (Linux) every secret is stored under. */
-  defaultKeychainService: 'x-corpus',
+  defaultKeychainService: 'magpie',
 } as const;
 
 export const X_SYNC = {
@@ -118,10 +118,10 @@ export const SCHEDULE = {
 } as const;
 
 export const SERVICE = {
-  /** The web service's port unless X_CORPUS_PORT says otherwise; clear of `next dev` on 3000. */
+  /** The web service's port unless MAGPIE_PORT says otherwise; clear of `next dev` on 3000. */
   defaultPort: 3030,
   /** The keychain service the setup check writes, reads and deletes a random value under. Never holds a real secret. */
-  probeKeychainService: 'x-corpus-setup-probe',
+  probeKeychainService: 'magpie-setup-probe',
 } as const;
 
 export const MIGRATION = {
@@ -200,29 +200,60 @@ export const codeRoot = () => fileURLToPath(new URL('../../..', import.meta.url)
  * null when the store is this checkout's own or was chosen by an override.
  */
 export function inheritedStore(store: string, env: Record<string, string | undefined> = process.env, code = codeRoot()): string | null {
-  if (env.X_CORPUS_ROOT || env.X_CORPUS_STORE) return null;
+  if (setting(env, 'ROOT') || setting(env, 'STORE')) return null;
   const main = mainCheckout(code);
   if (main === code) return null;
   return resolve(store) === join(main, 'state', 'corpus.sqlite') ? main : null;
 }
 
+/** The names Magpie had while it was called x-corpus, still found on installs from then. */
+export const LEGACY_NAMES = {
+  configDir: 'x-corpus',
+  keychainService: 'x-corpus',
+  services: ['x-corpus-web', 'x-corpus-worker'],
+  skill: 'x-corpus',
+} as const;
+
+/**
+ * The setting MAGPIE_<name>, or X_CORPUS_<name> from before the rename. Unit
+ * files installed then still pass the old name, and a run pointed at a scratch
+ * copy with the old name must never fall through to the live store.
+ */
+export function setting(env: Record<string, string | undefined>, name: string): string | undefined {
+  return env[`MAGPIE_${name}`] || env[`X_CORPUS_${name}`] || undefined;
+}
+
+/**
+ * Whether this machine still keeps its config and secrets under the old
+ * x-corpus names: no config dir override, no ~/.config/magpie, and a
+ * ~/.config/x-corpus. Old names are then used for every read and write, so
+ * renamed code and services installed before the rename share one install.
+ * `service:install` hands them over to the new names, all at once.
+ */
+export function usesLegacyNames(env: Record<string, string | undefined> = process.env, home: string = homedir()): boolean {
+  if (setting(env, 'CONFIG_DIR')) return false;
+  return !existsSync(join(home, '.config', 'magpie')) && existsSync(join(home, '.config', LEGACY_NAMES.configDir));
+}
+
 /**
  * Where things live on disk. Read when called, not at import, so a test can
- * set the overrides first:
- *   X_CORPUS_ROOT     repo root (default: this checkout, or the main checkout
- *                     when this is a linked git worktree, so every worktree
- *                     shares one corpus, store and worker)
- *   X_CORPUS_DATA_DIR export directory (default: <root>/data)
- *   X_CORPUS_STORE    store file (default: <root>/state/corpus.sqlite)
- *   X_CORPUS_CONFIG_DIR per-user config and secrets file (default: ~/.config/x-corpus)
- *   BIRDCLAW_HOME     Birdclaw's own home (default: ~/.birdclaw)
+ * set the overrides first (each also read under its old X_CORPUS_ name):
+ *   MAGPIE_ROOT        repo root (default: this checkout, or the main checkout
+ *                      when this is a linked git worktree, so every worktree
+ *                      shares one corpus, store and worker)
+ *   MAGPIE_DATA_DIR    export directory (default: <root>/data)
+ *   MAGPIE_STORE       store file (default: <root>/state/corpus.sqlite)
+ *   MAGPIE_CONFIG_DIR  per-user config and secrets file (default: ~/.config/magpie,
+ *                      or ~/.config/x-corpus until it is handed over)
+ *   BIRDCLAW_HOME      Birdclaw's own home (default: ~/.birdclaw)
  */
 export function paths(env: Record<string, string | undefined> = process.env): Paths {
-  const repoRoot = resolve(env.X_CORPUS_ROOT || mainCheckout(codeRoot()));
-  const dataDir = resolve(env.X_CORPUS_DATA_DIR || join(repoRoot, 'data'));
-  const store = resolve(env.X_CORPUS_STORE || join(repoRoot, 'state', 'corpus.sqlite'));
+  const repoRoot = resolve(setting(env, 'ROOT') || mainCheckout(codeRoot()));
+  const dataDir = resolve(setting(env, 'DATA_DIR') || join(repoRoot, 'data'));
+  const store = resolve(setting(env, 'STORE') || join(repoRoot, 'state', 'corpus.sqlite'));
   const stateDir = resolve(store, '..');
-  const configDir = resolve(env.X_CORPUS_CONFIG_DIR || join(homedir(), '.config', 'x-corpus'));
+  const configName = usesLegacyNames(env) ? LEGACY_NAMES.configDir : 'magpie';
+  const configDir = resolve(setting(env, 'CONFIG_DIR') || join(homedir(), '.config', configName));
   return {
     repoRoot,
     dataDir,
@@ -264,28 +295,27 @@ function pinnedBin(pkg: string, bin: string): XTool {
 
 /**
  * The bird and Birdclaw commands. Each defaults to the pinned engine
- * dependency; X_CORPUS_BIRD_BIN and X_CORPUS_BIRDCLAW_BIN replace them with
+ * dependency; MAGPIE_BIRD_BIN and MAGPIE_BIRDCLAW_BIN replace them with
  * another executable, such as a test stub.
  */
 export function xTools(env: Record<string, string | undefined> = process.env): { bird: XTool; birdclaw: XTool } {
   return {
-    bird: env.X_CORPUS_BIRD_BIN ? { path: env.X_CORPUS_BIRD_BIN, pinned: false } : pinnedBin('@steipete/bird', 'bird'),
-    birdclaw: env.X_CORPUS_BIRDCLAW_BIN
-      ? { path: env.X_CORPUS_BIRDCLAW_BIN, pinned: false }
-      : pinnedBin('birdclaw', 'birdclaw'),
+    bird: setting(env, 'BIRD_BIN') ? { path: setting(env, 'BIRD_BIN')!, pinned: false } : pinnedBin('@steipete/bird', 'bird'),
+    birdclaw: setting(env, 'BIRDCLAW_BIN') ? { path: setting(env, 'BIRDCLAW_BIN')!, pinned: false } : pinnedBin('birdclaw', 'birdclaw'),
   };
 }
 
 export type SecretSettings = {
-  /** Set by X_CORPUS_KEYCHAIN_SERVICE, so a check can use a throwaway service name. */
+  /** Set by MAGPIE_KEYCHAIN_SERVICE, so a check can use a throwaway service name. */
   keychainService: string;
-  /** X_CORPUS_SECRET_BACKEND=file, for tests only: the OS secret store is never touched. */
+  /** MAGPIE_SECRET_BACKEND=file, for tests only: the OS secret store is never touched. */
   forceFileBackend: boolean;
 };
 
 export function secretSettings(env: Record<string, string | undefined> = process.env): SecretSettings {
   return {
-    keychainService: env.X_CORPUS_KEYCHAIN_SERVICE || SECRETS.defaultKeychainService,
-    forceFileBackend: env.X_CORPUS_SECRET_BACKEND === 'file',
+    keychainService:
+      setting(env, 'KEYCHAIN_SERVICE') || (usesLegacyNames(env) ? LEGACY_NAMES.keychainService : SECRETS.defaultKeychainService),
+    forceFileBackend: setting(env, 'SECRET_BACKEND') === 'file',
   };
 }

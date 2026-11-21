@@ -44,6 +44,8 @@ export type ServicesState = {
   dataRoot: string | null;
   /** The data root this checkout uses. */
   here: string;
+  /** Services or config still under the old x-corpus names; installing renames them. */
+  legacy?: boolean;
 };
 
 /** `none`: no ~/.claude, so no Claude Code to give the skill to. */
@@ -119,7 +121,15 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     }
 
     const services = await deps.services();
-    if (services.installed && services.dataRoot !== null && services.dataRoot !== services.here) {
+    if (services.legacy && (services.dataRoot === null || services.dataRoot === services.here)) {
+      log('  This install still uses its old x-corpus names: the services, the keychain entries and ~/.config/x-corpus.');
+      log('  Reinstalling renames them to magpie, waits for the renamed worker, and only then removes the old ones.');
+      log('  If anything fails it puts the x-corpus install back.');
+      if (!(await agree('  Rename and reinstall now?', { defaultYes: true, safe: false }))) {
+        todo.push('Rename the install from x-corpus to magpie: bun run service:install');
+        return false;
+      }
+    } else if (services.dataRoot !== null && services.dataRoot !== services.here) {
       log(`  The services are installed for another clone, ${services.dataRoot}.`);
       log('  Installing here points both at this clone and its corpus instead.');
       if (!(await agree('  Point them at this clone?', { defaultYes: false, safe: false }))) {
@@ -213,13 +223,13 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     log('');
     log('Claude skill (optional)');
     if (state === 'linked') {
-      done.push('The x-corpus skill is linked into ~/.claude/skills.');
+      done.push('The magpie skill is linked into ~/.claude/skills.');
       return;
     }
     if (state === 'elsewhere') {
-      log('  ~/.claude/skills/x-corpus already points at another clone or folder.');
+      log('  ~/.claude/skills/magpie already points at another clone or folder.');
       if (!(await agree('  Link it to this clone instead? (the old one is kept in ~/.claude/skill-backups)', { defaultYes: false, safe: false }))) {
-        done.push('Left the existing x-corpus skill as it is.');
+        done.push('Left the existing magpie skill as it is.');
         return;
       }
     } else {
@@ -230,7 +240,7 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       }
     }
     await deps.linkSkill();
-    done.push('The x-corpus skill is linked into ~/.claude/skills.');
+    done.push('The magpie skill is linked into ~/.claude/skills.');
   }
 
   function finish(ok: boolean): WalkthroughResult {

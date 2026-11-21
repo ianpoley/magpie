@@ -143,7 +143,7 @@ function fakeMachine(
   const { dir: base, cleanup } = tempDir();
   const home = join(base, 'home');
   const root = join(base, 'clone');
-  const configDir = join(home, '.config', 'x-corpus');
+  const configDir = join(home, '.config', 'magpie');
   mkdirSync(join(home, '.birdclaw'), { recursive: true });
   mkdirSync(join(home, 'Library', 'LaunchAgents'), { recursive: true });
   mkdirSync(join(root, 'data'), { recursive: true });
@@ -152,7 +152,7 @@ function fakeMachine(
   mkdirSync(stubDir);
   const security = stubSecurity(stubDir, setup.keychain ?? 'ok');
 
-  const env = { X_CORPUS_ROOT: root, X_CORPUS_CONFIG_DIR: configDir, X_CORPUS_KEYCHAIN_SERVICE: 'x-corpus-migrate-test', BIRDCLAW_HOME: join(home, '.birdclaw') };
+  const env = { MAGPIE_ROOT: root, MAGPIE_CONFIG_DIR: configDir, MAGPIE_KEYCHAIN_SERVICE: 'magpie-migrate-test', BIRDCLAW_HOME: join(home, '.birdclaw') };
   const files = paths(env);
   const plist = join(home, 'Library', 'LaunchAgents', `${LABEL}.plist`);
   writeFileSync(join(home, '.birdclaw', 'bird.env'), BIRD_ENV);

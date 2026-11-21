@@ -8,7 +8,7 @@ import { createJevClient } from '../src/jev/client.ts';
 import { createSecretStore } from '../src/secrets/store.ts';
 import { tempDir } from './fixtures/export.ts';
 
-const SERVICE = 'x-corpus-test-service';
+const SERVICE = 'magpie-test-service';
 const SESSION = { authToken: 'abc%2E_-0123456789abcdef', ct0: 'def0123456789' };
 
 type Stub = {
@@ -84,8 +84,8 @@ function configDir(t: TestContext): string {
 }
 
 const env = (dir: string, extra: Record<string, string> = {}) => ({
-  X_CORPUS_CONFIG_DIR: dir,
-  X_CORPUS_KEYCHAIN_SERVICE: SERVICE,
+  MAGPIE_CONFIG_DIR: dir,
+  MAGPIE_KEYCHAIN_SERVICE: SERVICE,
   ...extra,
 });
 
@@ -250,9 +250,9 @@ function useProcessEnv(t: TestContext, values: Record<string, string | undefined
 test('the Jev client takes its key from the store, and without one fails with the no-key error', async (t) => {
   const dir = configDir(t);
   useProcessEnv(t, {
-    X_CORPUS_CONFIG_DIR: dir,
-    X_CORPUS_SECRET_BACKEND: 'file',
-    X_CORPUS_KEYCHAIN_SERVICE: SERVICE,
+    MAGPIE_CONFIG_DIR: dir,
+    MAGPIE_SECRET_BACKEND: 'file',
+    MAGPIE_KEYCHAIN_SERVICE: SERVICE,
     TYPESAFE_API_KEY: undefined,
   });
 
@@ -267,9 +267,9 @@ test('the Jev client takes its key from the store, and without one fails with th
 test('with no backend recorded, the Jev key is read from an existing secrets file without changing it', async (t) => {
   const dir = configDir(t);
   useProcessEnv(t, {
-    X_CORPUS_CONFIG_DIR: dir,
-    X_CORPUS_SECRET_BACKEND: undefined,
-    X_CORPUS_KEYCHAIN_SERVICE: SERVICE,
+    MAGPIE_CONFIG_DIR: dir,
+    MAGPIE_SECRET_BACKEND: undefined,
+    MAGPIE_KEYCHAIN_SERVICE: SERVICE,
     TYPESAFE_API_KEY: undefined,
   });
   const file = join(dir, 'secrets.env');

@@ -43,7 +43,7 @@ const KEYWORD_SEARCHES = [
 function run(storePath, args) {
   const result = spawnSync(process.execPath, [QUERY, ...args], {
     encoding: 'utf8',
-    env: { ...process.env, X_CORPUS_DIR: CORPUS, X_CORPUS_STORE: storePath },
+    env: { ...process.env, MAGPIE_DIR: CORPUS, MAGPIE_STORE: storePath },
   });
   return { stdout: result.stdout, stderr: result.stderr, status: result.status };
 }
@@ -125,7 +125,7 @@ function seedStore(t, { politicsHidden }) {
 }
 
 function missingStore(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'x-corpus-skill-'));
+  const dir = mkdtempSync(join(tmpdir(), 'magpie-skill-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return join(dir, 'corpus.sqlite');
 }
@@ -377,14 +377,14 @@ function install(home) {
 }
 
 function tempHome(t) {
-  const home = mkdtempSync(join(tmpdir(), 'x-corpus-home-'));
+  const home = mkdtempSync(join(tmpdir(), 'magpie-home-'));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   return home;
 }
 
 test('install links the skill into a home that has none, and can run again', (t) => {
   const home = tempHome(t);
-  const target = join(home, '.claude', 'skills', 'x-corpus');
+  const target = join(home, '.claude', 'skills', 'magpie');
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const result = install(home);
@@ -393,14 +393,30 @@ test('install links the skill into a home that has none, and can run again', (t)
     assert.equal(realpathSync(target), realpathSync(SKILL_DIR));
     assert.doesNotMatch(result.stdout, /secrets\.env/);
   }
-  assert.deepEqual(readdirSync(join(home, '.claude', 'skills')), ['x-corpus']);
+  assert.deepEqual(readdirSync(join(home, '.claude', 'skills')), ['magpie']);
   assert.ok(!existsSync(join(SKILL_DIR, 'skill')));
+});
+
+test('install removes an old x-corpus link to this clone, and leaves one that points elsewhere', (t) => {
+  const home = tempHome(t);
+  const skills = join(home, '.claude', 'skills');
+  mkdirSync(skills, { recursive: true });
+  symlinkSync(SKILL_DIR, join(skills, 'x-corpus'));
+  assert.equal(install(home).status, 0);
+  assert.deepEqual(readdirSync(skills), ['magpie']);
+
+  const other = tempHome(t);
+  const otherSkills = join(other, '.claude', 'skills');
+  mkdirSync(otherSkills, { recursive: true });
+  symlinkSync(other, join(otherSkills, 'x-corpus'));
+  assert.equal(install(other).status, 0);
+  assert.deepEqual(readdirSync(otherSkills).sort(), ['magpie', 'x-corpus']);
 });
 
 test('install moves an existing skill directory to a dated backup and leaves its secrets file there', (t) => {
   const home = tempHome(t);
   const skills = join(home, '.claude', 'skills');
-  const target = join(skills, 'x-corpus');
+  const target = join(skills, 'magpie');
   mkdirSync(target, { recursive: true });
   writeFileSync(join(target, 'SKILL.md'), 'old skill\n');
   writeFileSync(join(target, 'secrets.env'), 'export SYNTHETIC_KEY="not-a-real-secret"\n');
@@ -411,11 +427,11 @@ test('install moves an existing skill directory to a dated backup and leaves its
   assert.equal(realpathSync(target), realpathSync(SKILL_DIR));
 
   // A backup left inside the skills directory would be loaded as a second skill.
-  assert.deepEqual(readdirSync(skills), ['x-corpus']);
+  assert.deepEqual(readdirSync(skills), ['magpie']);
   const backupDir = join(home, '.claude', 'skill-backups');
   const backups = readdirSync(backupDir);
   assert.equal(backups.length, 1);
-  assert.match(backups[0], /^x-corpus-\d{4}-\d{2}-\d{2}$/);
+  assert.match(backups[0], /^magpie-\d{4}-\d{2}-\d{2}$/);
   const backup = join(backupDir, backups[0]);
   assert.equal(readFileSync(join(backup, 'SKILL.md'), 'utf8'), 'old skill\n');
   assert.equal(readFileSync(join(backup, 'secrets.env'), 'utf8'), 'export SYNTHETIC_KEY="not-a-real-secret"\n');
@@ -427,7 +443,7 @@ test('install moves an existing skill directory to a dated backup and leaves its
 
   const second = install(home);
   assert.equal(second.status, 0, second.stderr);
-  assert.deepEqual(readdirSync(skills), ['x-corpus']);
+  assert.deepEqual(readdirSync(skills), ['magpie']);
   assert.deepEqual(readdirSync(backupDir), backups);
 });
 
@@ -462,12 +478,12 @@ test('with no env overrides the skill reads the clone its symlink points back to
   // The way install.sh links it: a symlink in a skills directory.
   const skills = join(base, 'home', '.claude', 'skills');
   mkdirSync(skills, { recursive: true });
-  symlinkSync(join(clone, 'packages', 'skill'), join(skills, 'x-corpus'));
+  symlinkSync(join(clone, 'packages', 'skill'), join(skills, 'magpie'));
 
   const env = { ...process.env, HOME: join(base, 'home') };
-  delete env.X_CORPUS_DIR;
-  delete env.X_CORPUS_STORE;
-  const exec = args => spawnSync(process.execPath, [join(skills, 'x-corpus', 'query.mjs'), ...args], { encoding: 'utf8', env });
+  delete env.MAGPIE_DIR;
+  delete env.MAGPIE_STORE;
+  const exec = args => spawnSync(process.execPath, [join(skills, 'magpie', 'query.mjs'), ...args], { encoding: 'utf8', env });
 
   const search = exec(['zebrafinch', '--json']);
   assert.equal(search.status, 0, search.stderr);

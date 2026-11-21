@@ -79,7 +79,7 @@ function setup(
 ): Setup {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
-  const files = paths({ X_CORPUS_ROOT: dir, X_CORPUS_CONFIG_DIR: join(dir, 'config') });
+  const files = paths({ MAGPIE_ROOT: dir, MAGPIE_CONFIG_DIR: join(dir, 'config') });
   mkdirSync(files.stateDir, { recursive: true });
   mkdirSync(files.configDir, { recursive: true });
   if (options.connected ?? true) writeConnection(files.xConnection, { handle: 'someone', connectedAt: GEN });
@@ -325,15 +325,15 @@ test('SIGTERM during a run kills the tool processes it started, releases the run
   chmodSync(bird, 0o755);
   const env: Record<string, string | undefined> = {
     ...process.env,
-    X_CORPUS_ROOT: dir,
-    X_CORPUS_CONFIG_DIR: join(dir, 'config'),
-    X_CORPUS_SECRET_BACKEND: 'file',
-    X_CORPUS_BIRD_BIN: bird,
-    X_CORPUS_BIRDCLAW_BIN: '/usr/bin/false',
+    MAGPIE_ROOT: dir,
+    MAGPIE_CONFIG_DIR: join(dir, 'config'),
+    MAGPIE_SECRET_BACKEND: 'file',
+    MAGPIE_BIRD_BIN: bird,
+    MAGPIE_BIRDCLAW_BIN: '/usr/bin/false',
     BIRDCLAW_HOME: join(dir, 'birdclaw'),
     HOME: home,
   };
-  for (const name of ['TYPESAFE_API_KEY', 'X_CORPUS_DATA_DIR', 'X_CORPUS_STORE', 'X_CORPUS_KEYCHAIN_SERVICE']) delete env[name];
+  for (const name of ['TYPESAFE_API_KEY', 'MAGPIE_DATA_DIR', 'MAGPIE_STORE', 'MAGPIE_KEYCHAIN_SERVICE']) delete env[name];
   const files = paths(env);
   const stored = await createSecretStore({ env }).set('x-session', { authToken: 'authTOKENvalue0123', ct0: 'ct0VALUE9876' });
   assert.ok(stored.ok);

@@ -14,7 +14,7 @@ import { refreshes } from "./fixtures/next-cache.ts";
 const scratch = tempDir();
 after(scratch.cleanup);
 const MISSING_STORE = join(scratch.dir, "missing", "corpus.sqlite");
-process.env.X_CORPUS_STORE = MISSING_STORE;
+process.env.MAGPIE_STORE = MISSING_STORE;
 
 // Next resolves these two kinds of import when it builds; plain node needs telling.
 const SRC = new URL("../src/", import.meta.url);
@@ -38,9 +38,9 @@ function useStore(t: TestContext): { path: string; topicId: number; pinnedAreaId
   const pinnedAreaId = seedArea(db, "Pinned", { kind: "system" });
   seedPost(db, "p1");
   db.close();
-  process.env.X_CORPUS_STORE = path;
+  process.env.MAGPIE_STORE = path;
   t.after(() => {
-    process.env.X_CORPUS_STORE = MISSING_STORE;
+    process.env.MAGPIE_STORE = MISSING_STORE;
     cleanup();
   });
   return { path, topicId, pinnedAreaId };

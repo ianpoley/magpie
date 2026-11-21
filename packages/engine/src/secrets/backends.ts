@@ -140,7 +140,7 @@ export function secretToolBackend(options: { service: string; path: string; time
       return failure(result);
     },
     async set(account, value) {
-      const result = await runTool(path, ['store', '--label', `x-corpus ${account}`, ...attributes(account)], value, timeoutMs);
+      const result = await runTool(path, ['store', '--label', `magpie ${account}`, ...attributes(account)], value, timeoutMs);
       return result.kind === 'done' && result.code === 0 ? { ok: true } : failure(result);
     },
     async delete(account) {

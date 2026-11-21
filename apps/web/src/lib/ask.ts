@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
-import type { JevClient, JevRequest } from "@x-corpus/engine/src/jev/client.ts";
-import type { PostContent } from "@x-corpus/engine/src/jev/questions.ts";
+import type { JevClient, JevRequest } from "@magpie/engine/src/jev/client.ts";
+import type { PostContent } from "@magpie/engine/src/jev/questions.ts";
 
 import { applyFilter } from "./filter.ts";
 import type { FilterResult, FilterState, Snapshot } from "./types.ts";

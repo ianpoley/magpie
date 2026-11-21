@@ -70,7 +70,7 @@ const secretsWith = (session: XSession | null): SyncDeps['secrets'] =>
 function setup(t: TestContext): { dir: string; files: Paths } {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
-  const files = paths({ X_CORPUS_ROOT: dir });
+  const files = paths({ MAGPIE_ROOT: dir });
   mkdirSync(files.dataDir);
   return { dir, files };
 }
@@ -111,15 +111,15 @@ async function holdLock(t: TestContext, path: string): Promise<ChildProcess> {
 function cliEnv(dir: string): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = {
     ...process.env,
-    X_CORPUS_ROOT: dir,
-    X_CORPUS_CONFIG_DIR: join(dir, 'config'),
-    X_CORPUS_SECRET_BACKEND: 'file',
-    X_CORPUS_BIRD_BIN: '/usr/bin/false',
-    X_CORPUS_BIRDCLAW_BIN: '/usr/bin/false',
+    MAGPIE_ROOT: dir,
+    MAGPIE_CONFIG_DIR: join(dir, 'config'),
+    MAGPIE_SECRET_BACKEND: 'file',
+    MAGPIE_BIRD_BIN: '/usr/bin/false',
+    MAGPIE_BIRDCLAW_BIN: '/usr/bin/false',
     BIRDCLAW_HOME: join(dir, 'birdclaw'),
     HOME: join(dir, 'home'),
   };
-  for (const name of ['TYPESAFE_API_KEY', 'X_CORPUS_DATA_DIR', 'X_CORPUS_STORE', 'X_CORPUS_KEYCHAIN_SERVICE']) delete env[name];
+  for (const name of ['TYPESAFE_API_KEY', 'MAGPIE_DATA_DIR', 'MAGPIE_STORE', 'MAGPIE_KEYCHAIN_SERVICE']) delete env[name];
   return env;
 }
 

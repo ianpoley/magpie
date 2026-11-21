@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { inheritedStore, mainCheckout, paths } from '../src/config.ts';
+import { inheritedStore, mainCheckout, paths, setting, usesLegacyNames } from '../src/config.ts';
 import { tempDir } from './fixtures/export.ts';
 
 /** A main checkout with one linked worktree, laid out the way git writes them. */
@@ -53,17 +53,35 @@ test('a submodule, a plain directory and a bare repository stay where they are',
   assert.equal(mainCheckout(bareWorktree), bareWorktree);
 });
 
-test('X_CORPUS_ROOT still overrides the data root', () => {
-  assert.equal(paths({ X_CORPUS_ROOT: '/srv/elsewhere' }).repoRoot, '/srv/elsewhere');
-  assert.equal(paths({ X_CORPUS_ROOT: '/srv/elsewhere' }).store, '/srv/elsewhere/state/corpus.sqlite');
+test('MAGPIE_ROOT still overrides the data root', () => {
+  assert.equal(paths({ MAGPIE_ROOT: '/srv/elsewhere' }).repoRoot, '/srv/elsewhere');
+  assert.equal(paths({ MAGPIE_ROOT: '/srv/elsewhere' }).store, '/srv/elsewhere/state/corpus.sqlite');
 });
 
 test('a worktree borrows the main checkout store only when no override chose another', (t) => {
   const { main, worktree } = checkouts(t);
   const store = join(main, 'state', 'corpus.sqlite');
   assert.equal(inheritedStore(store, {}, worktree), main);
-  assert.equal(inheritedStore(store, { X_CORPUS_ROOT: main }, worktree), null);
-  assert.equal(inheritedStore(store, { X_CORPUS_STORE: store }, worktree), null);
+  assert.equal(inheritedStore(store, { MAGPIE_ROOT: main }, worktree), null);
+  assert.equal(inheritedStore(store, { MAGPIE_STORE: store }, worktree), null);
   assert.equal(inheritedStore(store, {}, main), null);
   assert.equal(inheritedStore(join(worktree, 'scratch.sqlite'), {}, worktree), null);
+});
+
+test('old X_CORPUS_ settings are still read, so a scratch-copy run never falls through to the live store', () => {
+  assert.equal(paths({ X_CORPUS_STORE: '/tmp/scratch.sqlite' }).store, '/tmp/scratch.sqlite');
+  assert.equal(paths({ X_CORPUS_ROOT: '/srv/old' }).repoRoot, '/srv/old');
+  assert.equal(paths({ MAGPIE_ROOT: '/srv/new', X_CORPUS_ROOT: '/srv/old' }).repoRoot, '/srv/new');
+  assert.equal(setting({ X_CORPUS_PORT: '4000' }, 'PORT'), '4000');
+});
+
+test('old names stay in use until ~/.config/magpie exists, and a config dir override turns them off', (t) => {
+  const { dir } = checkouts(t);
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.config', 'x-corpus'), { recursive: true });
+  assert.equal(usesLegacyNames({}, home), true);
+  assert.equal(usesLegacyNames({ MAGPIE_CONFIG_DIR: '/elsewhere' }, home), false);
+  mkdirSync(join(home, '.config', 'magpie'));
+  assert.equal(usesLegacyNames({}, home), false);
+  assert.equal(usesLegacyNames({}, join(dir, 'nobody')), false);
 });

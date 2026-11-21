@@ -134,7 +134,7 @@ export function osBackend(
 }
 
 /**
- * The x-corpus secrets. The first write picks the backend, the OS secret
+ * The magpie secrets. The first write picks the backend, the OS secret
  * store when a probe of it works and the owner-only file otherwise, and
  * records the choice. Every later read and write uses only the recorded
  * backend, so a locked store is reported, never silently swapped for the file.
@@ -152,7 +152,7 @@ export function createSecretStore(options: SecretStoreOptions = {}): SecretStore
 
   const keychain = (): SecretBackend | null | SecretFailure => {
     if (!SERVICE_NAME.test(keychainService)) {
-      return invalid('X_CORPUS_KEYCHAIN_SERVICE must be 1 to 128 letters, digits or the characters . _ -');
+      return invalid('MAGPIE_KEYCHAIN_SERVICE must be 1 to 128 letters, digits or the characters . _ -');
     }
     return osBackend(platform, keychainService, { ...options, timeoutMs });
   };

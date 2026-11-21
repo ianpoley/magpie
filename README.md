@@ -35,7 +35,7 @@ flowchart LR
   D --> C["categorize:<br/>links → Jev tags → Claude topics"]
   C --> S[("state/corpus.sqlite")]
   S --> W["Web app<br/>127.0.0.1:3030"]
-  S --> K["x-corpus Claude skill"]
+  S --> K["magpie Claude skill"]
   D --> K
 ```
 
@@ -120,7 +120,7 @@ before a change is done (lint, typecheck, test, build), and wait for my task.
 Once the skill is installed, use it from any project:
 
 ```text
-Use the x-corpus skill. Run `categories`, find the topics that fit what we are
+Use the magpie skill. Run `categories`, find the topics that fit what we are
 building, and pull the most relevant posts and resources. Suggest 3 concrete ideas
 for this feature, and cite each one with the @handle and post URL.
 ```
@@ -142,7 +142,7 @@ for this feature, and cite each one with the @handle and post URL.
 ```bash
 bun install
 bun run setup --yes       # checks the machine, installs the services and links the skill; never prompts
-bun run service:install   # or just this: builds the web app, installs the x-corpus-web and x-corpus-worker services
+bun run service:install   # or just this: builds the web app, installs the magpie-web and magpie-worker services
 bun run service:status
 ```
 
@@ -186,7 +186,7 @@ If this Mac still runs the old `birdclaw-nightly` LaunchAgent, run `bun run migr
 
 ### Web app
 
-The installed service runs at http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides it). Highlights:
+The installed service runs at http://127.0.0.1:3030 (`MAGPIE_PORT` overrides it). Highlights:
 
 - Filter by area and topic, collection, author, keyword, time range and media. Filters live in the URL, so you can bookmark them.
 - **Ask** judges every post against a question. **Pin** saves it as a search that later syncs keep up to date.
@@ -201,10 +201,10 @@ See [apps/web/README.md](apps/web/README.md) for the full tour.
 After `bash packages/skill/install.sh`, agents can query the corpus directly:
 
 ```bash
-node ~/.claude/skills/x-corpus/query.mjs categories
-node ~/.claude/skills/x-corpus/query.mjs topic "<area or topic>" --limit 8
-node ~/.claude/skills/x-corpus/query.mjs resources "<area or topic>"
-node ~/.claude/skills/x-corpus/query.mjs "state machine" --source bookmarks --json
+node ~/.claude/skills/magpie/query.mjs categories
+node ~/.claude/skills/magpie/query.mjs topic "<area or topic>" --limit 8
+node ~/.claude/skills/magpie/query.mjs resources "<area or topic>"
+node ~/.claude/skills/magpie/query.mjs "state machine" --source bookmarks --json
 ```
 
 The skill is a symlink to `packages/skill/` and finds this clone from its own real path. See [packages/skill/SKILL.md](packages/skill/SKILL.md).
@@ -224,13 +224,13 @@ Every sync writes plain files you can read from any tool:
 
 ## Things to know
 
-- **The code still says x-corpus.** Magpie used to be called x-corpus. The packages, CLI, services, `~/.config/x-corpus` and the Claude skill keep that name.
-- **Secrets and services are per user, data is per clone.** The cookies, the Jev key and the connection live in the macOS Keychain or Linux Secret Service (service `x-corpus`) and in `~/.config/x-corpus`. The corpus lives in each clone. Connecting X from another clone or worktree replaces the cookies the installed service uses, and running `service:install` from another clone points both services at that clone.
-- **Worktrees share the main checkout's corpus.** A linked git worktree reads `data/`, `state/` and `logs/` from its main checkout, so a dev server in a worktree shows your real posts and the real worker's status. Edits you make there change your real store. A worktree never upgrades that store's schema: a branch with a store migration needs `X_CORPUS_ROOT` pointed at a copy. `setup` and `service:install` refuse to install services from a worktree and name the main checkout instead. `X_CORPUS_ROOT` overrides the data root.
+- **Upgrading from x-corpus.** Magpie used to be called x-corpus, and installs from then keep their services (`x-corpus-web`, `x-corpus-worker`), keychain entries and `~/.config/x-corpus` under that name. They keep working after `git pull`. Run `bun run setup` (or `bun run service:install`) from the main checkout to rename them: it stops the old services, copies the secrets, moves the config folder, starts the services under their new names, waits for the renamed worker, and only then removes the old ones. If anything fails it puts the x-corpus install back. Old `X_CORPUS_*` environment variables are still read; the `MAGPIE_*` names win when both are set.
+- **Secrets and services are per user, data is per clone.** The cookies, the Jev key and the connection live in the macOS Keychain or Linux Secret Service (service `magpie`) and in `~/.config/magpie`. The corpus lives in each clone. Connecting X from another clone or worktree replaces the cookies the installed service uses, and running `service:install` from another clone points both services at that clone.
+- **Worktrees share the main checkout's corpus.** A linked git worktree reads `data/`, `state/` and `logs/` from its main checkout, so a dev server in a worktree shows your real posts and the real worker's status. Edits you make there change your real store. A worktree never upgrades that store's schema: a branch with a store migration needs `MAGPIE_ROOT` pointed at a copy. `setup` and `service:install` refuse to install services from a worktree and name the main checkout instead. `MAGPIE_ROOT` overrides the data root.
 - **No sign-in.** The web app answers loopback requests only and has no login. That assumes only you have a login on the machine.
 - **Ports.** The service uses 3030. `bun run dev` uses 3000, so a dev server never collides with it.
-- **Sync interval.** Set `SYNC_INTERVAL_HOURS` in `~/.config/x-corpus/settings.env` (default 3).
-- **Secret fallback.** With no usable keychain, secrets go to an owner-only `~/.config/x-corpus/secrets.env`, and the app shows a warning.
+- **Sync interval.** Set `SYNC_INTERVAL_HOURS` in `~/.config/magpie/settings.env` (default 3).
+- **Secret fallback.** With no usable keychain, secrets go to an owner-only `~/.config/magpie/secrets.env`, and the app shows a warning.
 - **History fills in over time.** The first sync of each collection backfills its full history. X rate-limits the likes endpoint, so likes may arrive across several syncs.
 - **What leaves the machine.** Browsing sends nothing. Ask mode and tagging send post text to Jev, category upkeep sends it to Claude through your Claude Code CLI login, and the links stage requests each linked URL once to read its title.
 
@@ -258,9 +258,9 @@ bun run test             # node --test across engine, skill and web
 ## Project layout
 
 ```
-apps/web/         # @x-corpus/web: the Next.js corpus screen
-packages/engine/  # @x-corpus/engine: sync, export, categorize, worker, service installer
-packages/skill/   # the x-corpus Claude skill (symlinked into ~/.claude/skills)
+apps/web/         # @magpie/web: the Next.js corpus screen
+packages/engine/  # @magpie/engine: sync, export, categorize, worker, service installer
+packages/skill/   # the magpie Claude skill (symlinked into ~/.claude/skills)
 docs/plans/       # implementation plans
 docs/solutions/   # solved problems and tooling decisions
 data/             # generated: raw JSON + normalized JSONL   (gitignored)

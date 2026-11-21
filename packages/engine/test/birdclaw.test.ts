@@ -89,8 +89,8 @@ function setup(
   const bird = writeStub(dir, 'bird', stubs.bird ?? {});
   const birdclaw = writeStub(dir, 'birdclaw', stubs.birdclaw ?? {});
   const env = {
-    X_CORPUS_BIRD_BIN: bird.path,
-    X_CORPUS_BIRDCLAW_BIN: birdclaw.path,
+    MAGPIE_BIRD_BIN: bird.path,
+    MAGPIE_BIRDCLAW_BIN: birdclaw.path,
     HOME: dir,
     BIRDCLAW_HOME: join(dir, 'birdclaw-home'),
     PATH: process.env.PATH,
