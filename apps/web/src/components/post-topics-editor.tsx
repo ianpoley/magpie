@@ -21,16 +21,21 @@ function Editor({
   areas,
   topicsById,
   onSelectTopic,
+  onEdit,
 }: {
   post: Post;
   topics: Topic[];
   areas: Area[];
   topicsById: Map<number, Topic>;
   onSelectTopic: (topicId: number) => void;
+  onEdit: (postId: string) => void;
 }) {
   const [saving, startSaving] = useTransition();
   const current = new Set(post.memberships.map((membership) => membership.topicId));
-  const save = (edit: () => Promise<unknown>) => startSaving(async () => void (await edit()));
+  const save = (edit: () => Promise<unknown>) => {
+    onEdit(post.id);
+    startSaving(async () => void (await edit()));
+  };
   const suggested = post.memberships.filter((membership) => membership.band === "unsure").map((membership) => membership.topicId);
   const addAllSuggested = () =>
     save(async () => {
@@ -127,6 +132,7 @@ export function PostTopicsEditor({
   align = "end",
   listed,
   onSelectTopic,
+  onEdit,
 }: {
   controller: PostTopicsController;
   postsById: Map<string, Post>;
@@ -136,6 +142,7 @@ export function PostTopicsEditor({
   align?: "start" | "end";
   listed?: Set<string>;
   onSelectTopic: (topicId: number) => void;
+  onEdit: (postId: string) => void;
 }) {
   useEffect(() => {
     const postId = controller.getPayload();
@@ -160,6 +167,7 @@ export function PostTopicsEditor({
               topics={topics}
               areas={areas}
               topicsById={topicsById}
+              onEdit={onEdit}
               onSelectTopic={(topicId) => {
                 controller.close();
                 onSelectTopic(topicId);

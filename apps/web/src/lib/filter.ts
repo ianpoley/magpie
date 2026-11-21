@@ -31,7 +31,7 @@ const ORDER: Record<FilterState["sort"], (a: Post, b: Post) => number> = {
   most_liked: (a, b) => b.likeCount - a.likeCount || newestFirst(a, b),
 };
 
-export function applyFilter(snapshot: Snapshot, state: FilterState, now: number): FilterResult {
+export function applyFilter(snapshot: Snapshot, state: FilterState, now: number, held: ReadonlySet<string> = new Set()): FilterResult {
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
 
@@ -67,22 +67,22 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number)
     return bands.every((band) => band === "confident") ? "confident" : "unsure";
   };
 
+  const placement = (post: Post): Band | null => {
+    if (post.hidden && !showHidden) return null;
+    if (state.collection === "bookmarks" && !post.bookmarked) return null;
+    if (state.collection === "likes" && !post.liked) return null;
+    if (state.unfiled && !post.unfiled) return null;
+    if (author !== null && !sameHandle(post.authorHandle, author)) return null;
+    if (since !== null && (post.createdAtMs === null || post.createdAtMs < since)) return null;
+    if (state.mediaOnly && post.media.length === 0) return null;
+    if (!matchesKeyword(post, state.keyword)) return null;
+    return categorySelected ? selectionBand(post) : "confident";
+  };
+
   const confident: Post[] = [];
   const unsure: Post[] = [];
   for (const post of snapshot.posts) {
-    if (post.hidden && !showHidden) continue;
-    if (state.collection === "bookmarks" && !post.bookmarked) continue;
-    if (state.collection === "likes" && !post.liked) continue;
-    if (state.unfiled && !post.unfiled) continue;
-    if (author !== null && !sameHandle(post.authorHandle, author)) continue;
-    if (since !== null && (post.createdAtMs === null || post.createdAtMs < since)) continue;
-    if (state.mediaOnly && post.media.length === 0) continue;
-    if (!matchesKeyword(post, state.keyword)) continue;
-    if (!categorySelected) {
-      confident.push(post);
-      continue;
-    }
-    const band = selectionBand(post);
+    const band = placement(post) ?? (held.has(post.id) ? "confident" : null);
     if (band === "confident") confident.push(post);
     else if (band === "unsure") unsure.push(post);
   }

@@ -55,6 +55,7 @@ type PostDialogProps = {
   onSelectAuthor: (handle: string) => void;
   onCopyLink: (post: Post) => void;
   onRemove: (post: Post) => Promise<void>;
+  onEditTopics: (postId: string) => void;
 };
 
 export function PostDialog(props: PostDialogProps) {
@@ -287,6 +288,7 @@ function PostLayer({
                 topics={topics}
                 areas={areas}
                 topicsById={topicsById}
+                onEdit={props.onEditTopics}
                 onSelectTopic={(topicId) => {
                   onSelectTopic(topicId);
                   root.close();
