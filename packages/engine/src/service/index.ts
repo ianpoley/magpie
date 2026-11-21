@@ -278,7 +278,8 @@ export async function installService(options: ServiceOptions = {}): Promise<void
   const blocker = installBlocker({ ...options, platform: ctx.platform, home: ctx.home });
   if (blocker) throw new Error(blocker);
   const legacy = legacyInstallState(ctx);
-  if (legacy.units.length === 0 && !legacy.config) return installUnits(options);
+  // Migrate holds its own paths and keychain service for its cleanup and rollback; the next install renames.
+  if (options.migrating || (legacy.units.length === 0 && !legacy.config)) return installUnits(options);
   return handOverLegacyNames(ctx, legacy, options);
 }
 
@@ -355,13 +356,15 @@ async function handOverLegacyNames(ctx: Context, legacy: LegacyState, options: S
   const did = { stopped: [] as UnitName[], copied: [] as string[], renamed: false, installed: false };
 
   log('renaming this install from x-corpus to magpie');
-  const since = Date.now();
+  let since = Date.now();
   try {
     for (const name of legacy.units) {
       await manager.remove([name]);
       did.stopped.push(name);
       log(`stopped ${name}`);
     }
+    // Only a heartbeat written after the old worker stopped proves the renamed one.
+    since = Date.now();
     if (oldStore && newStore) {
       for (const name of SECRET_NAMES) {
         const read = await oldStore.get(name);
@@ -453,7 +456,8 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
 }
 
 export type ServiceStatus = {
-  units: { name: ServiceName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
+  /** The services under their current names, or under the old x-corpus names while only those are installed. */
+  units: { name: UnitName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
   /** Null when the worker has never written a heartbeat here. */
   worker: (Pick<WorkerStatus, 'heartbeatAt' | 'state' | 'schedule' | 'nextRunAt'> & { heartbeatAgeMs: number; fresh: boolean }) | null;
   secretBackend: BackendName | null;
@@ -469,8 +473,12 @@ export type ServiceStatus = {
 
 export async function serviceStatus(options: ServiceOptions = {}): Promise<ServiceStatus> {
   const { platform, env, run, manager, files } = context(options);
+  // Until the rename hands them over, the services that run are the ones under the old names.
+  const legacyUnits: string[] = LEGACY_SERVICE_NAMES.filter((name) => existsSync(manager.unitPath(name)));
+  const current = SERVICE_NAMES.some((name) => existsSync(manager.unitPath(name)));
+  const names: readonly UnitName[] = !current && legacyUnits.length > 0 ? LEGACY_SERVICE_NAMES : SERVICE_NAMES;
   const units = [];
-  for (const name of SERVICE_NAMES) {
+  for (const name of names) {
     const file = manager.unitPath(name);
     units.push({ name, file, installed: existsSync(file), ...(await manager.state(name)) });
   }
@@ -492,11 +500,8 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
   const range = nodeRange();
   const installed = units.find((unit) => unit.installed);
   const path = installed ? manager.nodePathOf(readFileSync(installed.file, 'utf8')) : null;
-  const workerUnit = units.find((unit) => unit.name === 'magpie-worker' && unit.installed);
+  const workerUnit = units.find((unit) => unit.name.endsWith('-worker') && unit.installed);
   const dataRoot = workerUnit ? manager.dataRootOf(readFileSync(workerUnit.file, 'utf8')) : null;
-  const legacyUnits: string[] = LEGACY_SERVICE_NAMES.filter((name) => existsSync(manager.unitPath(name)));
-  const legacyWorker = manager.unitPath('x-corpus-worker');
-  const legacyDataRoot = existsSync(legacyWorker) ? manager.dataRootOf(readFileSync(legacyWorker, 'utf8')) : null;
   const exists = path !== null && existsSync(path);
   let version: string | null = null;
   if (exists) {
@@ -508,7 +513,7 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     worker,
     secretBackend: createSecretStore({ env, platform }).backend(),
     node: { path, exists, version, inRange: version === null ? null : inRange(version, range), range },
-    dataRoot: dataRoot ?? legacyDataRoot,
+    dataRoot,
     here: files.repoRoot,
     legacyUnits,
   };

@@ -517,3 +517,29 @@ test('uninstall also removes services still under their x-corpus names', async (
   assert.deepEqual([...machine.loaded], []);
   for (const name of ['x-corpus-web', 'x-corpus-worker']) assert.equal(existsSync(join(machine.unitDir, `${name}.plist`)), false);
 });
+
+test('status reports services still under their x-corpus names as the running services', async (t) => {
+  const { machine } = legacyMac(t);
+  const status = await serviceStatus(machine.options);
+  assert.deepEqual(
+    status.units.map((unit) => [unit.name, unit.installed, unit.running]),
+    [
+      ['x-corpus-web', true, true],
+      ['x-corpus-worker', true, true],
+    ],
+  );
+  assert.deepEqual(status.legacyUnits, ['x-corpus-web', 'x-corpus-worker']);
+});
+
+test('the install inside migrate leaves the x-corpus config and keychain entries for the next install to rename', async (t) => {
+  const { machine, keychain, oldConfig, newConfig } = legacyMac(t);
+  for (const name of ['x-corpus-web', 'x-corpus-worker']) {
+    rmSync(join(machine.unitDir, `${name}.plist`));
+    machine.loaded.delete(name);
+  }
+  await installService({ ...machine.options, migrating: true });
+  assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
+  assert.equal(existsSync(oldConfig), true);
+  assert.equal(existsSync(newConfig), false);
+  assert.deepEqual([...keychain.keys()].sort(), ['x-corpus/typesafe-api-key', 'x-corpus/x-session']);
+});
