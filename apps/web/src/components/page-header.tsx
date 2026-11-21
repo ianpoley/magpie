@@ -290,41 +290,46 @@ export function PageHeader(h: PageHeaderProps) {
 
   return (
     <>
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          {h.menuButton}
-          <div className="min-w-0 flex-1">
-            {context ? <p className="text-eyebrow mb-1 text-ink-muted">{context}</p> : null}
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h1 className="text-display text-[26px] leading-[1.1] text-ink sm:text-[30px]">{h.title}</h1>
-              <CountLine h={h} />
+      <header className="@container flex flex-col gap-3">
+        {/* In a narrow column the title keeps the full width, and the two switches drop to a row of their own under it. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 @max-2xl:basis-full">
+            {h.menuButton}
+            <div className="min-w-0 flex-1">
+              {context ? <p className="text-eyebrow mb-1 text-ink-muted">{context}</p> : null}
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h1 className="text-display text-[26px] leading-[1.1] text-ink sm:text-[30px]">{h.title}</h1>
+                <CountLine h={h} />
+              </div>
             </div>
           </div>
-          {/* A set-once choice, so it sits up here rather than in the pinned row. */}
-          {h.view === "posts" ? (
-            <SegmentedControl aria-label="Layout" value={h.layout} onValueChange={(next) => next && h.onLayout(next as PostLayout)} className="shrink-0 border-0 bg-sunken p-[3px]">
+          <div className="flex shrink-0 items-center gap-3 @max-2xl:w-full">
+            {/* A set-once choice, so it sits up here rather than in the pinned row. */}
+            {h.view === "posts" ? (
+              <SegmentedControl aria-label="Layout" value={h.layout} onValueChange={(next) => next && h.onLayout(next as PostLayout)} className="shrink-0 border-0 bg-sunken p-[3px]">
+                <SegmentedControlIndicator />
+                <Tip label="Cards">
+                  <SegmentedControlItem value="cards" aria-label="Cards" className={LAYOUT_ITEM}>
+                    <LayoutList aria-hidden="true" />
+                  </SegmentedControlItem>
+                </Tip>
+                <Tip label="Rows">
+                  <SegmentedControlItem value="rows" aria-label="Rows" className={LAYOUT_ITEM}>
+                    <Rows3 aria-hidden="true" />
+                  </SegmentedControlItem>
+                </Tip>
+              </SegmentedControl>
+            ) : null}
+            <SegmentedControl aria-label="View" value={h.view} onValueChange={(next) => next && h.onView(next as View)} className="ml-auto shrink-0 border-0 bg-sunken p-[3px]">
               <SegmentedControlIndicator />
-              <Tip label="Cards">
-                <SegmentedControlItem value="cards" aria-label="Cards" className={LAYOUT_ITEM}>
-                  <LayoutList aria-hidden="true" />
-                </SegmentedControlItem>
-              </Tip>
-              <Tip label="Rows">
-                <SegmentedControlItem value="rows" aria-label="Rows" className={LAYOUT_ITEM}>
-                  <Rows3 aria-hidden="true" />
-                </SegmentedControlItem>
-              </Tip>
+              <SegmentedControlItem value="posts" className="focus-ring h-8 px-3.5 text-[13px] font-semibold">
+                Posts
+              </SegmentedControlItem>
+              <SegmentedControlItem value="resources" className="focus-ring h-8 px-3.5 text-[13px] font-semibold">
+                Resources
+              </SegmentedControlItem>
             </SegmentedControl>
-          ) : null}
-          <SegmentedControl aria-label="View" value={h.view} onValueChange={(next) => next && h.onView(next as View)} className="shrink-0 border-0 bg-sunken p-[3px]">
-            <SegmentedControlIndicator />
-            <SegmentedControlItem value="posts" className="focus-ring h-8 px-3.5 text-[13px] font-semibold">
-              Posts
-            </SegmentedControlItem>
-            <SegmentedControlItem value="resources" className="focus-ring h-8 px-3.5 text-[13px] font-semibold">
-              Resources
-            </SegmentedControlItem>
-          </SegmentedControl>
+          </div>
         </div>
         {h.detail ? <p className="max-w-[60ch] text-[14px] leading-[1.5] text-pretty text-ink-muted">{h.detail}</p> : null}
       </header>
