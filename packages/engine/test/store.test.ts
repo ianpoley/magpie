@@ -206,3 +206,28 @@ test('a store at schema version 2 migrates, keeps its data, and can mark a post 
   db.prepare(`UPDATE posts SET removed_at = '2026-02-01' WHERE id = '1'`).run();
   assert.deepEqual(members(), ['2']);
 });
+
+test('a store borrowed from the main checkout is never migrated from a worktree, and is left as it was', (t) => {
+  const path = storePath(t);
+  mkdirSync(dirname(path), { recursive: true });
+  const old = new DatabaseSync(path);
+  old.exec(readFileSync(join(import.meta.dirname, 'fixtures', 'store-v2.sql'), 'utf8'));
+  old.close();
+
+  assert.throws(() => openStore(path, { inheritedFrom: '/home/someone/x-corpus' }), (error: Error) => {
+    assert.match(error.message, /main checkout \/home\/someone\/x-corpus/);
+    assert.match(error.message, /X_CORPUS_ROOT/);
+    return true;
+  });
+  const check = new DatabaseSync(path, { readOnly: true });
+  assert.equal(Number(check.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()?.value), 2);
+  check.close();
+});
+
+test('a borrowed store already at the current schema opens read-write as usual', (t) => {
+  const path = storePath(t);
+  openStore(path).close();
+  const db = openStore(path, { inheritedFrom: '/home/someone/x-corpus' });
+  t.after(() => db.close());
+  assert.equal(Number(db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()?.value), SCHEMA_VERSION);
+});

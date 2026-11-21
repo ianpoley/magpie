@@ -213,7 +213,9 @@ export function installBlocker(options: Pick<ServiceOptions, 'platform' | 'home'
     return `This is a git worktree. Services installed from it would run this worktree's code and stop when it is removed. Run bun run service:install from the main checkout, ${main}. Worktrees already share its corpus and worker.`;
   }
   const legacyPlist = join(home, 'Library', 'LaunchAgents', `${MIGRATION.legacyLabel}.plist`);
-  if (platform === 'darwin' && !options.migrating && existsSync(legacyPlist)) {
+  // Without the old job's cookie file migrate has nothing to move and refuses, so only send people there when it can run.
+  const legacyCookies = join(home, '.birdclaw', 'bird.env');
+  if (platform === 'darwin' && !options.migrating && existsSync(legacyPlist) && existsSync(legacyCookies)) {
     return `The old ${MIGRATION.legacyLabel} job is still installed (${legacyPlist}). Run bun run migrate instead: it moves that job's X cookies and Jev key into the secret store, installs the services, and removes the old job after one good sync.`;
   }
   return null;

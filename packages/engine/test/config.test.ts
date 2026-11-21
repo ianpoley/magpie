@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { mainCheckout, paths } from '../src/config.ts';
+import { inheritedStore, mainCheckout, paths } from '../src/config.ts';
 import { tempDir } from './fixtures/export.ts';
 
 /** A main checkout with one linked worktree, laid out the way git writes them. */
@@ -56,4 +56,14 @@ test('a submodule, a plain directory and a bare repository stay where they are',
 test('X_CORPUS_ROOT still overrides the data root', () => {
   assert.equal(paths({ X_CORPUS_ROOT: '/srv/elsewhere' }).repoRoot, '/srv/elsewhere');
   assert.equal(paths({ X_CORPUS_ROOT: '/srv/elsewhere' }).store, '/srv/elsewhere/state/corpus.sqlite');
+});
+
+test('a worktree borrows the main checkout store only when no override chose another', (t) => {
+  const { main, worktree } = checkouts(t);
+  const store = join(main, 'state', 'corpus.sqlite');
+  assert.equal(inheritedStore(store, {}, worktree), main);
+  assert.equal(inheritedStore(store, { X_CORPUS_ROOT: main }, worktree), null);
+  assert.equal(inheritedStore(store, { X_CORPUS_STORE: store }, worktree), null);
+  assert.equal(inheritedStore(store, {}, main), null);
+  assert.equal(inheritedStore(join(worktree, 'scratch.sqlite'), {}, worktree), null);
 });

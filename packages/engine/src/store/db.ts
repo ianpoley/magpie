@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname } from 'node:path';
 
-import { STORE_BUSY_TIMEOUT_MS } from '../config.ts';
+import { STORE_BUSY_TIMEOUT_MS, inheritedStore } from '../config.ts';
 import { SCHEMA_VERSION, assertKnownVersion, migrate } from './schema.ts';
 
 export type Store = DatabaseSync;
@@ -18,9 +18,15 @@ export type Store = DatabaseSync;
  *
  * Either mode fails when the store was written by newer code. The caller
  * closes the returned handle.
+ *
+ * A linked worktree borrows its main checkout's store. Read-write refuses to
+ * migrate that store: the installed services run the main checkout's code,
+ * and a store upgraded past it would stop them. `inheritedFrom` names that
+ * main checkout; it is worked out from the path by default.
  */
-export function openStore(path: string, options: { readOnly?: boolean } = {}): Store {
+export function openStore(path: string, options: { readOnly?: boolean; inheritedFrom?: string | null } = {}): Store {
   const readOnly = options.readOnly === true;
+  const inheritedFrom = options.inheritedFrom === undefined ? inheritedStore(path) : options.inheritedFrom;
   if (!readOnly) mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path, { readOnly });
   try {
@@ -34,7 +40,12 @@ export function openStore(path: string, options: { readOnly?: boolean } = {}): S
         );
       }
     } else {
-      assertKnownVersion(db);
+      const version = assertKnownVersion(db);
+      if (inheritedFrom && version > 0 && version < SCHEMA_VERSION) {
+        throw new Error(
+          `The store at ${path} belongs to the main checkout ${inheritedFrom} and is at schema version ${version}; this worktree's code would upgrade it to version ${SCHEMA_VERSION}, which the installed services would then refuse. Set X_CORPUS_ROOT to a copy of that data root, or land the migration on the main checkout first.`,
+        );
+      }
       db.exec('PRAGMA journal_mode = WAL');
       migrate(db);
     }

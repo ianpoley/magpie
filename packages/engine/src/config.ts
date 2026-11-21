@@ -196,6 +196,17 @@ export function mainCheckout(dir: string): string {
 export const codeRoot = () => fileURLToPath(new URL('../../..', import.meta.url));
 
 /**
+ * The main checkout whose store this linked worktree borrows at `store`, or
+ * null when the store is this checkout's own or was chosen by an override.
+ */
+export function inheritedStore(store: string, env: Record<string, string | undefined> = process.env, code = codeRoot()): string | null {
+  if (env.X_CORPUS_ROOT || env.X_CORPUS_STORE) return null;
+  const main = mainCheckout(code);
+  if (main === code) return null;
+  return resolve(store) === join(main, 'state', 'corpus.sqlite') ? main : null;
+}
+
+/**
  * Where things live on disk. Read when called, not at import, so a test can
  * set the overrides first:
  *   X_CORPUS_ROOT     repo root (default: this checkout, or the main checkout
