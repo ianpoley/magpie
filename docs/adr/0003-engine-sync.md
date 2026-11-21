@@ -415,3 +415,9 @@ bird's last whoami fallback scrapes a settings page, and its error hides the HTT
 An empty Birdclaw database seeds demo posts with ids like `tweet_006`.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/x/birdclaw.ts#L246)
+
+#### 0003.55 `playableMedia`
+
+Videos and GIFs are fetched when someone presses play in the post window, not at sync. `bird` gives each video a direct `video.twimg.com` MP4 (`videoUrl`), but birdclaw, up to at least 0.17.1, keeps only the thumbnail from `bird`, so the export and the store hold no video links. Reading one post with `bird read <id> --json` uses the same signed-in session as sync. The link is kept in the page's state, not the store: it can expire, and storing it would need a migration. Only `https` links on `video.twimg.com` are passed on.
+
+The browser streams the MP4 straight from X; nothing is downloaded or proxied. X's CDN refuses requests that carry a `Referer` (403) and serves the same request without one, and `<video>` has no per-element referrer setting, so the web app sends `no-referrer` for the whole document (`layout.tsx`).

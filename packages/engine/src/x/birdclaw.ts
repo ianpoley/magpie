@@ -37,6 +37,7 @@ const AUTH = /HTTP 40[13]\b|"code"\s*:\s*32\b/;
 const HANDLE = /^user: @([A-Za-z0-9_]+)/m;
 const NUMERIC_ID = /^\d+$/;
 const OUTPUT_KEEP_CHARS = 64 * 1024;
+const READ_TIMEOUT_MS = 20_000;
 
 type Child = { code: number | null; timedOut: boolean; stdout: string; stderr: string; spawnError: string | null };
 
@@ -51,9 +52,37 @@ function clean(text: string, pair: XSession): string {
 
 const missingCookies = { ok: false, reason: 'missing_cookies', message: 'Both X cookies (auth_token and ct0) are needed.' } as const;
 
+export type PlayableMedia = { thumbUrl: string; videoUrl: string; kind: 'video' | 'gif'; durationMs: number | null };
+export type PlayableResult = { ok: true; media: PlayableMedia[] } | RunFailure;
+
 export type Birdclaw = XAdapter & {
   killActive(): void;
+  playableMedia(session: Cookies, tweetId: string): Promise<PlayableResult>;
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+function videoHostUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'video.twimg.com' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readPlayableMedia(tweet: unknown): PlayableMedia[] {
+  if (!isRecord(tweet)) return [];
+  const own = (Array.isArray(tweet.media) ? tweet.media : []).flatMap((item): PlayableMedia[] => {
+    if (!isRecord(item) || (item.type !== 'video' && item.type !== 'animated_gif') || typeof item.url !== 'string') return [];
+    const videoUrl = videoHostUrl(item.videoUrl);
+    if (!videoUrl) return [];
+    const durationMs = typeof item.durationMs === 'number' ? item.durationMs : null;
+    return [{ thumbUrl: item.url, videoUrl, kind: item.type === 'video' ? 'video' : 'gif', durationMs }];
+  });
+  return [...own, ...readPlayableMedia(tweet.quotedTweet)];
+}
 
 function killGroup(child: ChildProcess): void {
   try {
@@ -154,6 +183,19 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
         return { ok: false, reason: 'rejected', message: clean(`X rejected the cookies: ${probeText}`, pair) };
       }
       return { ok: false, reason: 'transient', message: clean(`bird could not check the cookies: ${probeText}`, pair) };
+    },
+
+    async playableMedia(session, tweetId) {
+      const pair = pairOf(session);
+      if (!pair) return missingCookies;
+      if (!NUMERIC_ID.test(tweetId)) return { ok: false, reason: 'output', message: `Post ${tweetId} is not an X post ID.` };
+      const child = await run(pair, 'bird', ['read', tweetId, '--json'], READ_TIMEOUT_MS);
+      if (!succeeded(child)) return failure(pair, child, `bird read ${tweetId}`, READ_TIMEOUT_MS);
+      try {
+        return { ok: true, media: readPlayableMedia(JSON.parse(child.stdout)) };
+      } catch {
+        return { ok: false, reason: 'output', message: `bird read ${tweetId} did not print JSON.` };
+      }
     },
 
     async sync(session, collection, mode) {
