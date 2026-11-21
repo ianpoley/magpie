@@ -194,10 +194,10 @@ export function Quoted({
             type="button"
             title={`Show posts by ${name}`}
             onClick={() => mentions.select(handle)}
-            className="focus-ring min-w-0 cursor-pointer truncate rounded-[4px] border-0 bg-transparent p-0 text-left font-semibold decoration-current/40 underline-offset-2 hover:underline"
+            className="focus-ring relative min-w-0 cursor-pointer rounded-[4px] border-0 bg-transparent p-0 text-left font-semibold decoration-current/40 underline-offset-2 after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:underline"
             style={{ color: authorHue(handle).fg }}
           >
-            {name}
+            <span className="block truncate">{name}</span>
           </button>
         ) : (
           <span className="truncate font-semibold text-ink">{name}</span>
