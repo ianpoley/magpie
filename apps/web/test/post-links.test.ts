@@ -35,6 +35,9 @@ test("addresses read without scheme or www, and long ones are cut short", () => 
   assert.equal(displayUrl("https://github.com/firecrawl/firecrawl"), "github.com/firecrawl/firecrawl");
   assert.equal(displayUrl("https://platform.claude.com/cookbook/managed-agents-cma-dreaming"), "platform.claude.com/cookbook/manage…");
   assert.equal(shortenUrls("a https://www.example.com/x, b"), "a example.com/x, b");
+  assert.equal(displayUrl("https://x.com/i/article/2106452411397165056"), "X article");
+  assert.equal(displayUrl("https://twitter.com/i/article/2106452411397165056/"), "X article");
+  assert.equal(displayUrl("https://x.com/i/article/2106452411397165056/media"), "x.com/i/article/2106452411397165056…");
 });
 
 test("only http(s) targets without spaces are used", () => {
