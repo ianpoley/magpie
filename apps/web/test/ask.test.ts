@@ -348,7 +348,6 @@ test("the runner shows progress as records arrive and finishes when the stream d
 test("a second query aborts the first, and nothing from the first is shown", async () => {
   const feeds: { query: string; signal: AbortSignal; feed: ReturnType<typeof handFed> }[] = [];
   const runner = createAskRunner(async (query, signal) => {
-    // The first feed ignores the abort, like a response already in the pipe.
     const feed = handFed(feeds.length === 0 ? undefined : signal);
     feeds.push({ query, signal, feed });
     return feed.response;

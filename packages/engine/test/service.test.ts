@@ -26,13 +26,11 @@ function dir(t: TestContext): string {
   return path;
 }
 
-/** Every string in the plist's ProgramArguments array. */
 function programArguments(plist: string): string[] {
   const block = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(plist)?.[1] ?? '';
   return [...block.matchAll(/<string>([^<]*)<\/string>/g)].map((match) => match[1]);
 }
 
-/** The plist's EnvironmentVariables as an object. */
 function plistEnv(plist: string): Record<string, string> {
   const block = /<key>EnvironmentVariables<\/key>\s*<dict>([\s\S]*?)<\/dict>/.exec(plist)?.[1] ?? '';
   return Object.fromEntries([...block.matchAll(/<key>([^<]*)<\/key>\s*<string>([^<]*)<\/string>/g)].map((m) => [m[1], m[2]]));
@@ -89,7 +87,6 @@ test('the web service serves next start on loopback, on port 3030 unless MAGPIE_
   assert.deepEqual(programArguments(renderPlist(web())).slice(2), ['start', '-H', '127.0.0.1', '-p', '3030']);
   assert.match(renderUnit(web(4000)), /^ExecStart=\S+ \S+next start -H 127\.0\.0\.1 -p 4000$/m);
 
-  // The installer reads the port from MAGPIE_PORT.
   const machine = fakeMachine(t, 'darwin');
   await installService({ ...machine.options, env: { ...machine.options.env, MAGPIE_PORT: '4000' } });
   assert.deepEqual(programArguments(machine.unit('magpie-web')).slice(-2), ['-p', '4000']);
@@ -99,21 +96,14 @@ type Machine = {
   options: ServiceOptions & { env: Record<string, string | undefined> };
   root: string;
   configDir: string;
-  /** Every command run, as one string each, oldest first. */
   calls: string[];
   loaded: Set<string>;
   unitDir: string;
   unit: (name: string) => string;
   buildExit: number;
-  /** What the unit files held when the build ran. */
   unitsAtBuild: Record<string, string | null>;
 };
 
-/**
- * A home, clone and config dir in a temp dir, with a fake runner that acts
- * like launchctl or systemctl: it keeps a set of loaded services and refuses
- * to bootstrap one twice or stop one that is not loaded.
- */
 function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
   const base = dir(t);
   const home = join(base, 'home');
@@ -199,7 +189,6 @@ test('install stops the web service, builds, writes both plists, then loads and 
 
   await installService(machine.options);
 
-  // The build ran against the old unit files, after the web service was stopped.
   assert.deepEqual(machine.unitsAtBuild, { 'magpie-web': 'old web plist', 'magpie-worker': null });
   const step = (prefix: string) => machine.calls.findIndex((call) => call.startsWith(prefix));
   assert.ok(step('launchctl bootout gui/501/magpie-web') < step(`${machine.options.nodePath} `), machine.calls.join('\n'));
@@ -213,7 +202,6 @@ test('install stops the web service, builds, writes both plists, then loads and 
   assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
   assert.ok(statSync(join(machine.root, 'logs')).isDirectory());
 
-  // The update path: both are loaded now, and installing again replaces them.
   await installService(machine.options);
   assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
 });
@@ -328,7 +316,6 @@ test('uninstall with purgeSecrets also deletes the secrets, the backend choice a
 
   await uninstallService({ ...machine.options, purgeSecrets: true });
   assert.deepEqual(readdirSync(machine.unitDir), []);
-  // Read through a fresh store: with no backend recorded, nothing is set.
   const store = createSecretStore({ env: machine.options.env });
   assert.equal(store.backend(), null);
   assert.deepEqual(await store.get('x-session'), { ok: true, value: null });
@@ -363,7 +350,6 @@ test('status reports each unit, the worker heartbeat, the recorded backend and t
   assert.equal(status.secretBackend, 'file');
   assert.deepEqual(status.node, { path: machine.options.nodePath, exists: true, version: 'v26.5.0', inRange: true, range: '>=25.8.1 <27' });
 
-  // After a Node upgrade removed the captured node, status says so.
   rmSync(machine.options.nodePath!);
   const after = await serviceStatus(machine.options);
   assert.equal(after.node.exists, false);
@@ -413,13 +399,6 @@ test('secrets set-jev stores the key read from stdin and never prints it', (t) =
   assert.match(readFileSync(join(configDir, 'secrets.env'), 'utf8'), new RegExp(`TYPESAFE_API_KEY='${JEV_KEY}'`));
 });
 
-/**
- * A Mac still installed under the x-corpus names: both old LaunchAgents
- * loaded, ~/.config/x-corpus with the keychain recorded as the backend, and
- * both secrets in a fake keychain under the old service name. The fake
- * worker writes a heartbeat when the renamed worker is started, unless told
- * not to.
- */
 function legacyMac(t: TestContext, options: { heartbeat?: boolean } = {}) {
   const machine = fakeMachine(t, 'darwin');
   delete machine.options.env.MAGPIE_CONFIG_DIR;

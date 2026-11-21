@@ -69,11 +69,6 @@ function Editor({ post, topics, areas, topicsById }: { post: Post; topics: Topic
   );
 }
 
-/**
- * Every topic a post is in, sure or possible, each removable, and a field to
- * add another. One editor serves every trigger connected to its controller;
- * a modal dialog needs an editor of its own inside its content.
- */
 export function PostTopicsEditor({
   controller,
   postsById,
@@ -88,12 +83,9 @@ export function PostTopicsEditor({
   topics: Topic[];
   areas: Area[];
   topicsById: Map<number, Topic>;
-  /** Which edge of the trigger the editor lines up with. */
   align?: "start" | "end";
-  /** The ids of the posts whose triggers are on screen, when a fix can take a post off it. */
   listed?: Set<string>;
 }) {
-  // A fix can take the post out of the filtered list, and its trigger with it; the editor has nothing left to point at.
   useEffect(() => {
     const postId = controller.getPayload();
     if (listed && postId !== undefined && controller.isOpen() && !listed.has(postId)) controller.close();

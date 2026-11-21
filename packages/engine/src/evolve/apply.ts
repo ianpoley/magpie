@@ -12,13 +12,6 @@ import type { NewTopicSnapshot, SplitSnapshot } from './undo.ts';
 
 export type RoundDeps = { jev: JevClient; runId?: number; now: () => Date };
 
-/**
- * How one proposal ended:
- *   applied   the category list changed and the change is logged
- *   rejected  the proposal did not hold up; logged as an attempt only
- *   dropped   the user edited what it touches while it was being scored
- *   skipped   posts could not be scored, so nothing was decided or recorded
- */
 export type RoundOutcome = 'applied' | 'rejected' | 'dropped' | { skipped: string };
 
 function thresholds(db: Store): { confident: number; unsure: number } {
@@ -90,7 +83,6 @@ function logChange(
   return id;
 }
 
-/** Why a name cannot be used for a new topic, or null when it can. */
 function nameProblem(db: Store, name: string): string | null {
   const names = takenTopicNames(db);
   if (names.inUse.has(key(name))) return 'name_in_use';
@@ -104,14 +96,6 @@ function nextTopicPosition(db: Store, areaId: number | null): number {
   );
 }
 
-/**
- * Validates one proposed topic against the eligible Unfiled posts and creates
- * it when enough of them match.
- *
- * The topic is scored while inactive. The swap is one transaction: it checks
- * again that the user has not removed the name or the area meanwhile,
- * activates the topic, and writes the log entry.
- */
 export async function newTopicRound(
   db: Store,
   deps: RoundDeps,
@@ -195,16 +179,6 @@ export async function newTopicRound(
   }
 }
 
-/**
- * Validates proposed subtopics against the parent's posts and, when at least
- * two hold up and together cover enough of the parent, replaces the parent
- * with them.
- *
- * No post loses its place: a post no subtopic claims stays on the subtopic it
- * scored highest on, as an unsure match. A post the user removed from the
- * parent is removed from every subtopic, and one the user added is added to
- * the subtopic it scored highest on.
- */
 export async function splitRound(
   db: Store,
   deps: RoundDeps,

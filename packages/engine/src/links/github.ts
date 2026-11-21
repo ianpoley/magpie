@@ -22,7 +22,6 @@ function homepageUrl(value: unknown): string | null {
   }
 }
 
-/** What a public repo declares about itself, from GitHub's unauthenticated API. */
 export async function lookupRepo(http: HttpFetch, owner: string, repo: string): Promise<RepoLookup> {
   try {
     const response = await http({
@@ -54,10 +53,6 @@ export function onHost(host: string, hosts: readonly string[]): boolean {
   return hosts.some((listed) => host === listed || host.endsWith(`.${listed}`));
 }
 
-/**
- * The host a declared homepage puts forward, and whether it may stand for the
- * repo: only a site root on a host that is not shared between projects.
- */
 export function homepageHost(homepage: string): { host: string; eligible: boolean } | null {
   const canonical = canonicalize(homepage);
   if (canonical === null) return null;

@@ -21,7 +21,6 @@ import { TopicChip } from "./topic-chip";
 
 export type PostDialogController = ReturnType<typeof createDialogController<string>>;
 
-/** Finds the button that opens a card's post (one post's, or every card's), for keyboard movement and returning focus. */
 export const postCardOpen = (postId?: string): string =>
   postId === undefined ? "[data-post-card-open]" : `[data-post-card-open="${CSS.escape(postId)}"]`;
 
@@ -96,7 +95,6 @@ export type PostCardProps = {
   onRemove: (post: Post) => Promise<void>;
 };
 
-/** The post's topics as chips that filter to them. `max` shows the first few and counts the rest; `oneLine` never wraps. */
 export function TopicChips({
   chips,
   topicsById,
@@ -134,7 +132,6 @@ export function LikeCount({ post }: { post: Post }) {
   );
 }
 
-/** The author's name as a button that filters to them, its hit area grown to the line. */
 export function AuthorButton({ post, keyword, onSelectAuthor, className = "" }: { post: Post; keyword: string; onSelectAuthor: (handle: string) => void; className?: string }) {
   return (
     <button
@@ -149,19 +146,12 @@ export function AuthorButton({ post, keyword, onSelectAuthor, className = "" }: 
   );
 }
 
-/** One line set into the card: a quote or a linked page, shortened to fit. */
 const STRIP = "flex min-w-0 items-center gap-2 rounded-inner bg-sunken px-2.5 py-1.5 text-[13px] leading-snug";
 
-/**
- * A post as a card. Its pictures sit in the right margin as a square crop and
- * a filmstrip, out of the reading flow, and its quote and linked page are one
- * line each, so cards stay short and alike in height while nothing is hidden.
- */
 export function PostCard(props: PostCardProps) {
   const { post, keyword, dialog } = props;
   const date = formatDate(post.createdAt);
   const page = post.linkedPages[0] ?? null;
-  // Blank lines would spend the four-line clamp on nothing.
   const text = withoutTrailingUrl(post.text, page?.url ?? null).replace(/\n\s*\n+/g, "\n");
   const textId = `post-text-${post.id}`;
   const lead = leadMedia(post);

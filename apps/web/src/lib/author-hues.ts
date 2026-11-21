@@ -1,7 +1,3 @@
-// Author hue family: 8 hues at equal lightness, each at the same fraction of its own
-// sRGB chroma ceiling (bg 80%, fg/ring 90%), so they read as equally vivid. fg on bg ≥ 4.5:1.
-// Use: tint an author's avatar background (bg), their name (fg), and the avatar ring (ring).
-
 export type AuthorHue = { bg: string; fg: string; ring: string };
 
 export const AUTHOR_HUES: readonly AuthorHue[] = [
@@ -15,7 +11,6 @@ export const AUTHOR_HUES: readonly AuthorHue[] = [
   { bg: "oklch(0.9 0.039 275)", fg: "oklch(0.42 0.238 275)", ring: "oklch(0.62 0.185 275)" },
 ];
 
-/** Stable hue for an author handle. */
 export function authorHue(handle: string): AuthorHue {
   let h = 0;
   for (const ch of handle.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;

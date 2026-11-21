@@ -99,7 +99,6 @@ const solidButton = (label: string, action: () => void) => (
   </Button>
 );
 
-/** Why the list is empty, in the user's terms, and the way out. */
 function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void) {
   const filter = result.state;
   if (!snapshot.storeExists) {
@@ -154,7 +153,6 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   );
 }
 
-/** What ask results show in place of an empty list: still judging, nothing judged, or nothing matched. */
 function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilters: () => void) {
   if (ask.status === "running") {
     return (
@@ -184,8 +182,6 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
   );
 }
 
-// Reads each key the way the server does (first value wins), so a URL with a
-// repeated key seeds and re-reads to the same selection.
 const selectionInAddress = (): LinkedFilter => {
   const params = new URLSearchParams(window.location.search);
   return parseLinked({
@@ -197,7 +193,6 @@ const selectionInAddress = (): LinkedFilter => {
   });
 };
 
-/** `linked` is the selection the page was opened with; later changes are read from the address bar. */
 export function CorpusScreen({
   snapshot,
   sync: initialSync,
@@ -232,7 +227,6 @@ export function CorpusScreen({
   const [askRunner] = useState(() => createAskRunner(postAsk));
   const ask = useSyncExternalStore(askRunner.subscribe, askRunner.getState, () => null);
 
-  // The store changes underneath the page every few hours, and on every edit.
   useEffect(() => {
     let last = Date.now();
     const refresh = () => {
@@ -249,7 +243,6 @@ export function CorpusScreen({
   }, [router]);
 
   useEffect(() => {
-    // "/" jumps to search; j and k move between post cards, and Enter opens the focused one.
     const shortcuts = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
       const target = event.target as HTMLElement | null;
@@ -262,7 +255,6 @@ export function CorpusScreen({
         return;
       }
       if (event.key !== "j" && event.key !== "k") return;
-      // Only from the page itself or a card, so a focused menu, tree row, or control keeps its own keys.
       const onCard = target?.closest("article") ?? null;
       if (target !== document.body && onCard === null) return;
       const cards = [...document.querySelectorAll<HTMLElement>(postCardOpen())];
@@ -280,7 +272,6 @@ export function CorpusScreen({
 
   const keyword = useDeferredValue(filter.keyword);
   const browsed = applyFilter(snapshot, { ...filter, keyword }, now);
-  // While an ask is on screen its ranked matches stand in for the browsed list everywhere below.
   const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
 
@@ -289,8 +280,6 @@ export function CorpusScreen({
   useEffect(() => {
     const search = shownQuery === "" ? "" : `?${shownQuery}`;
     if (window.location.search === search) return;
-    // A selection the address already names is tidied in place, so Back still leaves it.
-    // A search alone rewrites the current entry, so Back does not step through every letter typed.
     const step = linkedQuery({ ...selectionInAddress(), keyword: "" }) === heldSelection ? "replaceState" : "pushState";
     window.history[step](null, "", `${window.location.pathname}${search}${window.location.hash}`);
   }, [shownQuery, heldSelection]);
@@ -317,8 +306,6 @@ export function CorpusScreen({
       ? null
       : (snapshot.posts.find((post) => post.authorHandle.toLowerCase() === applied.author?.toLowerCase())?.authorName ?? null);
 
-  // Toggles start from the selection on screen: an area chosen with one of its
-  // own topics shows as the topic alone, and must not come back when the topic goes.
   const shownSelection = (current: FilterState): FilterState => ({ ...current, topicIds: applied.topicIds, areaIds: applied.areaIds });
 
   const leaveAsk = () => {
@@ -326,7 +313,6 @@ export function CorpusScreen({
     setAskDraft("");
     setMode("search");
   };
-  // Picking a category is browsing again, so it ends an ask.
   const selectTopic = (topicId: number, areaId: number | null | undefined = topicsById.get(topicId)?.areaId) => {
     if (ask) leaveAsk();
     if (areaId != null) setExpanded((open) => (open.includes(areaNode(areaId)) ? open : [...open, areaNode(areaId)]));
@@ -431,7 +417,6 @@ export function CorpusScreen({
 
         <main className="bg-wash relative min-w-0 flex-1">
           <Flock count={result.posts.length} asking={ask?.status === "running"} />
-          {/* The flock keeps out of this column; it must stay main's last child. */}
           <div className="relative z-[1] mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
             <PageHeader
               menuButton={
@@ -460,7 +445,6 @@ export function CorpusScreen({
               onSort={(sort) => setFilter((current) => ({ ...current, sort }))}
               onMediaOnly={(mediaOnly) => setFilter((current) => ({ ...current, mediaOnly }))}
               layout={layout}
-              // The scroll is left alone: the switch only shows near the top, and moving the page would pull it from under the pointer.
               onLayout={(next) => {
                 saveLayout(next);
                 setLayout(next);

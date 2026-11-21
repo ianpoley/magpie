@@ -1,7 +1,4 @@
 "use client";
-// The main column's header. A title row (title, the count line, Posts/Resources), then a tool row
-// (one search field with Ask on it, time, sort, media, Surprise) that pins to the top as the list scrolls.
-// Ask is an action on the search field (the Ask button or ⌘↵), not a mode: plain Enter never starts one, since each ask costs money.
 
 import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { Menu, MenuContent, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@ui-sdk/react/menu";
@@ -42,7 +39,6 @@ const SORTS: { value: Sort; label: string }[] = [
 const CHANGED = "bg-primary-soft text-primary-text shadow-none [&>svg]:text-primary-text hover:bg-primary-soft hover:shadow-none";
 
 export type PageHeaderProps = {
-  /** The small-screen button that opens the filters panel. */
   menuButton: ReactNode;
   eyebrow: string;
   title: string;
@@ -52,12 +48,10 @@ export type PageHeaderProps = {
   mode: SearchMode;
   keyword: string;
   askDraft: string;
-  /** An ask is on screen (running or done). */
   askActive: boolean;
   timeRange: TimeRange;
   sort: Sort;
   mediaOnly: boolean;
-  /** False while the list is ranked by something other than the sort, as ask results are. */
   sortable: boolean;
   onKeyword: (keyword: string) => void;
   onAskDraft: (draft: string) => void;
@@ -73,12 +67,10 @@ export type PageHeaderProps = {
   count: number;
   bookmarked: number;
   liked: number;
-  /** Shown in place of bookmarked/liked on the Resources view. */
   resourceCount: number | null;
 };
 
 const noSubscribe = () => () => {};
-/** Resolved after hydration: the server cannot know the platform, so it renders the Mac hint and the client corrects it. */
 const useIsMac = () =>
   useSyncExternalStore(
     noSubscribe,
@@ -86,7 +78,6 @@ const useIsMac = () =>
     () => true,
   );
 
-/** One field. Typing filters live; Ask (button or ⌘↵) sends what you typed as a question. */
 function SearchField({ h }: { h: PageHeaderProps }) {
   const asking = h.mode === "ask";
   const value = asking ? h.askDraft : h.keyword;
@@ -102,7 +93,6 @@ function SearchField({ h }: { h: PageHeaderProps }) {
       className="min-w-[min(20rem,100%)] flex-1"
       onSubmit={(event) => {
         event.preventDefault();
-        // Plain Enter re-runs an open ask; in search, results are already live.
         if (asking) ask();
       }}
     >
@@ -175,7 +165,6 @@ function Choice<T extends string>({
   icon: LucideIcon;
   options: { value: T; label: string }[];
   value: T;
-  /** The value that means "no narrowing", shown without emphasis. */
   fallback: T;
   onChange: (value: T) => void;
 }) {
@@ -201,7 +190,6 @@ function Choice<T extends string>({
   );
 }
 
-/** One line of orientation: the count, and how much of it you bookmarked and liked. */
 function CountLine({ h }: { h: PageHeaderProps }) {
   const sep = <span aria-hidden="true">·</span>;
   return (
@@ -233,7 +221,6 @@ function CountLine({ h }: { h: PageHeaderProps }) {
   );
 }
 
-/** True once the element has scrolled under the top of the viewport. */
 function useStuck() {
   const ref = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
@@ -247,7 +234,6 @@ function useStuck() {
   return { ref, stuck };
 }
 
-/** Keeps scrolled-to things (j/k, focus) clear of the pinned row, whose height doubles when it wraps. */
 function usePinnedPadding() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -256,7 +242,6 @@ function usePinnedPadding() {
     const root = document.documentElement;
     const ro = new ResizeObserver(() => {
       root.style.scrollPaddingTop = `${el.offsetHeight + 8}px`;
-      // Month headings in the Rows layout pin just under it.
       root.style.setProperty("--pinned-h", `${el.offsetHeight}px`);
     });
     ro.observe(el);
@@ -270,12 +255,9 @@ function usePinnedPadding() {
 }
 
 export function PageHeader(h: PageHeaderProps) {
-  // The eyebrow only earns its line when it says something the title does not (the collection or area).
   const context = h.eyebrow === "Your saved posts" ? null : h.eyebrow;
   const { ref, stuck } = useStuck();
   const pinnedRef = usePinnedPadding();
-  // Changing the search or a filter from the pinned row deep in the list jumps back to the top of the new results,
-  // so the count and the first match are on screen instead of wherever the old scroll position lands.
   const stuckRef = useRef(stuck);
   useEffect(() => {
     stuckRef.current = stuck;
@@ -291,7 +273,6 @@ export function PageHeader(h: PageHeaderProps) {
   return (
     <>
       <header className="@container flex flex-col gap-3">
-        {/* In a narrow column the title keeps the full width, and the two switches drop to a row of their own under it. */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3 @max-2xl:basis-full">
             {h.menuButton}
@@ -304,7 +285,6 @@ export function PageHeader(h: PageHeaderProps) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-3 @max-2xl:w-full">
-            {/* A set-once choice, so it sits up here rather than in the pinned row. */}
             {h.view === "posts" ? (
               <SegmentedControl aria-label="Layout" value={h.layout} onValueChange={(next) => next && h.onLayout(next as PostLayout)} className="shrink-0 border-0 bg-sunken p-[3px]">
                 <SegmentedControlIndicator />
@@ -333,7 +313,6 @@ export function PageHeader(h: PageHeaderProps) {
         </div>
         {h.detail ? <p className="max-w-[60ch] text-[14px] leading-[1.5] text-pretty text-ink-muted">{h.detail}</p> : null}
       </header>
-      {/* Sits where the tool row starts, so it reports "stuck" the moment the row pins. The negative margins cancel the column's gap. */}
       <div ref={ref} aria-hidden="true" className="-mt-5 h-px" />
       <div ref={pinnedRef} data-stuck={stuck ? "" : undefined} className="pinned-row sticky top-0 z-20 -mx-4 -mt-[22px] -mb-2 px-4 py-2 sm:-mx-8 sm:px-8">
         <div className="flex flex-wrap items-center gap-2">
@@ -341,7 +320,6 @@ export function PageHeader(h: PageHeaderProps) {
           <div className="flex flex-wrap items-center gap-2">
             <Choice label="Time range" icon={CalendarDays} options={TIME_RANGES} value={h.timeRange} fallback="all" onChange={h.onTimeRange} />
             {h.sortable ? <Choice label="Sort" icon={ArrowDownUp} options={SORTS} value={h.sort} fallback="newest" onChange={h.onSort} /> : null}
-            {/* Media is an on/off filter, so it reads as one: a check appears and it fills when on. */}
             <Toggle
               pressed={h.mediaOnly}
               onPressedChange={h.onMediaOnly}

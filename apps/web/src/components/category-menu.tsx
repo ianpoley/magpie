@@ -42,14 +42,8 @@ type Lookup = { topicsById: Map<number, Topic>; areasById: Map<number, Area> };
 const ITEM = `${menuItem} gap-2.5 [&>svg]:size-4 [&>svg]:text-ink-muted`;
 const DANGER_ITEM = `${menuItem} gap-2.5 text-like-text [&>svg]:size-4`;
 
-// A press on the button must not reach the tree, which would take focus back from the menu and toggle the row.
 const keepFromTree = (event: SyntheticEvent) => event.stopPropagation();
 
-/**
- * The button on a tree row that opens its actions, always shown after the
- * count. It stays out of the tab order, as the tree is one tab stop; the tree
- * opens it for the keyboard.
- */
 export function CategoryMenuTrigger({ menu, target, name }: { menu: CategoryMenuController; target: CategoryTarget; name: string }) {
   return (
     <MenuTrigger
@@ -64,7 +58,6 @@ export function CategoryMenuTrigger({ menu, target, name }: { menu: CategoryMenu
       className={
         "pressable -mr-1 ml-1 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-muted " +
         "hover:bg-side-wash hover:text-side-ink data-open:bg-side-wash data-open:text-side-ink " +
-        // On the selected row's wash the muted ink falls under 4.5:1, as it does for the count.
         "[[data-slot=tree-label][data-selected]>&]:text-side-ink"
       }
     >
@@ -116,7 +109,6 @@ export function CategoryMenu({ menu, edits, topicsById, areasById }: { menu: Cat
 
           const topic = topicsById.get(target.id);
           if (!topic) return null;
-          // A pinned search is a question the user typed, so it is not merged or hidden: it is renamed or deleted.
           if (topic.kind === "pinned") {
             return (
               <>
@@ -125,7 +117,6 @@ export function CategoryMenu({ menu, edits, topicsById, areasById }: { menu: Cat
               </>
             );
           }
-          // Inside a hidden area the area decides, so the topic's own switch would change nothing on screen.
           const areaHidden = topic.hidden && !topic.hiddenSelf;
           return (
             <>

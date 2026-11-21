@@ -15,7 +15,6 @@ const STAGE_NAMES: Record<string, string> = {
   retag: "Re-tagging",
 };
 
-/** What a run is doing once `stage` is the last one it recorded. Stages are recorded when they finish. */
 const DOING_AFTER: Record<string, string> = {
   x_auth: "Syncing bookmarks from X",
   x_bookmarks: "Syncing likes from X",
@@ -40,14 +39,10 @@ export type SyncPanel = {
   title: string;
   detail: string | null;
   clamp: boolean;
-  /** When the last full sync finished, unless the title already says it. */
   synced: string | null;
   nextRun: string | null;
-  /** The account X is connected as; null when X is not connected or needs reconnecting. */
   connection: string | null;
-  /** Shown under every state while secrets are kept in the fallback file. */
   fallbackWarning: string | null;
-  /** The one primary action. Connect X and Reconnect X open the connect dialog. */
   action: { label: "Sync now" | "Connect X" | "Reconnect X"; disabled: boolean };
 };
 
@@ -61,7 +56,6 @@ function currentStage(run: Run | null): string {
 
 type LastRunView = Pick<SyncPanel, "icon" | "warning" | "title" | "detail" | "synced">;
 
-/** How the last run went, for an install with nothing more pressing to show. */
 function lastRunView(state: SyncState, now: number, synced: string | null): LastRunView {
   const { lastRun, lastCompleteRunAt } = state;
   if (!state.storeExists || !lastRun) {
@@ -98,11 +92,6 @@ function lastRunView(state: SyncState, now: number, synced: string | null): Last
   };
 }
 
-/**
- * What the sync panel shows. The first state that applies wins: X needing a
- * reconnect, an unreadable secret store, X not connected, a run in progress,
- * a pending request, no worker, and otherwise how the last run went.
- */
 export function describeSync(state: SyncState, now: number): SyncPanel {
   const synced = state.lastCompleteRunAt ? `Last full sync ${relativeTime(state.lastCompleteRunAt, now)}` : "Nothing synced yet";
   const syncNow = { label: "Sync now", disabled: false } as const;

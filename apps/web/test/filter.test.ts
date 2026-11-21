@@ -239,7 +239,6 @@ test("a category's count is the number of posts selecting it alone lists, with a
   assert.equal(on.areas.get(AI), listed({ areaIds: [AI], revealHidden: true }));
   assert.equal(on.unfiled, listed({ unfiled: true, revealHidden: true }));
 
-  // A hidden topic and its hidden area keep their own posts: selecting either shows them.
   assert.equal(off.topics.get(ELECTIONS), 2);
   assert.equal(off.topics.get(ELECTIONS), listed({ topicIds: [ELECTIONS] }));
   assert.equal(off.areas.get(POLITICS), listed({ areaIds: [POLITICS] }));

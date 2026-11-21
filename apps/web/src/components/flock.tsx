@@ -1,9 +1,4 @@
 "use client";
-// The flock: a murmuration of tiny pixel magpies that IS the result set, one bird per post on screen.
-// Filter, search or ask and the sift becomes visible: birds leave as results drop and arrive as they return.
-// Usability first: the flock lives in the gutters (never behind the content column), stays low-contrast,
-// and only crosses the header during the brief swirl while an ask is judging. Nothing in it needs opening or hovering.
-// The flight itself is lib/murmuration.ts; this component measures the page, runs the clock and draws.
 
 import { useEffect, useRef } from "react";
 
@@ -13,8 +8,8 @@ import { createMurmuration, type Murmuration } from "@/lib/murmuration";
 import { FLY_DOWN, FLY_GOLD, FLY_INK, FLY_UP } from "./magpie";
 import { SEARCH_INPUT_ID } from "./page-header";
 
-const P = 2; // CSS px per art pixel
-const GAP = 6; // art px kept clear on each side of the content column
+const P = 2;
+const GAP = 6;
 
 type Sky = { setTarget: (n: number) => void; setAsking: (on: boolean) => void; surprise: () => void; pin: () => void; fall: () => void; destroy: () => void };
 const NOOP: Sky = { setTarget: () => {}, setAsking: () => {}, surprise: () => {}, pin: () => {}, fall: () => {}, destroy: () => {} };
@@ -40,7 +35,6 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
   const ctx = canvas.getContext("2d");
   if (!main || !ctx) return NOOP;
 
-  // sprites[palette][frame][facing], inked from the bird tokens in globals.css.
   const root = getComputedStyle(document.documentElement);
   const inks = (pal: Record<string, string>) => Object.fromEntries(Object.entries(pal).map(([k, v]) => [k, root.getPropertyValue(v).trim()]));
   const sprites = [FLY_INK, FLY_GOLD].map((pal) => [FLY_UP, FLY_DOWN].map((f) => [sprite(f, inks(pal), false), sprite(f, inks(pal), true)]));
@@ -63,7 +57,6 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
     canvas.style.left = `${left}px`;
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
-    // main grows as the list loads more; only touch the backing store when the sky's size really changes (resizing clears it).
     const nw = Math.ceil(w / P);
     const nh = Math.ceil(h / P);
     if (nw !== aw || nh !== ah) {
@@ -154,7 +147,6 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
       sim.setAsking(on);
     },
     surprise() {
-      // Toward the middle of the screen, where the opened post appears.
       if (!reduced) sim.surprise({ x: (window.innerWidth / 2 - left) / P, y: window.innerHeight / 2 / P });
     },
     pin() {
@@ -172,10 +164,6 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
   };
 }
 
-/**
- * Fixed over <main>, behind its content column. <main> must be `relative` and the content column must be its
- * last child and sit above the sky (z-index 1): the sky measures that column to keep birds out from behind text.
- */
 export function Flock({ count, asking }: { count: number; asking: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const sky = useRef<Sky>(NOOP);

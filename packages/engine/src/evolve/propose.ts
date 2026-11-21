@@ -6,7 +6,6 @@ import { DISCOVERY } from '../config.ts';
 import { readPostContent } from '../jev/questions.ts';
 import type { Store } from '../store/db.ts';
 
-/** A proposal as it would be stored: every label cleaned and capped. Any label may be ''. */
 export type TopicProposal = { name: string; area: string; areaIsDev: boolean; definition: string };
 export type SubtopicProposal = { name: string; definition: string };
 
@@ -82,7 +81,6 @@ function blockedNameLines(db: Store): string[] {
     .map((row) => JSON.stringify(row.name));
 }
 
-/** Asks Claude for the one topic most of the given Unfiled posts would fit. */
 export async function proposeNewTopic(
   db: Store,
   claude: ClaudeAdapter,
@@ -120,7 +118,6 @@ export async function proposeNewTopic(
   };
 }
 
-/** Asks Claude to divide a topic that has grown too broad into narrower ones. */
 export async function proposeSplit(
   db: Store,
   claude: ClaudeAdapter,

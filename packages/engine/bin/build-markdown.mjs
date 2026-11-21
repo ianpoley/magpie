@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-/*
- * build-markdown.mjs <input.json> <outDir> <label> [normalizedJsonlOut]
- *
- * Reads a birdclaw `--json` envelope, finds the array of tweets inside it
- * (whatever the exact envelope shape turns out to be), and writes:
- *   - one markdown file per tweet in <outDir>
- *   - an index.md listing in <outDir>
- *   - an optional flat normalized .jsonl at [normalizedJsonlOut]
- *
- * It is deliberately tolerant of unknown field names and logs the keys it
- * actually saw, so the field mapping can be tuned after the first real run.
- */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -24,7 +12,6 @@ let raw;
 try { raw = JSON.parse(readFileSync(inPath, 'utf8')); }
 catch (e) { console.error(`Could not parse ${inPath}: ${e.message}`); process.exit(1); }
 
-// Walk the envelope and return the largest array whose elements look tweet-ish.
 function findTweetArray(node, best = []) {
   if (Array.isArray(node)) {
     const tweety = node.filter(x => x && typeof x === 'object' &&

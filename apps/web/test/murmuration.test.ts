@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import { createMurmuration, type Bird, type Space } from "../src/lib/murmuration.ts";
 
-// A seeded random, so every run flies the same way.
 const seeded = (seed: number) => () => {
   seed = (seed + 0x6d2b79f5) | 0;
   let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
@@ -11,7 +10,6 @@ const seeded = (seed: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// A 1440px-wide window in art px: two ~120px gutters either side of a 400px column.
 const SPACE: Space = { width: 640, height: 450, columnLeft: 120, columnRight: 520 };
 const DT = 1 / 60;
 
@@ -23,7 +21,6 @@ const cruising = (sim: ReturnType<typeof createMurmuration>) => sim.birds.filter
 const overColumn = (b: Bird) => b.x > SPACE.columnLeft && b.x < SPACE.columnRight;
 const sideOf = (b: Bird) => (b.x < (SPACE.columnLeft + SPACE.columnRight) / 2 ? 0 : 1);
 
-/** Share of a flock in its largest group, linking birds closer than 12 art px. */
 function largestGroup(birds: Bird[]): number {
   const parent = birds.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
@@ -57,7 +54,6 @@ test("after an ask's swirl the birds split evenly and none is left following the
   fly(8, sim);
   const birds = cruising(sim);
   assert.equal(birds.filter(overColumn).length, 0);
-  // A bird pulled toward the far gutter would sit against the column's edge for good.
   assert.equal(birds.filter((b) => b.home !== sideOf(b)).length, 0);
   const left = birds.filter((b) => b.home === 0).length;
   assert.ok(Math.abs(left - birds.length / 2) <= 2, `split ${left}/${birds.length - left}`);

@@ -216,7 +216,6 @@ function seedNumberedPosts(db: Store, count: number): string[] {
   });
 }
 
-/** Fails every request except those for the posts numbered here. */
 const jevAnsweringOnly = (answered: (postNumber: number) => boolean) =>
   fakeJev((_id, request) => {
     const postNumber = Number(/text of p(\d+)/.exec(JSON.stringify(request.state))?.[1]);

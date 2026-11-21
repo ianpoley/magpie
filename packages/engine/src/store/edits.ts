@@ -4,16 +4,6 @@ import type { LoggedChange } from '../evolve/undo.ts';
 import { transaction } from './db.ts';
 import type { Store } from './db.ts';
 
-/**
- * Every edit the user can make to categories, to a post's topics, and to
- * which posts are in the corpus. Nothing
- * else writes user state. Each function is one synchronous transaction, calls
- * no model, and throws an EditError for input it cannot apply.
- *
- * Editing a topic or an area locks it, and automatic restructuring leaves a
- * locked one alone. A per-post fix does not lock its topic.
- */
-
 export type EditErrorCode =
   | 'unknown_topic'
   | 'unknown_area'
@@ -91,13 +81,6 @@ export function renameArea(db: Store, areaId: number, name: string): { areaId: n
   });
 }
 
-/**
- * Folds `fromId` into `intoId`. The merged-away topic's definition keeps being
- * scored and its matches count for the survivor. Its per-post fixes move to
- * the survivor; where both topics have a fix for the same post, the
- * survivor's own stays. A pinned search cannot be the survivor: deleting it
- * removes it outright, which would leave the merged topic pointing at nothing.
- */
 export function mergeTopics(db: Store, fromId: number, intoId: number): { fromId: number; intoId: number } {
   return transaction(db, () => {
     if (fromId === intoId) throw new EditError('merge_into_self', 'A topic cannot be merged into itself.');
@@ -130,11 +113,6 @@ function tombstoneTopics(db: Store, topicIds: number[], now: string): void {
   for (const topicId of topicIds) tombstone.run(JSON.stringify(matches.get(topicId) ?? []), now, topicId);
 }
 
-/**
- * Deletes a topic. Its posts fall back to their other topics or to Unfiled,
- * and it is remembered so it is not proposed again. A pinned search is simply
- * unpinned.
- */
 export function deleteTopic(db: Store, topicId: number): { topicId: number } {
   return transaction(db, () => {
     const topic = activeTopic(db, topicId);
@@ -144,7 +122,6 @@ export function deleteTopic(db: Store, topicId: number): { topicId: number } {
   });
 }
 
-/** Deletes an area and every topic in it. */
 export function deleteArea(db: Store, areaId: number): { areaId: number; topicIds: number[] } {
   return transaction(db, () => {
     editableArea(db, areaId);
@@ -154,7 +131,6 @@ export function deleteArea(db: Store, areaId: number): { areaId: number; topicId
       .all(areaId)
       .map((row) => Number(row.id));
     tombstoneTopics(db, topicIds, now);
-    // A topic that was split keeps the matches it had then, so undoing the split cannot bring it back here.
     db.prepare(
       `UPDATE topics SET state = 'deleted', locked = 1, updated_at = ? WHERE area_id = ? AND state = 'split'`,
     ).run(now, areaId);
@@ -198,23 +174,16 @@ function setPostFix(db: Store, postId: string, topicId: number, action: 'add' | 
   });
 }
 
-/** Puts a post in a topic whatever its score; the fix holds through every later re-tag. */
 export function addPostTopic(db: Store, postId: string, topicId: number): { postId: string; topicId: number } {
   setPostFix(db, postId, topicId, 'add');
   return { postId, topicId };
 }
 
-/** Takes a post out of a topic whatever its score; the fix holds through every later re-tag. */
 export function removePostTopic(db: Store, postId: string, topicId: number): { postId: string; topicId: number } {
   setPostFix(db, postId, topicId, 'remove');
   return { postId, topicId };
 }
 
-/**
- * Takes a post out of the local corpus: no view, count, resource or search
- * shows it, and a later sync does not bring it back. Its scores and fixes are
- * kept for a restore. Nothing changes on X.
- */
 export function removePost(db: Store, postId: string): { postId: string } {
   return transaction(db, () => {
     knownPost(db, postId);
@@ -223,7 +192,6 @@ export function removePost(db: Store, postId: string): { postId: string } {
   });
 }
 
-/** Puts a removed post back, in the topics and with the fixes it had. */
 export function restorePost(db: Store, postId: string): { postId: string } {
   return transaction(db, () => {
     knownPost(db, postId);
@@ -232,12 +200,6 @@ export function restorePost(db: Store, postId: string): { postId: string } {
   });
 }
 
-/**
- * Keeps a free-text search as a topic. `scores` are the relevance scores the
- * search just produced; posts that arrive later are scored against the query
- * by the next tagging pass. The query is stored as the topic's name and as the
- * definition posts are judged against.
- */
 export function pinQuery(
   db: Store,
   pin: { query: string; scores: PinScore[] },
@@ -277,7 +239,6 @@ export function pinQuery(
   });
 }
 
-/** Removes a pinned search and its scores. Nothing remembers it, so it can be pinned again. */
 export function unpin(db: Store, topicId: number): { topicId: number } {
   return transaction(db, () => {
     const topic = activeTopic(db, topicId);
@@ -297,20 +258,10 @@ function undoableChain(db: Store, changeId: number): LoggedChange[] {
   return undoChain(db, changeId);
 }
 
-/**
- * Every change that undoing `changeId` would reverse, newest first, for the
- * confirmation shown before the undo. It lists more than one when later
- * automatic changes built on the same topics.
- */
 export function listUndo(db: Store, changeId: number): LoggedChange[] {
   return undoableChain(db, changeId);
 }
 
-/**
- * Undoes an automatic change and the later ones that built on it. A topic it
- * created goes out of use and is not proposed again; a topic it split comes
- * back with its posts, locked.
- */
 export function undoChange(db: Store, changeId: number): UndoResult {
   return transaction(db, () => {
     const undone = undoableChain(db, changeId);

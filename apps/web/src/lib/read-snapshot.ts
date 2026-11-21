@@ -67,7 +67,6 @@ function counts(json: unknown): Record<string, number> {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] => finite(entry[1]) !== null));
 }
 
-/** Each post's shortened addresses and where they lead, for the links that resolved. */
 function linkTargets(db: DatabaseSync): Map<string, Map<string, string>> {
   const byPost = new Map<string, Map<string, string>>();
   const rows = db
@@ -216,9 +215,6 @@ function read(db: DatabaseSync): Snapshot {
     });
   const topicsById = new Map(topics.map((topic) => [topic.id, topic]));
 
-  // One read of the membership view answers Unfiled and hidden as well. Each
-  // of the store's own views for those costs as much again as this read; a
-  // test holds this derivation to them.
   const areaPosts = new Map<number, Set<string>>();
   const standing = new Map<string, { confidentVisible: boolean; confidentHidden: boolean; hidden: number; visible: number }>();
   const filed = new Set<string>();
@@ -330,12 +326,6 @@ function read(db: DatabaseSync): Snapshot {
   };
 }
 
-/**
- * Everything the screen shows, read in one transaction so a sync writing at
- * the same moment cannot give memberships for topics that were not loaded.
- * Which posts are in which topic comes from the store's membership view, the
- * one place that is defined.
- */
 export function readSnapshot(db: DatabaseSync): Snapshot {
   if (db.isTransaction) return read(db);
   db.exec("BEGIN");

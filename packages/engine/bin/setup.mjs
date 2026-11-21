@@ -1,14 +1,4 @@
 #!/usr/bin/env bun
-//
-//     bun run setup [--yes]
-//
-// The first command after cloning. Bun runs this file, because Bun is the one
-// tool a fresh machine is sure to have and a fresh clone has no node_modules
-// yet. It installs the dependencies, finds a Node in the supported range
-// (nvm and other version managers often put an older one first on PATH),
-// then runs the setup walkthrough under that Node, so the services record it.
-//
-// No dependencies and no TypeScript: it has to run before both are in place.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -28,7 +18,6 @@ function compare(a, b) {
   return 0;
 }
 
-/** Whether `v26.5.0` is inside a space-separated range of comparators such as `>=25.8.1 <27`. */
 export function inRange(version, range) {
   const have = parts(version);
   return range
@@ -49,7 +38,6 @@ const versionDirs = (dir, suffix) => {
   }
 };
 
-/** Every node binary worth trying: the ones on PATH first, in order, then the usual install locations. */
 export function nodeCandidates(env = process.env, home = homedir()) {
   const onPath = (env.PATH ?? '').split(delimiter).filter(Boolean).map((dir) => join(dir, 'node'));
   const known = [
@@ -64,11 +52,6 @@ export function nodeCandidates(env = process.env, home = homedir()) {
   return [...new Set([...onPath, ...known])];
 }
 
-/**
- * The node to run: the first on PATH when it is in range, otherwise the
- * newest in range among the rest. `versionOf` returns null for a path that
- * is missing or does not run.
- */
 export function pickNode(candidates, versionOf, range) {
   const found = candidates.map((path) => ({ path, version: versionOf(path) })).filter((node) => node.version !== null);
   const first = found[0] ?? null;

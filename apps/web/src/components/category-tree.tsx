@@ -22,10 +22,8 @@ const byCount = <T extends { postCount: number; name: string }>(a: T, b: T): num
 
 const ROW =
   "relative h-8 rounded-[10px] text-[13px] text-side-ink data-selected:bg-side-wash data-selected:font-semibold";
-// On the selected row's wash the muted ink falls under 4.5:1, so the count takes the full ink there.
 const COUNT =
   "ml-auto shrink-0 pl-2 text-[12px] font-medium text-side-muted tabular-nums [[data-slot=tree-label][data-selected]>&]:text-side-ink";
-// Every menu button has its own space after the count, so rows without one keep the same gap and the counts line up.
 const MENU_GAP = <span className="-mr-1 ml-1 size-6 shrink-0" />;
 
 function Count({ value }: { value: number }) {
@@ -86,16 +84,6 @@ function AreaRow({
   );
 }
 
-/**
- * Areas and their topics, most posts first. Pressing a row adds it to or takes
- * it out of the filter, so several can be selected at once. Hidden areas and
- * topics are listed under a collapsed group at the end. Each area and topic
- * row carries a menu of edits; Shift+F10 or the menu key opens the focused row's.
- *
- * A `query` narrows the rows to those whose name contains it and opens every
- * area it leaves. The expansion held by the parent is not touched meanwhile,
- * so it is back when the query is cleared.
- */
 export function CategoryTree({
   snapshot,
   filter,
@@ -121,7 +109,6 @@ export function CategoryTree({
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
 
-  // Each row shows what selecting it alone would list, which leaves out hidden posts until they are revealed.
   const counts = categoryCounts(snapshot, filter.revealHidden);
   const shownTopics = snapshot.topics.map((topic) => ({ ...topic, postCount: counts.topics.get(topic.id) ?? 0 }));
   const shownAreas = snapshot.areas.map((area) => ({ ...area, postCount: counts.areas.get(area.id) ?? 0 }));
@@ -143,7 +130,6 @@ export function CategoryTree({
   const { pinned, unfiled, areas, hiddenAreas, hiddenTopics } = searchCategories(all, needle);
   const hiddenCount = hiddenAreas.length + hiddenTopics.length;
 
-  // While searching, every area left in the tree is open unless it was closed during this same query.
   const [closed, setClosed] = useState<{ query: string; nodes: string[] }>({ query: "", nodes: [] });
   const found = [...pinned, ...areas, ...hiddenAreas].map(({ area }) => areaNode(area.id)).concat(hiddenCount > 0 ? [HIDDEN_NODE] : []);
   const closedNow = closed.query === needle ? closed.nodes : [];
@@ -203,8 +189,6 @@ export function CategoryTree({
         onExpandedChange={setOpen}
         onKeyDown={openRowMenu}
         onValueChange={(_next, details) => {
-          // A plain press would replace the selection; here every press toggles
-          // the pressed row, and range or select-all gestures do nothing.
           if (details.reason !== "item-press") return;
           const target = details.event?.target;
           const node = target instanceof Element ? target.closest("[data-node]")?.getAttribute("data-node") : null;

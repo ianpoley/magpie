@@ -1,11 +1,5 @@
 import { TextDecoder } from 'node:util';
 
-/**
- * One HTTP request. It never follows a redirect: a 3xx comes back with its
- * `location` header so the caller decides whether to follow. Header names are
- * lowercase. `body` is at most `maxBytes` of a successful text response
- * and empty for anything else. A timeout or network failure rejects.
- */
 export type HttpRequest = {
   url: string;
   timeoutMs: number;
@@ -55,7 +49,6 @@ async function readCapped(response: Response, maxBytes: number, contentType: str
   return text;
 }
 
-/** The real implementation, on the runtime's own `fetch`. */
 export const fetchHttp: HttpFetch = async ({ url, timeoutMs, maxBytes, headers }) => {
   const response = await fetch(url, {
     redirect: 'manual',

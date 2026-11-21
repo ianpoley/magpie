@@ -28,7 +28,6 @@ const Keys = ({ children }: { children: string }) => (
   <kbd className="rounded-[6px] bg-sunken px-1.5 py-0.5 font-sans text-[13px] font-semibold text-ink">{children}</kbd>
 );
 
-/** The field a refusal is about, or null when it belongs to the whole form. The server names the cookie first. */
 function fieldOf(failure: Failure | null): "auth_token" | "ct0" | "jev" | null {
   if (failure?.code === "jev_rejected") return "jev";
   if (failure?.code !== "invalid_input") return null;
@@ -79,7 +78,6 @@ function Steps({ step, handle, xDone, jevDone }: { step: Step; handle: string | 
   );
 }
 
-/** On a desktop the step's first field takes focus; on touch, or a step with no field, its title does once the step changes. */
 function useStepFocus(step: Step, xDone: boolean) {
   const heading = useRef<HTMLHeadingElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -94,23 +92,16 @@ function useStepFocus(step: Step, xDone: boolean) {
   return { heading, body };
 }
 
-/**
- * First run: X and a Jev key are both required before the app shows. Two
- * steps, X then Jev; a step already done is skipped. The first sync is
- * asked for once both are saved.
- */
 export function SetupGate({ sync, jevStored }: { sync: SyncState; jevStored: boolean }) {
   const router = useRouter();
   const [handle, setHandle] = useState(sync.handle);
   const [xDone, setXDone] = useState(sync.connection !== "not_connected");
   const [step, setStep] = useState<Step>(xDone ? "jev" : "x");
   const [opening, startOpening] = useTransition();
-  // Recorded by the first secret saved, so it can change on step 1.
   const [backend, setBackend] = useState(sync.secretBackend);
   const kept = KEPT[backend ?? "unknown"];
   const { heading, body } = useStepFocus(step, xDone);
 
-  // Both saved: the page renders the app instead of this.
   const open = () => startOpening(() => router.refresh());
 
   return (

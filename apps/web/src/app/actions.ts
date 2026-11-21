@@ -51,11 +51,6 @@ function pinScores(value: unknown): { postId: string; probability: number }[] {
   });
 }
 
-/**
- * Runs one edit against the store. `prepare` checks the arguments before the
- * store is opened; a server action is an endpoint anyone on this machine can
- * post to, so nothing it receives is trusted to have the declared type.
- */
 async function withStore<A, T extends object>(
   options: { write: boolean },
   prepare: () => A,
@@ -70,7 +65,6 @@ async function withStore<A, T extends object>(
   }
   const [{ openStore }, edits, { paths }] = await Promise.all([engineStore(), engineEdits(), engineConfig()]);
   const { store } = paths();
-  // Opening for writing would create the store; only the sync job does that.
   if (!existsSync(store)) return { ok: false, code: "no_store", message: "Nothing has been synced yet." };
   let result: T;
   try {
@@ -155,7 +149,6 @@ export async function removePostTopic(post: string, topicId: number) {
   );
 }
 
-/** Takes a post out of the local corpus. Nothing changes on X. */
 export async function removePost(post: string) {
   return withStore(WRITE, () => postId(post), (db, edits, removed) => edits.removePost(db, removed));
 }
@@ -172,7 +165,6 @@ export async function pinQuery(query: string, scores: { postId: string; probabil
   );
 }
 
-/** Every change that undoing this one would reverse, newest first, for the confirmation. */
 export async function listUndo(changeId: number) {
   return withStore(
     { write: false },
@@ -185,10 +177,6 @@ export async function undoChange(changeId: number) {
   return withStore(WRITE, () => id(changeId, "The change"), (db, edits, change) => edits.undoChange(db, change));
 }
 
-// None of the X connection and Sync now actions needs the store. Cookie values
-// are never logged or sent back: errors are logged by name only.
-
-// What X sets as cookie values, and all the secret store accepts.
 const COOKIE = /^[A-Za-z0-9%._-]{1,512}$/;
 
 function cookie(value: unknown, name: string): string {
@@ -202,7 +190,6 @@ const refused = (code: ActionErrorCode, message: string) => ({ ok: false as cons
 
 const LOCKED_MESSAGE = "Can't reach the keychain. Unlock it, then try again.";
 
-/** The secret store's failure as the code the UI shows. */
 const storeFailure = (reason: "locked" | "unavailable" | "invalid") =>
   reason === "invalid" ? refused("invalid_input", "Those cookies could not be stored.") : refused("secret_store_locked", LOCKED_MESSAGE);
 
@@ -216,11 +203,6 @@ async function guarded<T extends object>(what: string, work: () => Promise<Actio
   }
 }
 
-/**
- * Checks the pasted cookies with X and stores them only if X accepts them.
- * A stored pair starts a new connection, which also clears a pause after X
- * refused the old one, and asks for a sync.
- */
 export async function connectX(authToken: string, ct0: string): Promise<ActionResult<{ handle: string | null; sync: SyncState }>> {
   return guarded("connect X", async () => {
     const session = { authToken: cookie(authToken, "auth_token"), ct0: cookie(ct0, "ct0") };
@@ -241,21 +223,14 @@ export async function connectX(authToken: string, ct0: string): Promise<ActionRe
     if (!saved.ok) return storeFailure(saved.reason);
     const files = paths();
     state.writeConnection(files.xConnection, { handle: who.handle, connectedAt: new Date().toISOString() });
-    // The first sync waits for the Jev key too: setup asks for it next.
     const jev = await store.get("typesafe-api-key");
     if (!jev.ok || jev.value) state.writeSyncRequest(files.syncRequest);
     return { ok: true, handle: who.handle, sync: await readSyncState() };
   });
 }
 
-// What the secret store accepts as an API key.
 const API_KEY = /^[\x21\x23-\x26\x28-\x5b\x5d-\x7e]{1,512}$/;
 
-/**
- * Checks the pasted Jev key with TypeSafe and stores it only if TypeSafe
- * accepts it. With X already connected, that completes setup, so it asks for
- * a sync. The key is never logged or sent back.
- */
 export async function saveJevKey(key: string): Promise<ActionResult<{ sync: SyncState }>> {
   return guarded("save the Jev key", async () => {
     if (typeof key !== "string" || !API_KEY.test(key)) {

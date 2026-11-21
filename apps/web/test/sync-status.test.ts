@@ -33,7 +33,6 @@ function run(status: string, stages: [stage: string, outcome: string, message?: 
   };
 }
 
-/** A connected install with a live worker, idle after a clean run two hours ago. */
 function state(overrides: Partial<SyncState> = {}): SyncState {
   return {
     readAt: NOW,

@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-//
-//     node packages/engine/bin/magpie.mjs <command>   (or: bun run setup, bun run service:install, ...)
-//
-// Exits 0 on success, 1 when the command failed and 2 for a bad argument.
-
 import { readFileSync } from 'node:fs';
 
 const USAGE = `Usage: magpie.mjs <command>
@@ -23,7 +18,6 @@ Commands:
                                        and these services; nothing old is deleted until the new worker finishes
                                        one good sync, and any failure puts the old job back (default wait 15 min)`;
 
-// A Node too old to run TypeScript would fail with a loader error; name the range instead.
 let service;
 try {
   service = await import('../src/service/index.ts');
@@ -46,7 +40,6 @@ const fail = (prefix, error) => {
   process.exit(1);
 };
 
-/** Yes or no at a terminal; Enter takes the default. */
 async function confirm(question, defaultYes) {
   const { createInterface } = await import('node:readline/promises');
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -55,7 +48,6 @@ async function confirm(question, defaultYes) {
   return answer === '' ? defaultYes : answer.startsWith('y');
 }
 
-/** Polls for the X connection until it appears or the person presses Enter. */
 function waitForConnection(readConnection) {
   return new Promise((resolve) => {
     const stdin = process.stdin;
@@ -205,7 +197,6 @@ async function serviceCommand(sub, args) {
   }
 }
 
-/** The key from stdin: typed with echo off at a terminal, otherwise everything piped in. */
 async function readKey(prompt = 'Jev (TypeSafe) API key (typing is hidden): ') {
   const stdin = process.stdin;
   if (!stdin.isTTY) {
@@ -298,7 +289,6 @@ switch (command) {
     await setJev();
     break;
   case 'sync':
-    // The sync command reads its own options from argv, so it sees them without the word `sync`.
     process.argv.splice(2, 1);
     await import('./sync.mjs');
     break;

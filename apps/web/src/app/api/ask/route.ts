@@ -6,11 +6,6 @@ import { errorName } from "@/lib/error-name";
 
 const refuse = (status: number, message: string): Response => Response.json({ message }, { status });
 
-/**
- * Judges every saved post against one typed search and streams the answers,
- * one JSON record per line, as each Jev request returns. The API key stays in
- * this process: nothing from a Jev failure is sent on or logged in full.
- */
 export async function POST(request: Request): Promise<Response> {
   if (!isSameOriginJson(request.headers)) return refuse(403, "This search did not come from the app.");
   let body: unknown;
@@ -35,7 +30,6 @@ export async function POST(request: Request): Promise<Response> {
   let posts: AskPost[];
   try {
     jev = await createJevClient();
-    // Read everything first, so no store handle is held while the answers stream.
     const db = openStore(store, { readOnly: true });
     try {
       posts = readAskPosts(db, questions.readPostContent);

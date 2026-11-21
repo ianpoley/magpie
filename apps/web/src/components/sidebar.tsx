@@ -49,7 +49,6 @@ export type SidebarProps = {
   whatChanged: WhatChangedController;
   removedPosts: RemovedPostsController;
   categoryEdits: CategoryEdits;
-  /** A control shown beside the name, such as the close button of the narrow-screen panel. */
   headerAction?: ReactNode;
   onCollection: (collection: Collection) => void;
   onExpandedChange: (expanded: string[]) => void;
@@ -84,7 +83,6 @@ export function Sidebar({
   const hasHidden = snapshot.areas.some((area) => area.hidden) || snapshot.topics.some((topic) => topic.hiddenSelf);
   const changeCount = snapshot.changes.length;
   const removedCount = snapshot.removed.length;
-  // Narrows the tree only: the selection and the address stay as they are.
   const [categoryQuery, setCategoryQuery] = useState("");
 
   return (
@@ -154,7 +152,6 @@ export function Sidebar({
                     value={categoryQuery}
                     onValueChange={setCategoryQuery}
                     onKeyDown={(event) => {
-                      // With text to clear, Escape clears it and goes no further, so the narrow-screen panel stays open.
                       if (event.key !== "Escape" || categoryQuery === "") return;
                       event.preventDefault();
                       event.stopPropagation();

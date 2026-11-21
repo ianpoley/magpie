@@ -1,18 +1,8 @@
 import { EVOLUTION } from '../config.ts';
 import type { Store } from '../store/db.ts';
 
-/**
- * What must not come back: topics and areas the user deleted, and automatic
- * changes the user undid. Each keeps the posts it last matched confidently, so
- * a later proposal is recognised by its name or by the posts it would claim.
- */
-
 export const key = (name: string): string => name.trim().toLowerCase();
 
-/**
- * The posts each given active topic holds as confident matches, in id order,
- * from one read of the membership view. Every id asked for has an entry.
- */
 export function confidentPostIds(db: Store, topicIds: number[]): Map<number, string[]> {
   const byTopic = new Map<number, string[]>(topicIds.map((id) => [id, []]));
   if (topicIds.length === 0) return byTopic;
@@ -27,7 +17,6 @@ export function confidentPostIds(db: Store, topicIds: number[]): Map<number, str
   return byTopic;
 }
 
-/** Records an undone proposal so it is not proposed again. */
 export function suppressProposal(
   db: Store,
   proposal: { name: string; definition: string; matches: string[]; topicId: number; changeId: number },
@@ -39,7 +28,6 @@ export function suppressProposal(
   ).run(proposal.name, proposal.definition, JSON.stringify(proposal.matches), proposal.topicId, proposal.changeId, now);
 }
 
-/** Names a new topic may not take: topics in use, deleted topics, and undone proposals. */
 export function takenTopicNames(db: Store): { inUse: Set<string>; blocked: Set<string> } {
   const inUse = new Set<string>();
   const blocked = new Set<string>();
@@ -66,10 +54,6 @@ function parseIds(json: unknown): string[] {
   }
 }
 
-/**
- * True when more than the allowed share of `matches` are posts that one
- * deleted topic or one undone proposal last matched.
- */
 export function overlapsTombstone(db: Store, matches: string[]): boolean {
   if (matches.length === 0) return false;
   const sets = [

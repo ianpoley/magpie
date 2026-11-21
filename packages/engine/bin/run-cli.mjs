@@ -8,7 +8,6 @@ export const RUN_OPTIONS_USAGE = `  --limit-posts N  score at most N posts in th
                    evolution, so Claude is not called
   --help           show this text`;
 
-/** Parses the shared options. Prints the usage and exits 0 for --help, or 2 for a bad argument. */
 export function readRunOptions(usage) {
   let values;
   try {
@@ -39,16 +38,11 @@ export function readRunOptions(usage) {
 }
 
 export async function categorizeDeps() {
-  // launchd and systemd start jobs with a bare PATH; the Claude CLI lives in ~/.local/bin.
   process.env.PATH = [join(homedir(), '.local', 'bin'), process.env.PATH].filter(Boolean).join(delimiter);
   const { createClaudeCli } = await import('../src/claude/cli.ts');
   const { createJevClient } = await import('../src/jev/client.ts');
   const { fetchHttp } = await import('../src/links/http.ts');
 
-  // Built on first use: a missing API key then fails the tagging stage, not the whole run.
-  // The pending client is shared, so concurrent first asks read the secret store once.
-  // A failed read is not kept: the worker lives for days, and a key added later
-  // with secrets:set-jev must be picked up by the next run without a restart.
   let jevClient;
   const jev = {
     ask: async (request, askOptions) => {

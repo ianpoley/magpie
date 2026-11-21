@@ -10,37 +10,20 @@ import type { XSession } from '../secrets/store.ts';
 import { MESSAGE_MAX_CHARS, errorText } from '../util.ts';
 
 export type Collection = 'bookmarks' | 'likes';
-/** `backfill` pulls a collection's whole history; `incremental` stops at posts already stored. */
 export type SyncMode = 'backfill' | 'incremental';
 export type Cookies = Partial<XSession> | null;
 
-/**
- * The X auth check:
- *   ok               the cookies work; `handle` is null when only the bookmark probe confirmed them
- *   missing_cookies  one or both cookies are absent, so nothing ran
- *   rejected         X refused the cookies
- *   transient        a network problem, rate limit, server error or timeout: try again later
- */
 export type WhoamiResult =
   | { ok: true; handle: string | null }
   | { ok: false; reason: 'missing_cookies' | 'rejected' | 'transient'; message: string };
 
-/**
- * Why a sync or export failed:
- *   missing_cookies  one or both cookies are absent, so nothing ran
- *   timeout          the child was killed after running too long
- *   exit             the child exited nonzero or could not be started
- *   output           the export was not a JSON array
- */
 export type RunFailure = { ok: false; reason: 'missing_cookies' | 'timeout' | 'exit' | 'output'; message: string };
 export type SyncResult = { ok: true } | RunFailure;
-/** `dropped` counts posts left out because their id is not a numeric X status id. */
 export type ExportResult = { ok: true; kept: number; dropped: number } | RunFailure;
 
 export interface XAdapter {
   whoami(session: Cookies): Promise<WhoamiResult>;
   sync(session: Cookies, collection: Collection, mode: SyncMode): Promise<SyncResult>;
-  /** Writes the collection's stored posts to `outFile`, replacing it only when the export succeeds. */
   export(session: Cookies, collection: Collection, outFile: string): Promise<ExportResult>;
 }
 
@@ -49,11 +32,8 @@ export type BirdclawOptions = {
   timeouts?: Partial<{ preflightMs: number; incrementalMs: number; backfillMs: number; exportMs: number }>;
 };
 
-// A network problem, rate limit, server error: X may answer next time.
 const TRANSIENT = /ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|fetch failed|HTTP 429\b|HTTP 5\d\d\b/;
-// X refused the cookies: HTTP 401 or 403, or its "Could not authenticate you" error code.
 const AUTH = /HTTP 40[13]\b|"code"\s*:\s*32\b/;
-// bird whoami --plain prints `user: @handle (Display Name)`.
 const HANDLE = /^user: @([A-Za-z0-9_]+)/m;
 const NUMERIC_ID = /^\d+$/;
 const OUTPUT_KEEP_CHARS = 64 * 1024;
@@ -63,7 +43,6 @@ type Child = { code: number | null; timedOut: boolean; stdout: string; stderr: s
 const pairOf = (session: Cookies): XSession | null =>
   session?.authToken && session.ct0 ? { authToken: session.authToken, ct0: session.ct0 } : null;
 
-/** Removes every cookie value from child output, then caps it. Cleaning first means a cap can never leave half a value. */
 function clean(text: string, pair: XSession): string {
   let cleaned = text;
   for (const value of [pair.authToken, pair.ct0]) cleaned = cleaned.split(value).join('[redacted]');
@@ -73,11 +52,6 @@ function clean(text: string, pair: XSession): string {
 const missingCookies = { ok: false, reason: 'missing_cookies', message: 'Both X cookies (auth_token and ct0) are needed.' } as const;
 
 export type Birdclaw = XAdapter & {
-  /**
-   * Kills every bird and Birdclaw child still running, with the children
-   * they started. Each runs in its own process group, so a service manager
-   * stopping this process would not stop them.
-   */
   killActive(): void;
 };
 
@@ -98,14 +72,8 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
     exportMs: options.timeouts?.exportMs ?? X_SYNC.exportTimeoutMs,
   };
   const active = new Set<ChildProcess>();
-  // Resolved on first use, so a missing pinned tool fails that call, not construction.
   let tools: ReturnType<typeof xTools> | undefined;
 
-  // The cookies travel only in this environment, built from nothing so no
-  // other secret in the parent's environment reaches the child. bird reads
-  // AUTH_TOKEN and CT0 itself and never falls back to browser cookies while
-  // both are set; PATH starts with this node, so the tools' `#!/usr/bin/env
-  // node` lines run on the same pinned runtime.
   function childEnv(pair: XSession, bird: XTool): Record<string, string> {
     return {
       AUTH_TOKEN: pair.authToken,
@@ -117,7 +85,6 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
     };
   }
 
-  /** The single place bird and Birdclaw are spawned, and only with both cookies. */
   function run(
     pair: XSession,
     tool: 'bird' | 'birdclaw',
@@ -130,10 +97,7 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
       const { path, pinned } = tools[tool];
       const [command, argv] = pinned ? [process.execPath, [path, ...args]] : [path, args];
       const result: Child = { code: null, timedOut: false, stdout: '', stderr: '', spawnError: null };
-      // Its own process group, so a timeout also stops the bird child Birdclaw started.
       const child = spawn(command, argv, {
-        // The cast keeps this call type-checking under the web app's tsconfig,
-        // where Next declares NODE_ENV as a required process.env key.
         env: childEnv(pair, tools.bird) as NodeJS.ProcessEnv,
         stdio: ['ignore', stdoutFd ?? 'pipe', 'pipe'],
         detached: true,
@@ -183,9 +147,6 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
         return { ok: false, reason: 'transient', message: clean(`bird whoami failed: ${whoText}`, pair) };
       }
 
-      // bird's last whoami fallback scrapes a settings page, and its error
-      // hides the HTTP status before it. One page of bookmarks with the same
-      // cookies settles whether X refuses them.
       const probe = await run(pair, 'bird', ['bookmarks', '-n', '1', '--plain'], timeouts.preflightMs);
       if (succeeded(probe)) return { ok: true, handle: null };
       const probeText = textOf(probe);
@@ -243,7 +204,6 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
         rmSync(tmp, { force: true });
         return { ok: false, reason: 'output', message: `${what} did not print a JSON array.` };
       }
-      // An empty Birdclaw database seeds demo posts with ids like `tweet_006`.
       const kept = records.filter((record: { id?: unknown } | null) => NUMERIC_ID.test(String(record?.id ?? '')));
       writeFileSync(tmp, `${JSON.stringify(kept, null, 2)}\n`);
       renameSync(tmp, outFile);

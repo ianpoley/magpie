@@ -1,16 +1,9 @@
 "use client";
-// The pixel magpie: the sidebar mark (with a wing beat when you act), and the birds that circle empty states.
-// Colors are the bird inks in globals.css.
 
 import { useId, useState, type CSSProperties } from "react";
 
 import { useMagpieEvents } from "@/lib/magpie-events";
 
-/**
- * A magpie perched facing right, holding a coin in its bill.
- * K black · W white · B wing gloss (blue) · G tail gloss (green) · V tail tip (violet)
- * E eye glint · Y coin · H coin highlight · O coin shadow
- */
 const MAGPIE = [
   ".................KKKK......",
   "................KKKKKK.....",
@@ -43,7 +36,6 @@ const MARK_INK: Record<string, string> = {
   O: "var(--color-coin-shade)",
 };
 
-/** 6×3 flying birds, facing right: a long tail, a white belly flash, one wing-gloss pixel. Shared with the flock. */
 export const FLY_UP = ["...B..", "KKKKKK", "...WW."];
 export const FLY_DOWN = ["......", "KKKBKK", "..BWW."];
 export const FLY_INK = { K: "--color-bird", W: "--color-bird-white", B: "--color-bird-wing" } as const;
@@ -51,7 +43,6 @@ export const FLY_GOLD = { K: "--color-gold-bird", W: "--color-gold-white", B: "-
 
 type Px = { x: number; y: number; c: string };
 const BASE: Px[] = MAGPIE.flatMap((row, y) => [...row].flatMap((c, x) => (c === "." ? [] : [{ x, y, c }])));
-// Raised-wing frame: the gloss lifts above the back and the body closes underneath it.
 const UP: Px[] = BASE.filter((p) => p.c === "B").flatMap((p) => [
   { x: p.x, y: p.y, c: "K" },
   { x: p.x + 1, y: p.y - 6, c: "B" },
@@ -70,7 +61,6 @@ function PerchedBird({ size }: { size: number }) {
   );
 }
 
-/** The sidebar mark and wordmark. The bird beats its wings on load, when you act, and when the pointer reaches it. */
 export function MagpieMark() {
   const [beat, setBeat] = useState(0);
   useMagpieEvents((event) => {
@@ -86,11 +76,6 @@ export function MagpieMark() {
   );
 }
 
-/**
- * The empty-state bird: a magpie flying side-on, in six frames of one wingbeat (up, through level, to down).
- * The far wing shows behind on the upstroke. The flock keeps its own 6×3 birds, which read as a murmuration at a distance.
- * K black · W white · B wing gloss · F far wing · w far wing's white · G tail gloss · V tail tip · E eye
- */
 const WINGBEAT = [
   [
     "....FKK............",
@@ -243,7 +228,6 @@ const WINGBEAT = [
     "..FFFKKK...........",
   ],
 ];
-// Up, down and back up again, so the beat never jumps from wings-down to wings-up.
 const BEAT = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
 const BEAT_W = WINGBEAT[0][0].length;
 const BEAT_H = WINGBEAT[0].length;
@@ -261,7 +245,6 @@ const BEAT_INK = {
 const beatCells = (rows: string[]) =>
   rows.flatMap((row, y) => [...row].flatMap((c, x) => (c === "." ? [] : [cell({ x, y, c }, `${x}-${y}`, BEAT_INK)])));
 
-/** The six frames, drawn once for the whole flock. */
 function WingbeatFrames({ id }: { id: string }) {
   return (
     <svg width={0} height={0} className="absolute" aria-hidden="true">
@@ -276,7 +259,6 @@ function WingbeatFrames({ id }: { id: string }) {
   );
 }
 
-/** One bird: a window onto a strip of the beat's frames that steps along it. */
 function FlyingBird({ id }: { id: string }) {
   return (
     <svg
@@ -296,7 +278,6 @@ function FlyingBird({ id }: { id: string }) {
   );
 }
 
-/** Empty states: a few birds circling a patch with nothing in it, each turning to face the way it flies. */
 export function EmptyFlock() {
   const id = useId();
   return (

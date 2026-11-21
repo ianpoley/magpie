@@ -18,22 +18,13 @@ import { systemd } from './systemd.ts';
 export { must, spawnRunner } from './manager.ts';
 export type { CommandResult, Runner } from './manager.ts';
 
-// The code's own clone, which holds the web app and the worker. The data
-// root (MAGPIE_ROOT) is the same directory unless that variable moves it.
 const CODE_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
 const webDir = (codeRoot: string) => join(codeRoot, 'apps', 'web');
-// The workspace link, not the resolved file: bun's store path changes with every reinstall.
 const nextBin = (codeRoot: string) => join(webDir(codeRoot), 'node_modules', 'next', 'dist', 'bin', 'next');
 
-/**
- * The web and worker services for a clone. The PATH starts with the captured
- * node's directory, so anything the services spawn with `node` gets the same
- * one, and includes ~/.local/bin, where the Claude CLI lives.
- */
 export function serviceSpecs(input: {
   nodePath: string;
   codeRoot: string;
-  /** Where data, state and logs live. */
   repoRoot: string;
   home: string;
   port: number;
@@ -60,7 +51,6 @@ export function serviceSpecs(input: {
   ];
 }
 
-/** The `engines.node` range from the repo's package.json, such as `>=25.8.1 <27`. */
 function nodeRange(): string {
   const manifest = JSON.parse(readFileSync(join(CODE_ROOT, 'package.json'), 'utf8')) as { engines?: { node?: string } };
   const range = manifest.engines?.node;
@@ -70,7 +60,6 @@ function nodeRange(): string {
 
 const versionParts = (text: string) => text.replace(/^v/, '').split('.').map(Number);
 
-/** Whether a Node version such as `v26.5.0` is inside a space-separated range of comparators such as `>=25.8.1 <27`. */
 export function inRange(version: string, range: string): boolean {
   const have = versionParts(version);
   const compare = (want: number[]) => {
@@ -102,7 +91,6 @@ export function inRange(version: string, range: string): boolean {
     });
 }
 
-/** `fail` stops an install; `warn` is a supported but degraded setup. */
 export type SetupCheck = { name: string; level: 'ok' | 'warn' | 'fail'; detail: string };
 
 export type SetupOptions = {
@@ -111,13 +99,6 @@ export type SetupOptions = {
   nodeVersion?: string;
 };
 
-/**
- * Checks what magpie needs: a Node in the declared range, the pinned
- * Birdclaw and bird, the Claude CLI (optional) and a usable OS secret store.
- * The secret store is tried under a throwaway keychain service, so no
- * magpie secret is touched and no backend is recorded. A wrong Node stops
- * the checks there.
- */
 export async function setupChecks(options: SetupOptions = {}): Promise<SetupCheck[]> {
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
@@ -191,26 +172,16 @@ export type ServiceOptions = {
   home?: string;
   uid?: number;
   nodePath?: string;
-  /** That node's version; this process's by default. */
   nodeVersion?: string;
   run?: Runner;
   log?: (line: string) => void;
-  /** The checkout whose code the services run; this one by default. */
   codeRoot?: string;
-  /** Set by `migrate`, which installs while the old job is still on disk and removes it after a good sync. */
   migrating?: boolean;
-  /** The OS secret store under a given service name; the real one by default. Tests pass a fake. */
   secretBackend?: (service: string) => SecretBackend | null;
-  /** How long a rename from the old x-corpus names waits for the renamed worker's heartbeat, and how often it looks. */
   handoverWaitMs?: number;
   handoverPollMs?: number;
 };
 
-/**
- * The old nightly job's plist when `migrate` can move it: on macOS, with the
- * plist and its cookie file both present. Without the cookie file migrate has
- * nothing to move and refuses, so nobody is sent there. Null otherwise.
- */
 export function legacyInstall(options: Pick<ServiceOptions, 'platform' | 'home'> = {}): string | null {
   const platform = options.platform ?? process.platform;
   const home = options.home ?? homedir();
@@ -218,10 +189,6 @@ export function legacyInstall(options: Pick<ServiceOptions, 'platform' | 'home'>
   return platform === 'darwin' && existsSync(plist) && existsSync(join(home, '.birdclaw', 'bird.env')) ? plist : null;
 }
 
-/**
- * Why installing the services from here would be wrong, or null when it is
- * fine. `setup` prints it as the next step and `service:install` refuses with it.
- */
 export function installBlocker(options: Pick<ServiceOptions, 'platform' | 'home' | 'codeRoot' | 'migrating'> = {}): string | null {
   const platform = options.platform ?? process.platform;
   const home = options.home ?? homedir();
@@ -259,7 +226,6 @@ function context(options: ServiceOptions) {
   };
 }
 
-/** The web service's port: 3030 unless MAGPIE_PORT says otherwise. */
 export function webPort(env: Record<string, string | undefined> = process.env): number {
   const text = setting(env, 'PORT');
   if (!text) return SERVICE.defaultPort;
@@ -268,24 +234,16 @@ export function webPort(env: Record<string, string | undefined> = process.env): 
   return port;
 }
 
-/**
- * Installs both services, or updates them: runs the setup checks, stops the
- * web service, builds the web app, writes both unit files, then loads and
- * (re)starts both. A failed build leaves the unit files as they were.
- */
 export async function installService(options: ServiceOptions = {}): Promise<void> {
   const ctx = context(options);
   const blocker = installBlocker({ ...options, platform: ctx.platform, home: ctx.home });
   if (blocker) throw new Error(blocker);
   const legacy = legacyInstallState(ctx);
-  // Migrate holds its own paths and keychain service for its cleanup and rollback; the next install renames.
   if (options.migrating || (legacy.units.length === 0 && !legacy.config)) return installUnits(options);
   return handOverLegacyNames(ctx, legacy, options);
 }
 
-/** The setup checks, the build, both unit files and the start: the install itself, under the current names. */
 async function installUnits(options: ServiceOptions): Promise<void> {
-  // Read again: a rename from the old names has just moved the config directory.
   const { platform, env, home, run, manager, files, nodePath, nodeVersion, log } = context(options);
   const codeRoot = options.codeRoot ?? CODE_ROOT;
   const checks = await setupChecks({ env, platform, nodeVersion });
@@ -319,7 +277,6 @@ async function installUnits(options: ServiceOptions): Promise<void> {
 type Context = ReturnType<typeof context>;
 type LegacyState = { units: UnitName[]; config: boolean };
 
-/** What is still under the x-corpus names: installed unit files, and the config directory with its secrets. */
 function legacyInstallState(ctx: Context): LegacyState {
   return {
     units: LEGACY_SERVICE_NAMES.filter((name) => existsSync(ctx.manager.unitPath(name))),
@@ -327,22 +284,12 @@ function legacyInstallState(ctx: Context): LegacyState {
   };
 }
 
-/**
- * Moves an install from the x-corpus names to the Magpie names in one go, so
- * old and new names are never in use side by side: stops the old services,
- * copies the secrets to the new keychain service and reads them back, renames
- * the config directory, installs and starts the services under their new
- * names, and waits for the renamed worker's heartbeat. Only then does it
- * delete the old secrets and unit files. Any failure before that puts every
- * step back and restarts the old services.
- */
 async function handOverLegacyNames(ctx: Context, legacy: LegacyState, options: ServiceOptions): Promise<void> {
   const { platform, env, home, manager, log } = ctx;
   const oldConfig = join(home, '.config', LEGACY_NAMES.configDir);
   const newConfig = join(home, '.config', 'magpie');
   const secretOptions = { timeoutMs: SECRETS.timeoutMs };
   const backendFor = options.secretBackend ?? ((service: string) => osBackend(platform, service, secretOptions));
-  // Only the default service names move: a keychain service set by hand stays where it was put.
   const recordedKeychain = (() => {
     try {
       return (JSON.parse(readFileSync(join(oldConfig, 'secret-backend.json'), 'utf8')) as { backend?: string }).backend === 'keychain';
@@ -363,7 +310,6 @@ async function handOverLegacyNames(ctx: Context, legacy: LegacyState, options: S
       did.stopped.push(name);
       log(`stopped ${name}`);
     }
-    // Only a heartbeat written after the old worker stopped proves the renamed one.
     since = Date.now();
     if (oldStore && newStore) {
       for (const name of SECRET_NAMES) {
@@ -430,12 +376,6 @@ async function handOverLegacyNames(ctx: Context, legacy: LegacyState, options: S
   }
 }
 
-/**
- * Stops and removes both services. Secrets and data stay unless
- * `purgeSecrets` is set; then the X cookies and the Jev key are deleted from
- * the OS store and the file, and the record of which backend holds them and
- * the X connection are removed, so the next connection starts fresh.
- */
 export async function uninstallService(options: ServiceOptions & { purgeSecrets?: boolean } = {}): Promise<void> {
   const { platform, env, manager, files, log } = context(options);
   const legacyUnits = LEGACY_SERVICE_NAMES.filter((name) => existsSync(manager.unitPath(name)));
@@ -456,24 +396,17 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
 }
 
 export type ServiceStatus = {
-  /** The services under their current names, or under the old x-corpus names while only those are installed. */
   units: { name: UnitName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
-  /** Null when the worker has never written a heartbeat here. */
   worker: (Pick<WorkerStatus, 'heartbeatAt' | 'state' | 'schedule' | 'nextRunAt'> & { heartbeatAgeMs: number; fresh: boolean }) | null;
   secretBackend: BackendName | null;
-  /** The node the installed services run. `version` and `inRange` are null when it cannot be run. */
   node: { path: string | null; exists: boolean; version: string | null; inRange: boolean | null; range: string };
-  /** The data root the installed worker runs against; null when it is not installed. */
   dataRoot: string | null;
-  /** The data root this checkout uses. */
   here: string;
-  /** Services still installed under their x-corpus names; the next install renames them. */
   legacyUnits: string[];
 };
 
 export async function serviceStatus(options: ServiceOptions = {}): Promise<ServiceStatus> {
   const { platform, env, run, manager, files } = context(options);
-  // Until the rename hands them over, the services that run are the ones under the old names.
   const legacyUnits: string[] = LEGACY_SERVICE_NAMES.filter((name) => existsSync(manager.unitPath(name)));
   const current = SERVICE_NAMES.some((name) => existsSync(manager.unitPath(name)));
   const names: readonly UnitName[] = !current && legacyUnits.length > 0 ? LEGACY_SERVICE_NAMES : SERVICE_NAMES;

@@ -6,7 +6,6 @@ import { test } from 'node:test';
 import { inheritedStore, mainCheckout, paths, setting } from '../src/config.ts';
 import { tempDir } from './fixtures/export.ts';
 
-/** A main checkout with one linked worktree, laid out the way git writes them. */
 function checkouts(t: { after: (fn: () => void) => void }) {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);

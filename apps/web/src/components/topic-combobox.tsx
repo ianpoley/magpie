@@ -7,11 +7,6 @@ import type { Area, Topic } from "@/lib/types";
 
 import { menuItem, popupList, textField } from "./styles";
 
-/**
- * A search field over existing topics, grouped by area. With `resetOnChoose`
- * a choice is reported and the field empties for the next one; without it the
- * field keeps showing the chosen topic.
- */
 export function TopicCombobox({
   label,
   placeholder,

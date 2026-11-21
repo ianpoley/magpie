@@ -50,7 +50,6 @@ function MergeForm({ from, topics, areas }: { from: Topic; topics: Topic[]; area
   );
 }
 
-/** Picks the topic another one folds into, and confirms it: a merge has no undo. */
 export function MergeDialog({
   controller,
   topics,

@@ -15,7 +15,6 @@ import { AuthorButton, CollectionMarks, LikeCount, PostActions, type PostCardPro
 
 const hit = (text: string | null | undefined, keyword: string): boolean => !!text && highlightRanges(text, keyword).length > 0;
 
-/** Glyphs for what a post carries besides text. One that holds a search hit is marked, so the row never looks like a false match. */
 function Carries({ post, keyword }: { post: Post; keyword: string }) {
   const page = post.linkedPages[0];
   const quoteHit = !!post.quoted && (hit(post.quoted.text, keyword) || hit(post.quoted.authorName, keyword) || hit(post.quoted.authorHandle, keyword));
@@ -48,11 +47,6 @@ function Carries({ post, keyword }: { post: Post; keyword: string }) {
   );
 }
 
-/**
- * A post as one row of the list's Rows layout: the author line with what the
- * post carries, two lines of text, then its topics and actions, and a small
- * fixed crop of its lead picture.
- */
 export function PostListRow(props: PostCardProps) {
   const { post, keyword, dialog } = props;
   const date = formatDate(post.createdAt);

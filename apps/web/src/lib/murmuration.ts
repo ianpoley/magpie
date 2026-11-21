@@ -1,27 +1,9 @@
-// The murmuration behind the post list: one bird per post on screen (up to MAX_BIRDS), in two flocks, one per gutter.
-// Pure and DOM-free (the canvas, measuring and drawing live in components/flock.tsx), so it can be stepped in tests.
-//
-// How a flock holds together and changes shape, as starling murmurations do:
-// - Each bird reacts to its K nearest neighbours (topological, like starlings), not to everyone within a radius,
-//   so the flock stays one body whether it is packed tight or stretched thin.
-// - Birds cruise at a near-constant speed and steer by turning toward a desired heading; they never brake or dart.
-//   Alignment dominates, so a turn started anywhere ripples through the body; that ripple is what folds the shape.
-// - A goal point drifts slowly round each gutter and the flock follows it, so the body keeps wheeling and stretching.
-// - Near an edge of the gutter (or the content column) birds turn inward gradually, over a margin, toward the goal,
-//   so the flock banks off the edges instead of piling against them.
-// - Now and then a small scare sends nearby birds sharply off; alignment carries it through the flock as a wave.
-//
-// A bird always belongs to the gutter it is in. A pull toward the other gutter would hold it against the column's
-// edge for good (it may never cross the text), which once showed as a line of birds stacked down that edge.
-
 export const MAX_BIRDS = 320;
 
-/** Art pixels; the canvas draws each one as 2×2 CSS px. */
 export type Space = { width: number; height: number; columnLeft: number; columnRight: number };
 export type Vortex = { x: number; y: number; rx: number; ry: number };
 export type Point = { x: number; y: number };
 
-/** 0 flying · 1 flying home · 2 arriving · 3 diving · 4 falling */
 export type BirdState = 0 | 1 | 2 | 3 | 4;
 
 export type Bird = {
@@ -29,32 +11,28 @@ export type Bird = {
   y: number;
   vx: number;
   vy: number;
-  /** Wingbeat phase; the frame is `Math.floor(phase) & 1`. */
   phase: number;
   state: BirdState;
   t: number;
   home: 0 | 1;
-  /** Seconds of gold left after a pin. */
   gold: number;
   alpha: number;
-  /** Each bird's own cruising speed, as a factor of CRUISE. */
   pace: number;
-  /** Seconds left of a scare. */
   startle: number;
   sx: number;
   sy: number;
   dead: boolean;
 };
 
-const K = 7; // neighbours each bird follows
-const NEAR = 26; // furthest a neighbour can be, art px
-const CELL = 13; // neighbour grid; NEAR fits in the 5×5 cells round a bird
-const SPACING = 7; // birds closer than this push apart
-const CRUISE = 19; // art px per second
-const TURN = 1.6; // how quickly a bird turns toward its desired heading
-const MARGIN = 16; // edge band where birds start banking inward
-const NARROW = 28; // a gutter thinner than this is too small to fly in: one flock crosses the column instead
-const RELEASE_SECONDS = 0.9; // a sift moves every bird it needs to in about this long
+const K = 7;
+const NEAR = 26;
+const CELL = 13;
+const SPACING = 7;
+const CRUISE = 19;
+const TURN = 1.6;
+const MARGIN = 16;
+const NARROW = 28;
+const RELEASE_SECONDS = 0.9;
 
 const W_ALIGN = 1.6;
 const W_COHERE = 0.45;
@@ -94,7 +72,6 @@ export function createMurmuration(random: () => number = Math.random) {
   const flying = (b: Bird) => !b.dead && (b.state === 0 || b.state === 2);
   const flyers = () => birds.filter(flying);
 
-  /** Where each flock is heading: a point that wanders the gutter on slow, unrelated sines, kept clear of the edges. */
   function goal(home: 0 | 1): Point {
     const b = box(home);
     const p = phase[home] + t;
@@ -112,7 +89,6 @@ export function createMurmuration(random: () => number = Math.random) {
     return { x, y, vx: ((g.x - x) / d) * CRUISE * 1.6, vy: ((g.y - y) / d) * CRUISE * 1.6, phase: rand(0, 2), state, t: 0, home, gold: 0, alpha: 1, pace, startle: 0, sx: 0, sy: 0, dead: false };
   }
 
-  /** New birds fly in from the outer edge (or the top) of the emptier gutter, so the two flocks stay even. */
   function spawn() {
     const home: 0 | 1 = narrow ? 0 : sides[0] === sides[1] ? (random() < 0.5 ? 0 : 1) : sides[0] < sides[1] ? 0 : 1;
     sides[home]++;
@@ -126,12 +102,10 @@ export function createMurmuration(random: () => number = Math.random) {
   function sendHome(b: Bird) {
     b.state = 1;
     b.t = 0;
-    // Out through the outer edge of the bird's own gutter, never across the column.
     b.sx = narrow ? (b.x < space.width / 2 ? -1 : 1) : sideOf(b) === 0 ? -1 : 1;
     b.sy = -0.5;
   }
 
-  /** A small scare near one flock: birds close to it bank sharply away, and alignment carries the turn through. */
   function scare() {
     const list = flyers();
     if (list.length < 12) return;
@@ -142,7 +116,6 @@ export function createMurmuration(random: () => number = Math.random) {
       const dy = b.y - at.y;
       const d = Math.hypot(dx, dy);
       if (d > 12) continue;
-      // Away from the scare, and sideways to the bird's heading so it reads as a bank, not a scatter.
       const v = Math.hypot(b.vx, b.vy) || 1;
       const side = dx * -b.vy + dy * b.vx >= 0 ? 1 : -1;
       b.sx = (dx / (d || 1)) * 0.6 + (-b.vy / v) * side;
@@ -151,7 +124,6 @@ export function createMurmuration(random: () => number = Math.random) {
     }
   }
 
-  // Neighbour grid.
   let cols = 1;
   let rows = 1;
   let head = new Int32Array(1);
@@ -163,7 +135,6 @@ export function createMurmuration(random: () => number = Math.random) {
     t += dt;
     const { width, height } = space;
 
-    // Arrivals and departures are released over time, proportional to the change, so a sift reads as one flow.
     const budget = Math.max(1, Math.round(releaseRate * dt));
     for (let k = 0; k < budget && arriveQueue > 0; k++, arriveQueue--) spawn();
 
@@ -171,14 +142,12 @@ export function createMurmuration(random: () => number = Math.random) {
     sides[1] = 0;
     for (const b of birds) {
       if (!flying(b)) continue;
-      // A bird in a gutter belongs to it. One still over the column (leaving the swirl) keeps the side it was given.
       if (!asking && b.gold <= 0.6 && !overColumn(b)) b.home = sideOf(b);
       sides[b.home]++;
     }
     if (leaveQueue > 0) {
       const list = flyers();
       for (let k = 0; k < budget && leaveQueue > 0 && list.length; k++, leaveQueue--) {
-        // Departures leave from the fuller flock first.
         const fuller: 0 | 1 = sides[0] > sides[1] ? 0 : 1;
         const pool = list.filter((b) => b.home === fuller);
         const from = pool.length ? pool : list;
@@ -219,7 +188,6 @@ export function createMurmuration(random: () => number = Math.random) {
       let minV = 0;
 
       if (b.state === 0 || b.state === 2) {
-        // The K nearest neighbours of the same flock.
         let found = 0;
         const gx = Math.floor((b.x + 20) / CELL);
         const gy = Math.floor((b.y + 20) / CELL);
@@ -252,7 +220,7 @@ export function createMurmuration(random: () => number = Math.random) {
         }
 
         const speed = CRUISE * b.pace;
-        let hx = 0; // desired heading, summed from each rule
+        let hx = 0;
         let hy = 0;
         if (found) {
           let avx = 0, avy = 0, cx = 0, cy = 0, sx = 0, sy = 0;
@@ -277,7 +245,6 @@ export function createMurmuration(random: () => number = Math.random) {
           const tcy = cy / found - b.y;
           const tc = Math.hypot(tcx, tcy);
           if (tc > 0) {
-            // Cohesion grows with distance, so stragglers rejoin and a packed core stays loose.
             const pull = Math.min(1, tc / NEAR) * W_COHERE;
             hx += (tcx / tc) * pull;
             hy += (tcy / tc) * pull;
@@ -287,7 +254,6 @@ export function createMurmuration(random: () => number = Math.random) {
         }
 
         if (asking) {
-          // The swirl: everyone wheels round the search field while the ask is judging.
           const k = i * 2.39996 + t * 0.9;
           const j = (i % 9) - 4;
           const tx = vortex.x + Math.cos(k) * (vortex.rx + j * 1.5);
@@ -304,13 +270,11 @@ export function createMurmuration(random: () => number = Math.random) {
             hx += (gdx / gd) * 4;
             hy += (gdy / gd) * 4;
           } else {
-            // The goal only steers the flock as a whole: a bird near it barely feels it, so the body keeps its own shape.
             const reach = b.state === 2 ? 2.5 : W_GOAL * Math.min(1.6, gd / 40);
             hx += (gdx / gd) * reach;
             hy += (gdy / gd) * reach;
           }
 
-          // Bank inward near the gutter's edges, toward the goal, rather than sliding along them.
           if (b.state === 0 || b.t > 1.2) {
             const bx = box(b.home);
             const edge = (gap: number) => (gap >= MARGIN ? 0 : ((MARGIN - Math.max(gap, -MARGIN)) / MARGIN) ** 2);
@@ -339,7 +303,6 @@ export function createMurmuration(random: () => number = Math.random) {
             hy += (dy / d) * 3;
           }
 
-          // Steer: turn the velocity toward the desired heading at the bird's own cruising speed.
           const h = Math.hypot(hx, hy);
           const want = b.state === 2 ? speed * 1.8 : dispersing ? speed * 2 : b.gold > 0.6 ? speed * 2.4 : speed;
           if (h > 0) {
@@ -347,7 +310,6 @@ export function createMurmuration(random: () => number = Math.random) {
             ay += ((hy / h) * want - b.vy) * TURN;
           }
 
-          // Nothing stays behind the text: a bird still over the column (leaving the swirl) is pushed out toward its own side.
           if (overColumn(b)) {
             ax += b.home === 0 ? -90 - (b.x - space.columnLeft) * 2 : 90 + (space.columnRight - b.x) * 2;
             maxV = CRUISE * 5;
@@ -385,11 +347,9 @@ export function createMurmuration(random: () => number = Math.random) {
       b.vy *= clamp;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
-      // Wingbeats quicken when a bird speeds up and slow to a glide at cruise.
       b.phase += dt * (v > CRUISE * 1.3 ? 6 : 2.6);
     }
 
-    // Compact, then top back up if a dive or a fall left the flock short.
     let w = 0;
     for (let i = 0; i < birds.length; i++) if (!birds[i].dead) birds[w++] = birds[i];
     birds.length = w;
@@ -409,7 +369,6 @@ export function createMurmuration(random: () => number = Math.random) {
     setTarget(count: number) {
       target = Math.min(Math.max(0, count), MAX_BIRDS);
       const diff = target - (flyers().length + arriveQueue - leaveQueue);
-      // Proportional: a big sift moves a lot of birds quickly, a small one trickles.
       releaseRate = Math.max(40, Math.abs(diff) / RELEASE_SECONDS);
       if (diff > 0) {
         const cancel = Math.min(leaveQueue, diff);
@@ -426,13 +385,11 @@ export function createMurmuration(random: () => number = Math.random) {
       asking = on;
       if (on) return;
       disperseUntil = t + 1.1;
-      // The swirl splits down its middle and each half flies to its own gutter, so the two flocks come out even.
       if (!narrow) flyers().sort((a, b) => a.x - b.x).forEach((b, i, all) => (b.home = i < all.length / 2 ? 0 : 1));
     },
     setVortex(next: Vortex) {
       vortex = next;
     },
-    /** One bird dives toward `to` (the middle of the screen, where the opened post appears) and fades. */
     surprise(to: Point) {
       diveTo = to;
       const list = flyers();
@@ -442,7 +399,6 @@ export function createMurmuration(random: () => number = Math.random) {
         b.t = 0;
       }
     },
-    /** The birds nearest a point in one flock glint gold and gather there briefly. */
     pin() {
       const home: 0 | 1 = narrow ? 0 : random() < 0.5 ? 0 : 1;
       pinPoint = goal(home);
@@ -453,13 +409,11 @@ export function createMurmuration(random: () => number = Math.random) {
           b.gold = 2;
         });
     },
-    /** One bird drops out of the sky. */
     fall() {
       const list = flyers();
       if (list.length) list[Math.floor(random() * list.length)].state = 4;
     },
     step,
-    /** Reduced motion: the flock as a still picture, one loose body per gutter. */
     scatter() {
       birds.length = 0;
       arriveQueue = 0;

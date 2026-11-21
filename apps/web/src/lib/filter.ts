@@ -26,22 +26,11 @@ const newestFirst = (a: Post, b: Post): number =>
 
 const ORDER: Record<FilterState["sort"], (a: Post, b: Post) => number> = {
   newest: newestFirst,
-  // A sync sees many posts at once (the first one saw them all), so posts added together fall back to newest.
   added: (a, b) => (b.addedAtMs ?? -Infinity) - (a.addedAtMs ?? -Infinity) || newestFirst(a, b),
   oldest: (a, b) => (a.createdAtMs ?? Infinity) - (b.createdAtMs ?? Infinity) || newestFirst(a, b),
   most_liked: (a, b) => b.likeCount - a.likeCount || newestFirst(a, b),
 };
 
-/**
- * The posts a filter shows, in display order.
- *
- * Several topics narrow to posts in all of them; an area stands for any topic
- * inside it, and an area selected with one of its own topics reduces to the
- * topic. Unsure matches count, and rank after posts confident in every
- * selected item whatever the sort. Unfiled replaces any topic or area
- * selection. Hidden posts are left out unless everything is revealed or the
- * selection itself names a hidden topic or area.
- */
 export function applyFilter(snapshot: Snapshot, state: FilterState, now: number): FilterResult {
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
@@ -65,7 +54,6 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number)
   const since = state.timeRange === "all" ? null : now - RANGE_DAYS[state.timeRange] * DAY_MS;
   const author = state.author;
 
-  /** The post's band across the selection, or null when it is outside it. */
   const selectionBand = (post: Post): Band | null => {
     const byTopic = new Map<number, Band>();
     const byArea = new Map<number, Band>();
@@ -112,12 +100,6 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number)
 
 export type CategoryCounts = { topics: Map<number, number>; areas: Map<number, number>; unfiled: number };
 
-/**
- * How many posts each topic, each area, and Unfiled would list when it is the
- * only thing selected, by the same rule as `applyFilter`: unsure matches
- * count, and a hidden post counts only when everything is revealed or the
- * topic or area is itself hidden.
- */
 export function categoryCounts(snapshot: Snapshot, revealHidden: boolean): CategoryCounts {
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));

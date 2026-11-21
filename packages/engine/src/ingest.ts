@@ -31,11 +31,8 @@ type ParsedPost = Omit<PostRow, 'bookmarked' | 'liked'> & {
 };
 
 export type CollectionResult = {
-  /** Posts with an id found in the export file. */
   inExport: number;
-  /** Stored posts whose flag was cleared because they left the collection. */
   cleared: number;
-  /** True when the export shrank past the guard, so no flag was cleared. */
   skippedShrink: boolean;
 };
 
@@ -44,7 +41,6 @@ export type IngestResult = {
   bookmarks: CollectionResult;
   likes: CollectionResult;
   links: { added: number };
-  /** Export records dropped because they carried no id. */
   withoutId: number;
 };
 
@@ -81,7 +77,6 @@ const text = (value: unknown): string | null => (value == null ? null : String(v
 const ID_KEYS = ['id', 'id_str', 'rest_id', 'tweet_id'];
 const TEXT_KEYS = ['full_text', 'text', 'content', 'tweet'];
 
-// X escapes only these three characters in post text. `&amp;` goes last so `&amp;lt;` stays `&lt;`.
 const decodeEntities = (value: string): string =>
   value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
 
@@ -98,7 +93,6 @@ const NAME_KEYS = ['displayName', 'name', 'display_name'];
 const looksLikePost = (value: unknown): boolean =>
   isRecord(value) && pick(value, [...TEXT_KEYS, ...ID_KEYS]) !== undefined;
 
-/** The largest array of post-like records anywhere in the export envelope. */
 function findPostArray(node: unknown): unknown[] | null {
   if (Array.isArray(node) && (node.length === 0 || node.some(looksLikePost))) return node;
   if (typeof node !== 'object' || node === null) return null;
@@ -163,17 +157,6 @@ function readExport(path: string): { posts: ParsedPost[]; withoutId: number } {
   return { posts, withoutId: records.length - posts.length };
 }
 
-/**
- * Loads the bookmarks and likes exports into the store as one row per post.
- *
- * A post's flags follow which export files it appears in. A post in neither
- * file keeps its row with the flags cleared, unless that collection's export
- * shrank past the guard, in which case its flag is left as stored.
- *
- * Both files are read and checked before the store is touched, and every write
- * happens in one transaction: an unreadable or malformed file throws and
- * leaves the store as it was.
- */
 export function ingest(db: Store, files: { bookmarksPath: string; likesPath: string }): IngestResult {
   const bookmarks = readExport(files.bookmarksPath);
   const likes = readExport(files.likesPath);

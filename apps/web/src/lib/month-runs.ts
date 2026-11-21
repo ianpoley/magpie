@@ -4,11 +4,6 @@ const MONTH = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric",
 
 export type Run = { key: string; label: string | null; count: number; possible: boolean; posts: Post[] };
 
-/**
- * The shown posts as runs of one month each, for the Rows layout. A new run
- * also starts where the unsure matches begin. Under Most liked, and while an
- * Ask ranks the list, months mean nothing, so there is one run with no label.
- */
 export function monthRuns(posts: Post[], shown: number, unsureStart: number | null, filter: FilterState, ranked: boolean): Run[] {
   const dated = !ranked && filter.sort !== "most_liked";
   const keyOf = (post: Post, index: number) => {

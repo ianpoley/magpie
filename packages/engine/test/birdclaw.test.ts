@@ -18,15 +18,10 @@ const WHOAMI_AMBIGUOUS = '[err] Failed to determine current user: Could not pars
 const PROBE_401 =
   '[err] Failed to fetch bookmarks: HTTP 401: {"errors":[{"message":"Could not authenticate you","code":32}]}\n';
 
-/** What one stub does when its first argument is `when`. */
 type Behavior = { stdout?: string; stderr?: string; code?: number; sleepSeconds?: number; script?: string };
 
 type Call = { argv: string[]; env: Record<string, string> };
 
-/**
- * A shell stub that logs every call (argv and environment) and then acts by
- * its first argument. Output goes through files so it needs no escaping.
- */
 function writeStub(dir: string, name: string, behaviors: Record<string, Behavior>): { path: string; calls: () => Call[] } {
   const path = join(dir, name);
   const log = join(dir, `${name}.log`);
@@ -282,7 +277,6 @@ test('a backfill gets the long timeout and an incremental sync the short one', a
 });
 
 test('a timed-out sync also stops the processes Birdclaw started', async (t) => {
-  // The stub's HOME is the test's temp dir, where it leaves its background child's pid.
   const { dir, adapter } = setup(
     t,
     { birdclaw: { sync: { script: 'sleep 30 &\necho $! > "$HOME/grandchild.pid"\nwait' } } },

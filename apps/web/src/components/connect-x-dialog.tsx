@@ -29,7 +29,6 @@ export const KEPT = { keychain: "in your keychain on this machine", file: "in an
 
 type Failure = { code: ActionErrorCode; message: string };
 
-/** What each refusal says in the dialog: what went wrong and what to do next. */
 function failureText({ code, message }: Failure): string {
   switch (code) {
     case "x_rejected":
@@ -42,7 +41,6 @@ function failureText({ code, message }: Failure): string {
   }
 }
 
-/** Which field an `invalid_input` message is about: the server names the field first. */
 const fieldOf = (failure: Failure | null): "auth_token" | "ct0" | null => {
   if (failure?.code !== "invalid_input") return null;
   if (failure.message.startsWith("auth_token")) return "auth_token";
@@ -62,7 +60,6 @@ function ConnectForm({ sync, onDone }: { sync: SyncController; onDone: () => voi
 
   useEffect(() => {
     if (connectedAs === null) return;
-    // The submit button is gone; keep focus in the dialog until it closes.
     success.current?.focus();
     const timer = setTimeout(onDone, CONNECTED_PAUSE_MS);
     return () => clearTimeout(timer);
@@ -171,7 +168,6 @@ function DisconnectButton({ sync, onDone }: { sync: SyncController; onDone: () =
   );
 }
 
-/** The sync panel's action in the sidebar on screen: what replaces the trigger once X is connected or disconnected. */
 function visibleSyncAction(): HTMLElement | null {
   const actions = document.querySelectorAll<HTMLElement>("[data-sync-action]");
   return Array.from(actions).find((action) => action.offsetParent !== null) ?? null;
@@ -188,7 +184,6 @@ export function ConnectXDialog({ controller, sync }: { controller: ConnectXContr
     >
       <DialogBackdrop className={alertBackdrop} />
       <DialogContent
-        // Back to the control that opened it, or, when connecting or disconnecting replaced it, to the panel's new action.
         finalFocus={() => (opener.current instanceof HTMLElement && opener.current.isConnected ? opener.current : visibleSyncAction())}
         className={`w-[min(28rem,calc(100%-1.5rem))] ${dialogContent}`}
       >

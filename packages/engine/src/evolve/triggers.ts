@@ -5,20 +5,10 @@ export const ATTEMPT_KIND = { newTopic: 'new_topic', split: 'split' } as const;
 
 export type NewTopicTrigger = {
   fire: boolean;
-  /** Unfiled posts that are fully scored and have no link still to resolve. */
   eligible: string[];
-  /** The eligible posts to show Claude: ones no earlier round saw first. */
   shown: string[];
 };
 
-/**
- * Whether a new topic should be proposed now.
- *
- * It takes 25 eligible Unfiled posts. When the last round created a topic, or
- * none has run, that is enough, so a backlog keeps draining. When the last
- * round created nothing, 25 of them must also be posts no round has seen, and
- * the pile must have grown by a quarter since that round.
- */
 export function newTopicTrigger(db: Store): NewTopicTrigger {
   const rows = db
     .prepare(
@@ -50,11 +40,6 @@ export function newTopicTrigger(db: Store): NewTopicTrigger {
 
 export type BroadTopic = { id: number; name: string; definition: string; areaId: number | null; confident: number };
 
-/**
- * Automatic, unlocked topics with more confident posts than the size limit. A
- * topic whose last split attempt changed nothing is left out until it has
- * grown by a quarter since then.
- */
 export function tooBroadTopics(db: Store): BroadTopic[] {
   const visible = Number(db.prepare(`SELECT COUNT(*) AS n FROM visible_posts`).get()?.n);
   const limit = Math.max(EVOLUTION.tooBroadMinPosts, EVOLUTION.tooBroadCorpusFraction * visible);

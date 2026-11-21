@@ -74,7 +74,6 @@ function setup(t: TestContext, posts: SeedPost[], routes: Record<string, Route> 
     set(url: string, route: Route) {
       table.set(href(url), route);
     },
-    /** Every host resolves to a public address unless one is set here. */
     resolveTo(host: string, result: string[] | Error) {
       addresses.set(host, result);
     },
@@ -1006,7 +1005,6 @@ test('a YouTube video is titled from its oEmbed record, with its channel as the 
 test('a video stored under its host is read from oEmbed once more, and one that still cannot be read is left alone', async (t) => {
   const { db, web, run } = setup(t, [{ id: '1', urls: [WATCH] }], { [OEMBED]: oembed({ title: 'Real title' }) });
   await run();
-  // How videos were stored before oEmbed: titled by their host after one attempt.
   db.prepare(`UPDATE links SET title = host, description = NULL, attempts = 1`).run();
   db.prepare(`UPDATE resources SET title = 'youtube.com'`).run();
   web.calls.length = 0;

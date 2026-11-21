@@ -1,6 +1,4 @@
 "use client";
-// Things the app did that the brand art reacts to: the sidebar mark flaps, the flock dives, glints or drops a bird.
-// Reactions never delay or gate the action itself.
 
 import { useEffect, useRef } from "react";
 
