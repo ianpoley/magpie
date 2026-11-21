@@ -51,7 +51,7 @@ Examples:
 const ENV_STORE = process.env.MAGPIE_STORE || process.env.X_CORPUS_STORE;
 const ENV_DIR = process.env.MAGPIE_DIR || process.env.X_CORPUS_DIR;
 const STORE = ENV_STORE || (ENV_DIR ? join(ENV_DIR, '..', 'state', 'corpus.sqlite') : join(CLONE_ROOT, 'state', 'corpus.sqlite'));
-const KNOWN_SCHEMA_VERSION = 3;
+const KNOWN_SCHEMA_VERSION = 4;
 const CATEGORIES_SCHEMA_VERSION = 2;
 const REMOVAL_SCHEMA_VERSION = 3;
 
