@@ -394,7 +394,12 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
   for (const name of [...SERVICE_NAMES, ...legacyUnits]) rmSync(manager.unitPath(name), { force: true });
   await manager.afterRemove();
   log(`both services are stopped and removed${legacyUnits.length > 0 ? `, and so are the old ${legacyUnits.join(' and ')}` : ''}`);
-  if (!options.purgeSecrets) return;
+  const kept = [files.stateDir, files.dataDir, files.markdownDir, files.logsDir, files.configDir].filter((path) => existsSync(path));
+  if (kept.length > 0) log(`your corpus, edits and settings stay where they are; delete these by hand to remove them too: ${kept.join(', ')}`);
+  if (!options.purgeSecrets) {
+    log('the X cookies and the Jev key stay stored; add --purge-secrets to delete them');
+    return;
+  }
 
   const store = createSecretStore({ env, platform });
   for (const name of SECRET_NAMES) {
