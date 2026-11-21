@@ -23,6 +23,7 @@ const ROW =
   "relative h-8 rounded-[10px] text-[13px] text-side-ink data-selected:bg-side-wash data-selected:font-semibold";
 const COUNT =
   "ml-auto shrink-0 pl-2 text-[12px] font-medium text-side-muted tabular-nums [[data-slot=tree-label][data-selected]>&]:text-side-ink";
+const EMPTY = "text-side-muted [[data-slot=tree-label][data-selected]>&]:text-side-ink";
 const MENU_GAP = <span className="-mr-1 ml-1 size-6 shrink-0" />;
 
 function Count({ value }: { value: number }) {
@@ -36,7 +37,7 @@ function TopicRow({ topic, prefix, menu, query }: { topic: Topic; prefix?: strin
   return (
     <TreeItem value={node} data-node={node} label={topic.name}>
       <TreeItemLabel className={ROW} title={topic.definition || undefined}>
-        <span className="min-w-0 truncate">
+        <span className={`min-w-0 truncate ${topic.postCount === 0 ? EMPTY : ""}`}>
           {prefix ? <span className="text-side-muted">{prefix} › </span> : null}
           <Marked text={topic.name} keyword={query} phrase />
         </span>
@@ -68,7 +69,7 @@ function AreaRow({
           <ChevronDown className="size-4" aria-hidden="true" />
         </TreeItemIndicator>
         {Icon ? <Icon className="size-3.5 shrink-0 text-side-muted" aria-hidden="true" /> : null}
-        <span className="min-w-0 truncate font-semibold">
+        <span className={`min-w-0 truncate font-semibold ${area.postCount === 0 ? EMPTY : ""}`}>
           <Marked text={area.name} keyword={query} phrase />
         </span>
         <Count value={area.postCount} />
@@ -205,7 +206,7 @@ export function CategoryTree({
           <TreeItem value={UNFILED_NODE} data-node={UNFILED_NODE} label={UNFILED_LABEL}>
             <TreeItemLabel className={`${ROW} ps-2`}>
               <Inbox className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
-              <span className="truncate font-semibold">
+              <span className={`truncate font-semibold ${counts.unfiled === 0 ? EMPTY : ""}`}>
                 <Marked text={UNFILED_LABEL} keyword={needle} phrase />
               </span>
               <Count value={counts.unfiled} />
