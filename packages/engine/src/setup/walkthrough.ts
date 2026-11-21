@@ -31,6 +31,7 @@ export type ServicesState = {
   here: string;
   legacy?: boolean;
   upgradeSafeNode?: string | null;
+  buildBehindCode?: boolean;
 };
 
 export type SkillState = 'linked' | 'elsewhere' | 'missing' | 'none';
@@ -120,11 +121,18 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
         done.push(`Left the services on ${services.dataRoot}.`);
         return false;
       }
-    } else if (services.installed && services.running && services.upgradeSafeNode) {
-      log('  The services run a Node path that Homebrew deletes when it upgrades Node, which would stop them.');
-      log(`  Reinstalling points them at ${services.upgradeSafeNode}, the same Node under a path that survives upgrades.`);
+    } else if (services.installed && services.running && (services.upgradeSafeNode || services.buildBehindCode)) {
+      if (services.upgradeSafeNode) {
+        log('  The services run a Node path that Homebrew deletes when it upgrades Node, which would stop them.');
+        log(`  Reinstalling points them at ${services.upgradeSafeNode}, the same Node under a path that survives upgrades.`);
+      }
+      if (services.buildBehindCode) log('  The services still run the build from before the last commit here, such as a git pull.');
       if (!(await agree('  Reinstall them now?', { defaultYes: true, safe: true }))) {
-        todo.push('Point the services at a Node path Homebrew keeps across upgrades: bun run service:install');
+        todo.push(
+          services.upgradeSafeNode
+            ? 'Point the services at a Node path Homebrew keeps across upgrades: bun run service:install'
+            : 'Rebuild and restart the services on the current code: bun run service:install',
+        );
         return true;
       }
     } else if (services.installed && services.running) {

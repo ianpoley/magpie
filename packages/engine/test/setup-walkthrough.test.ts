@@ -58,7 +58,7 @@ function machine(state: {
     services: async () => services,
     install: async () => {
       did.push('install');
-      services = { ...services, installed: true, running: true, dataRoot: services.here, upgradeSafeNode: null };
+      services = { ...services, installed: true, running: true, dataRoot: services.here, upgradeSafeNode: null, buildBehindCode: false };
     },
     migrate: async () => {
       did.push('migrate');
@@ -128,6 +128,17 @@ test('running services pinned to a Node path Homebrew deletes are reinstalled on
   const left = await walkthrough(no.deps);
   assert.deepEqual(no.did, []);
   assert.ok(left.todo.some((line) => line.includes('bun run service:install')));
+});
+
+test('running services on a build older than the code are rebuilt on yes, and listed to do on no', async () => {
+  const behind = { installed: true, running: true, dataRoot: '/clone', buildBehindCode: true };
+  const yes = machine({ services: behind, connected: true, jev: true, skill: 'linked' });
+  assert.deepEqual((await walkthrough(yes.deps)).todo, []);
+  assert.deepEqual(yes.did, ['install']);
+
+  const no = machine({ services: behind, connected: true, jev: true, skill: 'linked', answer: () => false });
+  const left = await walkthrough(no.deps);
+  assert.ok(left.todo.includes('Rebuild and restart the services on the current code: bun run service:install'));
 });
 
 test("the old nightly job's logs are deleted only on a yes at a terminal, and never while that job is installed", async () => {

@@ -108,6 +108,7 @@ async function setup(args) {
         here: status.here,
         legacy: status.legacyUnits.length > 0 || usesLegacyNames(),
         upgradeSafeNode: status.node.upgradeSafePath,
+        buildBehindCode: status.buildBehindCode,
       };
     },
     install: () => service.installService({ log: (line) => log(`  ${line}`) }),
@@ -203,12 +204,20 @@ async function status() {
     const verdict = node.inRange ? `within ${node.range}` : `outside ${node.range}: run bun run service:install with a Node in range`;
     console.log(`[status] node              ${node.path} (${node.version}, ${verdict})`);
   }
-  const healthy =
-    report.units.every((unit) => unit.running) && worker !== null && worker.fresh && node.exists && node.inRange !== false;
-  if (!healthy) process.exitCode = 1;
   if (node.upgradeSafePath) {
     console.log(`[status]                   Homebrew deletes this path when it upgrades Node, and the services stop: run bun run service:install to use ${node.upgradeSafePath}`);
   }
+  if (report.buildBehindCode) {
+    console.log('[status] build             the services run an earlier commit than this checkout (a git pull?): run bun run service:install to rebuild and restart them');
+  }
+  const healthy =
+    report.units.every((unit) => unit.running) &&
+    worker !== null &&
+    worker.fresh &&
+    node.exists &&
+    node.inRange !== false &&
+    !report.buildBehindCode;
+  if (!healthy) process.exitCode = 1;
 }
 
 async function serviceCommand(sub, args) {
