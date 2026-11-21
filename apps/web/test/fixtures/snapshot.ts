@@ -53,7 +53,7 @@ export function topic(id: number, areaId: number, name: string, options: Partial
 }
 
 export function resource(id: number, postIds: string[], options: Partial<Resource> = {}): Resource {
-  return { id, kind: "repo", url: `https://example.com/r${id}`, host: "example.com", title: `Resource ${id}`, postIds, ...options };
+  return { id, kind: "repo", url: `https://example.com/r${id}`, host: "example.com", title: `Resource ${id}`, description: null, postIds, ...options };
 }
 
 export function snapshot(parts: Partial<Snapshot>): Snapshot {

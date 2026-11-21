@@ -97,6 +97,8 @@ export type Resource = {
   url: string;
   host: string | null;
   title: string | null;
+  /** What it says about itself; for a video, its channel. */
+  description: string | null;
   /** Visible posts that link to it. */
   postIds: string[];
 };

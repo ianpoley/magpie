@@ -5,9 +5,11 @@ import { DialogTrigger } from "@ui-sdk/react/dialog";
 import { ChevronDown, ExternalLink, FileText, GitBranch, Package, Play, type LucideIcon } from "lucide-react";
 
 import { shortenUrls } from "@/lib/post-links";
+import { resourceName, videoStill } from "@/lib/resources";
 import type { Post, ResourceGroup } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
+import { FadeImg } from "./fade-img";
 import { formatCount, formatDate, plural } from "./format";
 import type { PostDialogController } from "./post-card";
 import { iconButton } from "./styles";
@@ -48,19 +50,34 @@ export function ResourcesView({ groups, dialog }: { groups: ResourceGroup[]; dia
       {groups.map(({ resource, posts }) => {
         const kind = KINDS[resource.kind] ?? KINDS.page;
         const Icon = kind.icon;
-        const name = resource.title ?? resource.host ?? resource.url;
+        const name = resourceName(resource, posts);
+        const still = videoStill(resource.url);
+        // A video's channel says more than its host; anything else keeps the host.
+        const source = resource.kind === "video" && resource.description ? resource.description : (resource.host ?? resource.url);
         return (
           <AccordionItem key={resource.id} value={String(resource.id)} className="border-line last:border-b-0">
             <div className="flex items-center gap-1 pr-3 transition-colors duration-150 ease-out has-[[data-slot=accordion-trigger]:hover]:bg-canvas">
               <AccordionHeader className="min-w-0 flex-1">
                 <AccordionTrigger className="focus-ring group min-h-0 cursor-pointer justify-start gap-3 py-3 pr-1 pl-4 text-left -outline-offset-2">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-inner bg-sunken text-ink-muted">
-                    <Icon className="size-4" aria-hidden="true" />
-                  </span>
+                  {still ? (
+                    <span className="relative block h-9 w-16 shrink-0 overflow-hidden rounded-[8px] bg-sunken">
+                      <FadeImg src={still} className="img-outline size-full rounded-[inherit] object-cover" />
+                      <span className="absolute right-1 bottom-1 flex size-4 items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-ink)_62%,transparent)] text-surface">
+                        <Play className="size-2 translate-x-px fill-current" aria-hidden="true" />
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-inner bg-sunken text-ink-muted">
+                      <Icon className="size-4" aria-hidden="true" />
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] leading-tight font-semibold text-ink">{name}</span>
+                    <span className={`block truncate text-[14px] leading-tight text-ink ${name.fromPost ? "font-medium" : "font-semibold"}`}>
+                      {name.fromPost ? <span className="sr-only">From a saving post: </span> : null}
+                      {name.fromPost ? `“${name.text}”` : name.text}
+                    </span>
                     <span className="mt-0.5 block truncate text-[12px] leading-tight text-ink-muted">
-                      {resource.host ?? resource.url} · {kind.label}
+                      {source} · {kind.label}
                     </span>
                   </span>
                   <span className="shrink-0 rounded-full bg-chip px-2 py-0.5 text-[12px] font-semibold text-chip-text tabular-nums">
@@ -70,7 +87,7 @@ export function ResourcesView({ groups, dialog }: { groups: ResourceGroup[]; dia
                 </AccordionTrigger>
               </AccordionHeader>
               <Tip label="Open resource">
-                <a href={resource.url} target="_blank" rel="noreferrer" aria-label={`Open ${name}`} className={iconButton}>
+                <a href={resource.url} target="_blank" rel="noreferrer" aria-label={`Open ${name.fromPost ? (resource.host ?? "resource") : name.text}`} className={iconButton}>
                   <ExternalLink aria-hidden="true" />
                 </a>
               </Tip>

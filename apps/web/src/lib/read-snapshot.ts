@@ -293,12 +293,12 @@ function read(db: DatabaseSync): Snapshot {
     }
   }
   const resources: Resource[] = db
-    .prepare(`SELECT id, kind, url, host, title FROM resources ORDER BY id`)
+    .prepare(`SELECT id, kind, url, host, title, description FROM resources ORDER BY id`)
     .all()
     .flatMap((row) => {
       const postIds = resourcePosts.get(Number(row.id));
       if (!postIds) return [];
-      return [{ id: Number(row.id), kind: String(row.kind), url: String(row.url), host: text(row.host), title: text(row.title), postIds }];
+      return [{ id: Number(row.id), kind: String(row.kind), url: String(row.url), host: text(row.host), title: text(row.title), description: text(row.description), postIds }];
     });
 
   const changes: Change[] = db

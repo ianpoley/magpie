@@ -980,3 +980,52 @@ test('a short link that itself answers with an error is given up on without a re
   assert.equal(row.final_url, null);
   assert.deepEqual(groups(db), {});
 });
+
+const WATCH = 'https://www.youtube.com/watch?v=AbZODZ_4VaM';
+const OEMBED = `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(WATCH)}`;
+const oembed = (fields: Record<string, unknown>): HttpResponse => registry(fields);
+
+test('a YouTube video is titled from its oEmbed record, with its channel as the description, and its page is never fetched', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: ['https://t.co/v'] }], {
+    'https://t.co/v': redirect(`${WATCH}&t=44s`),
+    [OEMBED]: oembed({ title: 'Building   evals\nthat matter', author_name: 'Hamel Husain', type: 'video' }),
+  });
+
+  await run();
+
+  assert.deepEqual(web.calls, ['https://t.co/v', OEMBED]);
+  const row = link(db, 'https://t.co/v');
+  assert.equal(row.status, 'resolved');
+  assert.equal(row.final_url, `${WATCH}&t=44s`);
+  assert.equal(row.title, 'Building evals that matter');
+  assert.equal(row.description, 'Hamel Husain');
+  const resource = db.prepare('SELECT kind, title, description FROM resources').get();
+  assert.deepEqual({ ...resource }, { kind: 'video', title: 'Building evals that matter', description: 'Hamel Husain' });
+});
+
+test('a video stored under its host is read from oEmbed once more, and one that still cannot be read is left alone', async (t) => {
+  const { db, web, run } = setup(t, [{ id: '1', urls: [WATCH] }], { [OEMBED]: oembed({ title: 'Real title' }) });
+  await run();
+  // How videos were stored before oEmbed: titled by their host after one attempt.
+  db.prepare(`UPDATE links SET title = host, description = NULL, attempts = 1`).run();
+  db.prepare(`UPDATE resources SET title = 'youtube.com'`).run();
+  web.calls.length = 0;
+
+  await run();
+  assert.deepEqual(web.calls, [OEMBED]);
+  assert.equal(link(db, WATCH).title, 'Real title');
+  assert.equal(db.prepare('SELECT title FROM resources').get()?.title, 'Real title');
+
+  db.prepare(`UPDATE links SET title = host, attempts = 1`).run();
+  web.set(OEMBED, { status: 404, headers: {}, body: '' });
+  web.calls.length = 0;
+  await run();
+  const row = link(db, WATCH);
+  assert.equal(row.status, 'resolved', 'stays a resource');
+  assert.equal(row.title, 'youtube.com');
+  assert.equal(row.attempts, 2);
+
+  web.calls.length = 0;
+  await run();
+  assert.deepEqual(web.calls, [], 'never asked about again');
+});
