@@ -42,9 +42,10 @@ Optional argument: a preferred port (default `3000`).
    - the URL and PID **from the lock**, not the port you asked for
    - the log: `logs/dev-web.log` (Next also writes `apps/web/.next/dev/logs/next-development.log`)
    - how to stop it: `kill <pid>`, using the lock PID. This stops the whole `bun → next` tree and removes the lock.
-   - If `state/corpus.sqlite` is missing (for example in a fresh worktree), say that the screen shows an empty corpus. Do not point `X_CORPUS_STORE` at the main clone's live store. For checks that write, use a scratch copy, as the solution doc above describes.
+   - Data: in a linked git worktree the app reads the main checkout's `data/` and `state/` (the engine finds it from `.git`), so it shows the real corpus and the real worker's status. If the panel says background sync isn't running, run `bun run service:status`. Install services only from the main checkout; `service:install` refuses from a worktree.
 
 ## Notes
 
-- Read-only browser checks may use this server. Checks that write (category edits, pins, post removal, undo) change the store it serves. Use a production build against a scratch copy for those (see the solution doc).
+- The server serves the live store. Read-only browser checks may use it. Checks that write (category edits, pins, post removal, undo) need a production build against a scratch copy (see the solution doc).
+- If this branch adds a store migration (`packages/engine/src/store/schema.ts`), do not open the live store: the dev server would upgrade it past what the installed service's code accepts. Set `X_CORPUS_ROOT` to a scratch copy of the data root first.
 - `next dev` may rewrite the managed block in `apps/web/AGENTS.md`. If `git status` shows that file changed, it comes from Next, not from you.

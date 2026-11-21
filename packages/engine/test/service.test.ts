@@ -141,6 +141,7 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
       uid: 501,
       nodePath,
       nodeVersion: 'v26.5.0',
+      codeRoot: root,
       env: { X_CORPUS_ROOT: root, X_CORPUS_CONFIG_DIR: configDir, X_CORPUS_SECRET_BACKEND: 'file' },
       log: () => {},
       run: async (command, args): Promise<CommandResult> => {
@@ -233,6 +234,33 @@ test('install stops when the node running it is outside the supported range', as
   const machine = fakeMachine(t, 'darwin');
   await assert.rejects(installService({ ...machine.options, nodeVersion: 'v24.17.0' }), />=25\.8\.1 <27/);
   assert.deepEqual(machine.calls, []);
+});
+
+test('install refuses from a linked git worktree, names the main checkout, and touches nothing', async (t) => {
+  const machine = fakeMachine(t, 'darwin');
+  const main = join(machine.root, '..', 'main');
+  const worktree = join(machine.root, '..', 'worktree');
+  mkdirSync(join(main, '.git', 'worktrees', 'wt'), { recursive: true });
+  writeFileSync(join(main, '.git', 'worktrees', 'wt', 'commondir'), '../..\n');
+  mkdirSync(worktree);
+  writeFileSync(join(worktree, '.git'), `gitdir: ${join(main, '.git', 'worktrees', 'wt')}\n`);
+  await assert.rejects(installService({ ...machine.options, codeRoot: worktree }), (error: Error) => {
+    assert.match(error.message, /git worktree/);
+    assert.ok(error.message.includes(main));
+    return true;
+  });
+  assert.deepEqual(machine.calls, []);
+  assert.equal(existsSync(machine.unitDir), false);
+});
+
+test('install on macOS refuses while the old nightly job is installed and points at migrate, unless migrate is the caller', async (t) => {
+  const machine = fakeMachine(t, 'darwin');
+  mkdirSync(machine.unitDir, { recursive: true });
+  writeFileSync(join(machine.unitDir, 'com.ianpoley.birdclaw-nightly.plist'), 'old job');
+  await assert.rejects(installService(machine.options), /bun run migrate/);
+  assert.deepEqual(machine.calls, []);
+  await installService({ ...machine.options, migrating: true });
+  assert.ok(machine.loaded.has('x-corpus-worker'));
 });
 
 test('on Linux install writes both units, reloads systemd, enables and restarts both', async (t) => {

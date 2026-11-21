@@ -50,7 +50,9 @@ async function setup() {
     console.error('[setup] fix the failed checks above, then run setup again');
     process.exit(1);
   }
-  console.log('[setup] ready: run bun run service:install to start the background services');
+  const blocker = service.installBlocker();
+  if (blocker) console.log(`[setup] ready, with one change to the next step: ${blocker}`);
+  else console.log('[setup] ready: run bun run service:install to start the background services');
 }
 
 const ago = (ms) => (ms < 120_000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60_000)} min`);

@@ -4,7 +4,7 @@ One-time setup on macOS or Linux, from a clone anywhere on disk. After that the 
 
 ## 1. Install
 
-1. Node 26 (`.node-version`; supported range `>=25.8.1 <27`) and [Bun](https://bun.sh). No Homebrew and no global npm packages: Birdclaw and bird are pinned repo dependencies.
+1. Node 26 (`.node-version`; supported range `>=25.8.1 <27`) first on your `PATH` (check `node --version`; nvm can shadow it), and [Bun](https://bun.sh). No Homebrew and no global npm packages: Birdclaw and bird are pinned repo dependencies.
 2. In the clone:
 
 ```bash
@@ -29,7 +29,7 @@ Open http://127.0.0.1:3030, find the sync panel in the sidebar, press **Connect 
 
 Birdclaw syncs using your X browser session cookies, which X's terms do not allow. Your account could be limited or suspended. The cookies give full access to the account, so treat them like a password.
 
-Secrets and the connection are per user; data is per clone. Connecting X from another clone or worktree replaces the cookies the installed service uses.
+Secrets and the connection are per user; data is per clone. Connecting X from another clone or worktree replaces the cookies the installed service uses. A linked git worktree uses its main checkout's data, state and logs, and refuses `service:install`: install from the main checkout.
 
 The app has no sign-in and listens on loopback only. That assumes a machine where only you have a login: any other local account could open the app, read the corpus, and connect or disconnect X.
 

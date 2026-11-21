@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Every threshold and limit the engine, web app and skill share. */
@@ -125,6 +125,8 @@ export const SERVICE = {
 } as const;
 
 export const MIGRATION = {
+  /** The label of the LaunchAgent that ran the old nightly script. */
+  legacyLabel: 'com.ianpoley.birdclaw-nightly',
   /** How long moving an existing install waits for the new worker's first sync to finish. */
   waitTimeoutMs: 15 * 60_000,
   /** How often it checks for that sync while waiting. */
@@ -170,16 +172,42 @@ export type Paths = {
 };
 
 /**
+ * The main checkout when `dir` is a linked git worktree, else `dir` itself.
+ * A linked worktree's `.git` is a file pointing at `<main>/.git/worktrees/<name>`,
+ * whose `commondir` leads back to `<main>/.git`. A submodule's `.git` file has
+ * no `commondir` and a bare repository's common dir is not named `.git`, so
+ * both stay where they are.
+ */
+export function mainCheckout(dir: string): string {
+  try {
+    const dotGit = join(dir, '.git');
+    if (!statSync(dotGit).isFile()) return dir;
+    const gitdir = /^gitdir:\s*(.+)$/m.exec(readFileSync(dotGit, 'utf8'))?.[1]?.trim();
+    if (!gitdir) return dir;
+    const worktreeGitDir = resolve(dir, gitdir);
+    const common = resolve(worktreeGitDir, readFileSync(join(worktreeGitDir, 'commondir'), 'utf8').trim());
+    return basename(common) === '.git' ? dirname(common) : dir;
+  } catch {
+    return dir;
+  }
+}
+
+/** This code's own checkout: the directory holding apps/ and packages/. */
+export const codeRoot = () => fileURLToPath(new URL('../../..', import.meta.url));
+
+/**
  * Where things live on disk. Read when called, not at import, so a test can
  * set the overrides first:
- *   X_CORPUS_ROOT     repo root (default: derived from this file's location)
+ *   X_CORPUS_ROOT     repo root (default: this checkout, or the main checkout
+ *                     when this is a linked git worktree, so every worktree
+ *                     shares one corpus, store and worker)
  *   X_CORPUS_DATA_DIR export directory (default: <root>/data)
  *   X_CORPUS_STORE    store file (default: <root>/state/corpus.sqlite)
  *   X_CORPUS_CONFIG_DIR per-user config and secrets file (default: ~/.config/x-corpus)
  *   BIRDCLAW_HOME     Birdclaw's own home (default: ~/.birdclaw)
  */
 export function paths(env: Record<string, string | undefined> = process.env): Paths {
-  const repoRoot = resolve(env.X_CORPUS_ROOT || fileURLToPath(new URL('../../..', import.meta.url)));
+  const repoRoot = resolve(env.X_CORPUS_ROOT || mainCheckout(codeRoot()));
   const dataDir = resolve(env.X_CORPUS_DATA_DIR || join(repoRoot, 'data'));
   const store = resolve(env.X_CORPUS_STORE || join(repoRoot, 'state', 'corpus.sqlite'));
   const stateDir = resolve(store, '..');
