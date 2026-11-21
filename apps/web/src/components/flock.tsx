@@ -3,7 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { useMagpieEvents } from "@/lib/magpie-events";
-import { createMurmuration, type Murmuration } from "@/lib/murmuration";
+import { createMurmuration, MAX_BIRDS, type Murmuration } from "@/lib/murmuration";
 
 import { FLY_DOWN, FLY_GOLD, FLY_INK, FLY_UP } from "./magpie";
 import { SEARCH_INPUT_ID } from "./page-header";
@@ -11,6 +11,7 @@ import { SEARCH_INPUT_ID } from "./page-header";
 const P = 2;
 const GAP = 6;
 const MIN_FRAME_MS = 10;
+const ONE_BIRD_EACH = 100;
 
 type Sky = { setTarget: (n: number) => void; setAsking: (on: boolean) => void; surprise: () => void; pin: () => void; fall: () => void; destroy: () => void };
 const NOOP: Sky = { setTarget: () => {}, setAsking: () => {}, surprise: () => {}, pin: () => {}, fall: () => {}, destroy: () => {} };
@@ -186,7 +187,13 @@ const subscribeReducedMotion = (onChange: () => void) => {
 };
 const prefersReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 
-export function Flock({ count, asking }: { count: number; asking: boolean }) {
+function birdsFor(count: number, collection: number) {
+  if (count <= ONE_BIRD_EACH || collection <= MAX_BIRDS) return count;
+  const share = Math.log(count / ONE_BIRD_EACH) / Math.log(collection / ONE_BIRD_EACH);
+  return Math.round(ONE_BIRD_EACH + (MAX_BIRDS - ONE_BIRD_EACH) * Math.min(1, share));
+}
+
+export function Flock({ count, collection, asking }: { count: number; collection: number; asking: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const sky = useRef<Sky>(NOOP);
   const reduced = useSyncExternalStore(subscribeReducedMotion, prefersReducedMotion, () => false);
@@ -200,7 +207,8 @@ export function Flock({ count, asking }: { count: number; asking: boolean }) {
       sky.current = NOOP;
     };
   }, [reduced]);
-  useEffect(() => sky.current.setTarget(count), [count, reduced]);
+  const birds = birdsFor(count, collection);
+  useEffect(() => sky.current.setTarget(birds), [birds, reduced]);
   useEffect(() => sky.current.setAsking(asking), [asking, reduced]);
   useMagpieEvents((event) => {
     if (event === "surprise") sky.current.surprise();

@@ -211,6 +211,10 @@ Toward the middle of the screen, where the opened post appears.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/flock.tsx#L157)
 
+#### 0015.110 `birdsFor`
+
+One bird per post saturated at MAX_BIRDS (320), so in a collection of 2,000 posts Everything, Bookmarks, Likes and every top category showed the same full flock and the flock stopped saying how much was there. Up to ONE_BIRD_EACH (100) posts it is still one bird each; above that the count grows with log(count / 100) / log(collection / 100), so the whole collection is 320 and each step down the sidebar loses birds. A collection of 320 or fewer keeps one bird per post throughout. The mapping lives in the Flock component, so the murmuration keeps taking a plain bird count.
+
 #### 0015.109 `createSky loop`
 
 The flock steps and draws at most once every MIN_FRAME_MS (10ms). Birds move in 2px steps at about 40px a second, so frames past 60 a second show nothing new, and a 120Hz screen was running the flock twice as often as it needed. The gate is 10ms rather than 16.7ms so a 90Hz screen still steps every frame instead of falling to 45.
