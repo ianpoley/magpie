@@ -13,3 +13,7 @@ How to measure:
 - Score the code a test actually runs: the function it calls, plus its nested functions, plus every repo function those reach. A short entry point such as `installService` that hands off to complex helpers counts as complex.
 - A regular expression counts wherever the code under test uses it, including a module-level constant such as `LOOPBACK_HOST` that a function calls `.test()` on.
 - cccc does not see SQL. A function that is a thin wrapper around a query or a store view whose logic lives in the SQL (filters, `COALESCE`, band thresholds) is judged by that SQL, not by its cccc score.
+
+## No code comments
+
+Code carries no comments. `bun run lint:comments` (part of `bun run lint`) fails on any new one, and `eslint-suppressions.json` lists the few still waiting to be moved. Name things so the code says what it does. Put a decision the code cannot state in `docs/adr/`, in the file for its subsystem. Tool directives (`eslint-disable`, `@ts-expect-error`, `turbopackIgnore`) are allowed. To clear what is left, run `/delete-comment`.
