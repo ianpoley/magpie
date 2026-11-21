@@ -34,6 +34,7 @@ const MARGIN = 16;
 const NARROW = 28;
 const RELEASE_SECONDS = 0.9;
 const OFFSCREEN = 48;
+const SHY = 14;
 
 const W_ALIGN = 1.6;
 const W_COHERE = 0.45;
@@ -58,6 +59,7 @@ export function createMurmuration(random: () => number = Math.random) {
   let vortex: Vortex = { x: 0, y: 0, rx: 0, ry: 0 };
   let pinPoint: Point = { x: 0, y: 0 };
   let diveTo: Point = { x: 0, y: 0 };
+  let pointer: Point | null = null;
   let t = 0;
   let nextScare = 6;
   const sides = [0, 0];
@@ -119,22 +121,28 @@ export function createMurmuration(random: () => number = Math.random) {
     b.sy = -0.5;
   }
 
+  function startle(b: Bird, from: Point, reach: number) {
+    const dx = b.x - from.x;
+    const dy = b.y - from.y;
+    const d = Math.hypot(dx, dy);
+    if (d > reach) return;
+    const v = Math.hypot(b.vx, b.vy) || 1;
+    const side = dx * -b.vy + dy * b.vx >= 0 ? 1 : -1;
+    b.sx = (dx / (d || 1)) * 0.6 + (-b.vy / v) * side;
+    b.sy = (dy / (d || 1)) * 0.6 + (b.vx / v) * side;
+    b.startle = 0.45;
+  }
+
   function scare() {
     const list = flyers();
     if (list.length < 12) return;
     const at = list[Math.floor(random() * list.length)];
-    for (const b of list) {
-      if (b.home !== at.home) continue;
-      const dx = b.x - at.x;
-      const dy = b.y - at.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 12) continue;
-      const v = Math.hypot(b.vx, b.vy) || 1;
-      const side = dx * -b.vy + dy * b.vx >= 0 ? 1 : -1;
-      b.sx = (dx / (d || 1)) * 0.6 + (-b.vy / v) * side;
-      b.sy = (dy / (d || 1)) * 0.6 + (b.vx / v) * side;
-      b.startle = 0.45;
-    }
+    for (const b of list) if (b.home === at.home) startle(b, at, 12);
+  }
+
+  function shy(from: Point) {
+    if (!narrow && from.x > space.columnLeft && from.x < space.columnRight) return;
+    for (const b of birds) if (flying(b) && b.startle <= 0) startle(b, from, SHY);
   }
 
   let cols = 1;
@@ -170,6 +178,8 @@ export function createMurmuration(random: () => number = Math.random) {
         sendHome(b);
       }
     }
+
+    if (!asking && pointer) shy(pointer);
 
     if (!asking && t >= nextScare) {
       scare();
@@ -399,6 +409,9 @@ export function createMurmuration(random: () => number = Math.random) {
       if (on) return;
       disperseUntil = t + 1.1;
       if (!narrow) flyers().sort((a, b) => a.x - b.x).forEach((b, i, all) => (b.home = i < all.length / 2 ? 0 : 1));
+    },
+    pointAt(at: Point | null) {
+      pointer = at;
     },
     setVortex(next: Vortex) {
       vortex = next;

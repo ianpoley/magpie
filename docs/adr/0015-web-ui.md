@@ -640,6 +640,8 @@ How a flock holds together and changes shape, as starling murmurations do:
   top and bottom) and wheel back in, as a real murmuration leaves the frame. Its goal stays on screen, so it always returns.
   Pinning's gold glint and the still flock under reduced motion stay on screen, since they are meant to be seen.
 - Now and then a small scare sends nearby birds sharply off; alignment carries it through the flock as a wave.
+- A pointer held in a gutter startles birds within SHY of it the same way, so the flock parts round it. A pointer over the
+  column is ignored, since no bird flies there and the reader is reading; touch is ignored, since a tap is not a hover.
 ```
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/murmuration.ts#L4-L12)
