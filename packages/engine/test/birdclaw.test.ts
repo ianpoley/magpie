@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
 import { X_SYNC } from '../src/config.ts';
-import { createBirdclaw } from '../src/x/birdclaw.ts';
+import { createBirdclaw, readPlayableMedia } from '../src/x/birdclaw.ts';
 import type { BirdclawOptions } from '../src/x/birdclaw.ts';
 import { exportPost, tempDir } from './fixtures/export.ts';
 
@@ -374,4 +374,33 @@ test('the pinned Birdclaw exports a fresh database without its demo posts', asyn
   } finally {
     cleanup();
   }
+});
+
+test('playable media keeps videos and GIFs served from video.twimg.com, including the quoted post, and drops everything else', () => {
+  const tweet = {
+    id: '1',
+    media: [
+      { type: 'photo', url: 'https://pbs.twimg.com/media/a.jpg' },
+      { type: 'video', url: 'https://pbs.twimg.com/amplify_video_thumb/1/img/v.jpg', videoUrl: 'https://video.twimg.com/amplify_video/1/vid/v.mp4?tag=1', durationMs: 15000 },
+      { type: 'video', url: 'https://pbs.twimg.com/ext_tw_video_thumb/2/img/w.jpg', videoUrl: 'https://evil.example/v.mp4' },
+      { type: 'video', url: 'https://pbs.twimg.com/ext_tw_video_thumb/3/img/x.jpg', videoUrl: 'http://video.twimg.com/v.mp4' },
+      { type: 'video', url: 'https://pbs.twimg.com/ext_tw_video_thumb/4/img/y.jpg' },
+    ],
+    quotedTweet: {
+      id: '2',
+      media: [{ type: 'animated_gif', url: 'https://pbs.twimg.com/tweet_video_thumb/g.jpg', videoUrl: 'https://video.twimg.com/tweet_video/g.mp4' }],
+    },
+  };
+
+  assert.deepEqual(readPlayableMedia(tweet), [
+    {
+      thumbUrl: 'https://pbs.twimg.com/amplify_video_thumb/1/img/v.jpg',
+      videoUrl: 'https://video.twimg.com/amplify_video/1/vid/v.mp4?tag=1',
+      kind: 'video',
+      durationMs: 15000,
+    },
+    { thumbUrl: 'https://pbs.twimg.com/tweet_video_thumb/g.jpg', videoUrl: 'https://video.twimg.com/tweet_video/g.mp4', kind: 'gif', durationMs: null },
+  ]);
+  assert.deepEqual(readPlayableMedia(null), []);
+  assert.deepEqual(readPlayableMedia({ media: 'nope' }), []);
 });
