@@ -28,3 +28,8 @@ A short-lived ask for the worker to run a sync now, made from the app's Sync now
 
 ### Run lock
 The marker that one whole sync, from X through categorize, is in progress, whether the worker, the CLI or the standalone categorize command started it. It names the owning process and the machine's boot, so a lock left by a crash, or by a process before a reboot, never blocks the next run.
+
+## Categories
+
+### Category focus
+The owner's choice of which areas start visible: show everything, or only show areas that match a free-text focus they wrote. Claude judges each newly created area against the focus, using the areas the owner already showed or hid by hand as examples. Areas the owner hid or unhid by hand keep the state they set. Changing the focus re-sorts existing areas only when the owner agrees after seeing a preview.
