@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
+import { writeFocus } from '../src/focus/setting.ts';
 import { runPipeline, startRun } from '../src/pipeline.ts';
-import type { ExportFiles, PipelineDeps, PipelineOptions } from '../src/pipeline.ts';
+import type { PipelineDeps, PipelineFiles, PipelineOptions } from '../src/pipeline.ts';
 import { openStore } from '../src/store/db.ts';
 import type { Store } from '../src/store/db.ts';
 import { fakeJev, seedArea, seedTopic } from './fixtures/corpus.ts';
@@ -13,9 +14,12 @@ import { exportPost, tempDir, writeExports } from './fixtures/export.ts';
 import type { ExportPost } from './fixtures/export.ts';
 import { fakes } from './fixtures/pipeline.ts';
 
-type Files = ExportFiles & { store: string };
+type Files = PipelineFiles;
 
-function setup(t: TestContext): { files: Files; write: (bookmarks: ExportPost[], likes?: ExportPost[]) => void } {
+function setup(
+  t: TestContext,
+  options: { focusChosen?: boolean } = {},
+): { files: Files; write: (bookmarks: ExportPost[], likes?: ExportPost[]) => void } {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
   const dataDir = join(dir, 'data');
@@ -24,7 +28,9 @@ function setup(t: TestContext): { files: Files; write: (bookmarks: ExportPost[],
     store: join(dir, 'state', 'corpus.sqlite'),
     bookmarksExport: join(dataDir, 'bookmarks.json'),
     likesExport: join(dataDir, 'likes.json'),
+    categoryFocus: join(dir, 'config', 'category-focus.json'),
   };
+  if (options.focusChosen !== false) writeFocus(files.categoryFocus, { mode: 'all', focus: '' });
   return { files, write: (bookmarks, likes = []) => void writeExports(dataDir, { bookmarks, likes }) };
 }
 
@@ -102,6 +108,31 @@ test('a first run ingests, resolves links, builds categories, scores every post 
     );
     assert.equal(ingestCounts.posts.inserted, 3);
   });
+});
+
+test('until the category focus is chosen, discovery and evolve wait and tagging still runs', async (t) => {
+  const { files, write } = setup(t, { focusChosen: false });
+  write([exportPost('1'), exportPost('2')]);
+  const db = openStore(files.store);
+  seedTopic(db, 'css tricks', { kind: 'pinned' });
+  db.close();
+  const deps = fakes();
+
+  const result = await run(files, deps);
+
+  assert.deepEqual(
+    result.stages.map((stage) => [stage.stage, stage.outcome, stage.message]),
+    [
+      ['ingest', 'ok', null],
+      ['links', 'ok', null],
+      ['tag', 'ok', null],
+      ['discovery', 'skipped', 'Waiting for the category focus choice in setup.'],
+      ['evolve', 'skipped', 'Waiting for the category focus choice in setup.'],
+    ],
+  );
+  assert.equal(deps.claudeCalls.length, 0);
+  assert.equal(deps.jev.requests.length, 2);
+  read(files, (store) => assert.equal(count(store, `SELECT count(*) AS n FROM areas WHERE kind = 'auto'`), 0));
 });
 
 test('a post new in the export is ingested and scored in the same run', async (t) => {

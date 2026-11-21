@@ -33,7 +33,6 @@ export function fakes(options: { claude?: 'answers' | 'down'; jev?: FakeJev } = 
             areas: [
               {
                 name: 'Frontend',
-                dev: true,
                 topics: [
                   { name: 'Animations', definition: 'Posts about motion on the web.' },
                   { name: 'Layout', definition: 'Posts about arranging a page.' },

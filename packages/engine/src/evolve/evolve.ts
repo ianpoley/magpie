@@ -1,4 +1,5 @@
 import type { ClaudeAdapter, ClaudeFailure } from '../claude/cli.ts';
+import type { FocusSetting } from '../focus/setting.ts';
 import type { JevClient } from '../jev/client.ts';
 import type { Store } from '../store/db.ts';
 import { newTopicRound, splitRound } from './apply.ts';
@@ -7,7 +8,7 @@ import { proposeNewTopic, proposeSplit } from './propose.ts';
 import { confidentPostIds } from './tombstones.ts';
 import { newTopicTrigger, tooBroadTopics } from './triggers.ts';
 
-export type EvolveDeps = { claude: ClaudeAdapter; jev: JevClient; runId?: number; now?: () => Date };
+export type EvolveDeps = { claude: ClaudeAdapter; jev: JevClient; focus: FocusSetting; runId?: number; now?: () => Date };
 
 export type EvolveResult = {
   newTopics: number;
@@ -38,7 +39,7 @@ export async function evolve(db: Store, deps: EvolveDeps): Promise<EvolveResult>
   for (;;) {
     const trigger = newTopicTrigger(db);
     if (!trigger.fire) break;
-    const proposal = await proposeNewTopic(db, deps.claude, trigger.shown);
+    const proposal = await proposeNewTopic(db, deps.claude, trigger.shown, deps.focus);
     if (!proposal.ok) return claudeFailed(proposal);
     const outcome = await newTopicRound(db, round, proposal.value, trigger.eligible, trigger.shown);
     if (!tally(outcome, 'newTopics')) return result;

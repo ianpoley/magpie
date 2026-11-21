@@ -294,13 +294,13 @@ test('the first discovery pass writes one log entry that offers no undo', async 
   seedPost(db, 'p1');
   const replies = [
     { topics: [{ name: 'Evals', area: 'AI', definition: 'Posts about evals.' }] },
-    { areas: [{ name: 'AI', dev: true, topics: [{ name: 'Evals', definition: 'Posts about evals.' }] }] },
+    { areas: [{ name: 'AI', topics: [{ name: 'Evals', definition: 'Posts about evals.' }] }] },
   ];
   const claude: ClaudeAdapter = {
     send: async () => ({ ok: true, value: replies.shift(), session: null }),
   };
 
-  const result = await runDiscovery(db, { claude });
+  const result = await runDiscovery(db, { focus: { mode: 'all', focus: '' }, claude });
   assert.equal(result.status, 'created');
 
   const changes = db.prepare(`SELECT id FROM changes`).all();

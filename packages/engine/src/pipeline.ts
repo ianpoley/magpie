@@ -1,6 +1,8 @@
 import type { ClaudeAdapter } from './claude/cli.ts';
 import { runDiscovery } from './claude/discovery.ts';
+import type { Paths } from './config.ts';
 import { evolve } from './evolve/evolve.ts';
+import { readFocus } from './focus/setting.ts';
 import { ingest } from './ingest.ts';
 import type { JevClient } from './jev/client.ts';
 import { scorePairs, tagPosts } from './jev/tagger.ts';
@@ -16,6 +18,10 @@ export type ExportFiles = {
   bookmarksExport: string;
   likesExport: string;
 };
+
+export type PipelineFiles = ExportFiles & Pick<Paths, 'categoryFocus' | 'store'>;
+
+const WAITING_FOR_FOCUS = 'Waiting for the category focus choice in setup.';
 
 export type PipelineDeps = {
   http: HttpFetch;
@@ -105,7 +111,7 @@ export function startRun(db: Store, now: () => Date = () => new Date()): OpenRun
 export async function runPipeline(
   run: OpenRun,
   upstream: Upstream,
-  files: ExportFiles,
+  files: PipelineFiles,
   deps: PipelineDeps,
   options: PipelineOptions = {},
 ): Promise<PipelineResult> {
@@ -166,13 +172,17 @@ export async function runPipeline(
 
   let topicsExist = false;
   let topicsCreated = false;
+  const { chosen, ...focus } = readFocus(files);
   if (options.skipEvolve) {
     await stage('evolve', () => skipped('Skipped on request.'));
   } else if (taggingFailed) {
     await stage('evolve', () => skipped('No post could be scored, so the category list was left alone.'));
+  } else if (!chosen) {
+    await stage('discovery', () => skipped(WAITING_FOR_FOCUS));
+    await stage('evolve', () => skipped(WAITING_FOR_FOCUS));
   } else {
     await stage('discovery', async () => {
-      const result = await runDiscovery(db, { claude: deps.claude, runId });
+      const result = await runDiscovery(db, { claude: deps.claude, focus, runId });
       if (result.status === 'created') {
         topicsCreated = true;
         return { outcome: 'ok', counts: { areas: result.areas, topics: result.topics, posts: result.posts } };
@@ -190,7 +200,7 @@ export async function runPipeline(
     });
     if (topicsExist) {
       await stage('evolve', async () => {
-        const { skipped: stopped, ...counts } = await evolve(db, { claude: deps.claude, jev: deps.jev, runId, now });
+        const { skipped: stopped, ...counts } = await evolve(db, { claude: deps.claude, jev: deps.jev, focus, runId, now });
         topicsCreated = counts.newTopics + counts.splits > 0;
         return {
           outcome: stopped ? 'warning' : 'ok',
