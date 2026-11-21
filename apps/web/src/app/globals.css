@@ -249,6 +249,10 @@
   }
   [data-slot="dialog-backdrop"] {
     background: color-mix(in oklch, var(--color-ink) 45%, transparent);
+
+    &[data-closed] {
+      opacity: 0;
+    }
   }
 
   .post-card {
