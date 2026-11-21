@@ -203,6 +203,9 @@ async function status() {
     const verdict = node.inRange ? `within ${node.range}` : `outside ${node.range}: run bun run service:install with a Node in range`;
     console.log(`[status] node              ${node.path} (${node.version}, ${verdict})`);
   }
+  const healthy =
+    report.units.every((unit) => unit.running) && worker !== null && worker.fresh && node.exists && node.inRange !== false;
+  if (!healthy) process.exitCode = 1;
   if (node.upgradeSafePath) {
     console.log(`[status]                   Homebrew deletes this path when it upgrades Node, and the services stop: run bun run service:install to use ${node.upgradeSafePath}`);
   }
