@@ -84,11 +84,10 @@ Set up Magpie on this machine. Read README.md and packages/engine/SETUP.md first
    repo dependencies, and setup finds Node 26 itself or says how to install it.
 2. Run `bun run setup --yes`. Without a terminal it never prompts: it installs the
    background services and links the Claude skill, and stops at anything that holds
-   a secret or would replace something (the old birdclaw-nightly job, services
-   installed from another clone, a skill linked elsewhere). Fix what you can and
-   explain what you can't.
-3. If it lists the old birdclaw-nightly job, services from another clone, or a skill
-   linked elsewhere, stop and ask me before doing anything about it.
+   a secret or would replace something (services installed from another clone, a
+   skill linked elsewhere). Fix what you can and explain what you can't.
+3. If it lists services from another clone or a skill linked elsewhere, stop and
+   ask me before doing anything about it.
 4. Do not ask for, read, or handle my X cookies or my Jev key. Tell me to run
    `bun run setup` myself in a terminal: it opens the web app's setup screen, reads the
    Jev key with echo off, and skips everything already done.
@@ -180,13 +179,6 @@ bun run service:uninstall -- --purge-secrets  # also delete the cookies and Jev 
 > [!NOTE]
 > If you upgrade Node and the old Node path disappears, the services stay stopped until you rerun `bun run service:install`. `service:status` tells you when this happens.
 
-<details>
-<summary><b>Migrating from the old birdclaw-nightly launchd job</b></summary>
-
-If this Mac still runs the old `birdclaw-nightly` LaunchAgent, run `bun run migrate` once after `bun install`. It stops the old job (but keeps it), moves your X cookies and Jev key from the old plaintext files into the secret store, installs the two services, and waits for the new worker to finish one good sync. Only then does it delete the old files. If anything fails, it rolls back and puts the old job back. `--timeout-minutes N` changes the 15 minute wait. See [packages/engine/SETUP.md](packages/engine/SETUP.md).
-
-</details>
-
 ## Usage
 
 ### Web app
@@ -248,7 +240,6 @@ bun run service:install  # build, then install or update both services
 bun run service:status
 bun run service:uninstall
 bun run secrets:set-jev  # store the Jev key
-bun run migrate          # move off the old launchd job
 bun run sync             # run one whole sync now
 bun run categorize       # categorize only
 bun run build:markdown   # rebuild markdown/ and jsonl from existing data/*.json
@@ -277,6 +268,6 @@ logs/             # sync and service logs                    (gitignored)
 |---|---|
 | [CONCEPTS.md](CONCEPTS.md) | Domain vocabulary: X session, secret backend, worker, run lock |
 | [packages/engine/README.md](packages/engine/README.md) | Sync pipeline, categorization stages, output formats |
-| [packages/engine/SETUP.md](packages/engine/SETUP.md) | Step-by-step setup, update and migration |
+| [packages/engine/SETUP.md](packages/engine/SETUP.md) | Step-by-step setup and update |
 | [apps/web/README.md](apps/web/README.md) | Everything on the screen, code layout, checks |
 | [apps/web/AGENTS.md](apps/web/AGENTS.md) and [DESIGN.md](apps/web/DESIGN.md) | Framework, component and design-system rules |
