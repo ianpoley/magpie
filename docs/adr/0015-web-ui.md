@@ -363,6 +363,10 @@ The removed post's card goes away, so focus returns to where the dialog was open
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/post-dialog.tsx#L289)
 
+#### 0015.109 `scrollToFirstHit`
+
+Runs once per opened post (the body is keyed by post), so a re-render from a sync poll or an Ask never pulls the window back after the reader scrolls. A hit already in the top three quarters leaves the window at the top.
+
 ### `apps/web/src/components/post-layout.ts`
 
 #### 0015.54 `LAYOUT_COOKIE`
