@@ -72,3 +72,23 @@ test("the flock follows the count, one bird per post up to the cap", () => {
   fly(6, sim);
   assert.equal(sim.birds.length, 320);
 });
+
+test("a flock sweeps past the screen's edge now and then, and still keeps off the column", () => {
+  const sim = createMurmuration(seeded(4));
+  sim.resize(SPACE);
+  sim.setTarget(200);
+  fly(10, sim);
+  let off = 0;
+  let over = 0;
+  let seen = 0;
+  for (let i = 0; i < 30 / DT; i++) {
+    sim.step(DT);
+    for (const b of cruising(sim)) {
+      seen++;
+      if (b.x < 0 || b.x > SPACE.width || b.y < 0 || b.y > SPACE.height) off++;
+      if (overColumn(b)) over++;
+    }
+  }
+  assert.ok(off / seen > 0.05, `only ${((off / seen) * 100).toFixed(1)}% of the flight went off screen`);
+  assert.ok(over / seen < 0.001, `${((over / seen) * 100).toFixed(2)}% of the flight was over the column`);
+});

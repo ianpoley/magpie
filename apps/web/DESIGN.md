@@ -26,7 +26,8 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
     - Alignment outweighs everything else, so a turn ripples through the body.
     - A goal point drifts round each gutter, and the flock follows it as a whole.
     - Every 7–14s a small scare banks a few birds sharply, and the turn travels through the flock as a wave.
-  - Birds bank inward over a 16 art-px margin before any edge, so the flock turns off edges instead of piling against them.
+  - Birds bank away over a 16 art-px margin before the column, so the flock turns off it instead of piling against it.
+  - The other edges are soft: a flock can sweep up to 48 art px past the sidebar side, the window side, the top and the bottom, and wheels back in. Its goal stays on screen, so it always returns. The gold glint and the still, reduced-motion flock stay on screen.
   - A bird always belongs to the gutter it's in. A pull toward the other gutter would pin it against the column's edge for good, since it may never cross the text. That once showed as a line of birds stacked down the edge.
   - It's a canvas fixed behind main's content column, which sits at `z-index: 1`.
     - Nothing ever moves behind text, except during the Ask swirl.
