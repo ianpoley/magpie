@@ -4,6 +4,8 @@ export type Membership = { topicId: number; band: Band };
 
 export type Media = { type: string; url: string };
 
+export type PlayableMedia = { thumbUrl: string; videoUrl: string; kind: "video" | "gif"; durationMs: number | null };
+
 export type LinkedPage = { url: string | null; title: string; host: string | null };
 
 export type QuotedPost = {

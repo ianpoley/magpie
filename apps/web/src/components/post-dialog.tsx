@@ -208,8 +208,8 @@ function PostLayer({
                     />
                   ) : null}
                   <LinkedPages pages={post.linkedPages} keyword={keyword} />
-                  {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} /> : null}
-                  <MediaGrid media={post.media} />
+                  {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} parentId={post.id} /> : null}
+                  <MediaGrid media={post.media} postId={post.id} />
                   <ul className="flex flex-wrap items-center gap-1.5">
                     {chips.map((chip) => {
                       const topic = topicsById.get(chip.topicId);
