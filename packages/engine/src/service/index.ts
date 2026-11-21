@@ -408,12 +408,13 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
 
 export type ServiceStatus = {
   units: { name: UnitName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
-  worker: (Pick<WorkerStatus, 'heartbeatAt' | 'state' | 'schedule' | 'nextRunAt'> & { heartbeatAgeMs: number; fresh: boolean }) | null;
+  worker: (Pick<WorkerStatus, 'heartbeatAt' | 'state' | 'schedule' | 'nextRunAt' | 'lastAttempt'> & { heartbeatAgeMs: number; fresh: boolean }) | null;
   secretBackend: BackendName | null;
   node: { path: string | null; exists: boolean; version: string | null; inRange: boolean | null; range: string; upgradeSafePath: string | null };
   dataRoot: string | null;
   here: string;
   legacyUnits: string[];
+  appUrl: string;
 };
 
 export async function serviceStatus(options: ServiceOptions = {}): Promise<ServiceStatus> {
@@ -436,6 +437,7 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
           state: heartbeat.state,
           schedule: heartbeat.schedule,
           nextRunAt: heartbeat.nextRunAt,
+          lastAttempt: heartbeat.lastAttempt,
           heartbeatAgeMs: age,
           fresh: age <= SCHEDULE.heartbeatStaleMs,
         }
@@ -467,5 +469,6 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     dataRoot,
     here: files.repoRoot,
     legacyUnits,
+    appUrl: `http://127.0.0.1:${webPort(env)}`,
   };
 }
