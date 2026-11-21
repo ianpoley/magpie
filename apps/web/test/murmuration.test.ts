@@ -92,3 +92,24 @@ test("a flock sweeps past the screen's edge now and then, and still keeps off th
   assert.ok(off / seen > 0.05, `only ${((off / seen) * 100).toFixed(1)}% of the flight went off screen`);
   assert.ok(over / seen < 0.001, `${((over / seen) * 100).toFixed(2)}% of the flight was over the column`);
 });
+
+test("birds bank away from a pointer held in a gutter", () => {
+  const crowdAround = (withPointer: boolean) => {
+    const sim = createMurmuration(seeded(5));
+    sim.resize(SPACE);
+    sim.setTarget(200);
+    fly(10, sim);
+    const left = cruising(sim).filter((b) => b.home === 0);
+    const at = { x: left.reduce((s, b) => s + b.x, 0) / left.length, y: left.reduce((s, b) => s + b.y, 0) / left.length };
+    if (withPointer) sim.pointAt(at);
+    let crowd = 0;
+    for (let i = 0; i < 2 / DT; i++) {
+      sim.step(DT);
+      crowd += cruising(sim).filter((b) => Math.hypot(b.x - at.x, b.y - at.y) < 8).length;
+    }
+    return crowd;
+  };
+  const held = crowdAround(true);
+  const free = crowdAround(false);
+  assert.ok(held < free * 0.5, `${held} bird-frames near the pointer against ${free} without it`);
+});

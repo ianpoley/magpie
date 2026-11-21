@@ -122,6 +122,14 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
     }
   };
 
+  const onPointer = (e: PointerEvent) => {
+    if (e.pointerType === "touch") return;
+    const x = (e.clientX - left) / P;
+    const y = e.clientY / P;
+    sim.pointAt(x >= 0 && x <= aw && y >= 0 && y <= ah ? { x, y } : null);
+  };
+  const onPointerOut = () => sim.pointAt(null);
+
   const ro = new ResizeObserver(measure);
   ro.observe(main);
   window.addEventListener("resize", measure);
@@ -130,6 +138,8 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
   if (!reduced) {
     last = performance.now();
     raf = requestAnimationFrame(loop);
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onPointerOut);
   }
 
   return {
@@ -160,6 +170,8 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
       ro.disconnect();
       window.removeEventListener("resize", measure);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pointermove", onPointer);
+      document.documentElement.removeEventListener("pointerleave", onPointerOut);
     },
   };
 }
