@@ -112,7 +112,7 @@ for this feature, and cite each one with the @handle and post URL.
 ### Prerequisites
 
 - macOS or Linux
-- [Node](https://nodejs.org) 26 (`.node-version`; supported range `>=25.8.1 <27`)
+- [Node](https://nodejs.org) 26 (`.node-version`; supported range `>=25.8.1 <27`). If nvm or another version manager puts an older Node first on your `PATH`, switch before `setup` and `service:install`: the services keep the Node they were installed with.
 - [Bun](https://bun.sh) 1.3
 - Optional, for categories: the [Claude Code CLI](https://claude.com/claude-code), installed and logged in, and a Jev (TypeSafe) API key
 - On Linux: libsecret's `secret-tool` and a running Secret Service, or secrets fall back to an owner-only file
@@ -121,7 +121,7 @@ for this feature, and cite each one with the @handle and post URL.
 
 ```bash
 bun install
-bun run setup             # checks Node, the pinned tools, the Claude CLI and the secret store
+bun run setup             # checks Node, the pinned tools, the Claude CLI and the secret store; names the next step
 bun run service:install   # builds the web app, installs the x-corpus-web and x-corpus-worker services
 bun run service:status
 ```
@@ -206,6 +206,7 @@ Every sync writes plain files you can read from any tool:
 
 - **The code still says x-corpus.** Magpie used to be called x-corpus. The packages, CLI, services, `~/.config/x-corpus` and the Claude skill keep that name.
 - **Secrets and services are per user, data is per clone.** The cookies, the Jev key and the connection live in the macOS Keychain or Linux Secret Service (service `x-corpus`) and in `~/.config/x-corpus`. The corpus lives in each clone. Connecting X from another clone or worktree replaces the cookies the installed service uses, and running `service:install` from another clone points both services at that clone.
+- **Worktrees share the main checkout's corpus.** A linked git worktree reads `data/`, `state/` and `logs/` from its main checkout, so a dev server in a worktree shows your real posts and the real worker's status. Edits you make there change your real store. `setup` and `service:install` refuse to install services from a worktree and name the main checkout instead. `X_CORPUS_ROOT` overrides the data root.
 - **No sign-in.** The web app answers loopback requests only and has no login. That assumes only you have a login on the machine.
 - **Ports.** The service uses 3030. `bun run dev` uses 3000, so a dev server never collides with it.
 - **Sync interval.** Set `SYNC_INTERVAL_HOURS` in `~/.config/x-corpus/settings.env` (default 3).

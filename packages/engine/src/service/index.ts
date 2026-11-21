@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SCHEDULE, SECRETS, SERVICE, paths, secretSettings, xTools } from '../config.ts';
+import { MIGRATION, SCHEDULE, SECRETS, SERVICE, mainCheckout, paths, secretSettings, xTools } from '../config.ts';
 import { SECRET_NAMES, createSecretStore, osBackend, probe } from '../secrets/store.ts';
 import type { BackendName } from '../secrets/store.ts';
 import { readWorkerStatus } from '../sync/state.ts';
@@ -194,7 +194,30 @@ export type ServiceOptions = {
   nodeVersion?: string;
   run?: Runner;
   log?: (line: string) => void;
+  /** The checkout whose code the services run; this one by default. */
+  codeRoot?: string;
+  /** Set by `migrate`, which installs while the old job is still on disk and removes it after a good sync. */
+  migrating?: boolean;
 };
+
+/**
+ * Why installing the services from here would be wrong, or null when it is
+ * fine. `setup` prints it as the next step and `service:install` refuses with it.
+ */
+export function installBlocker(options: Pick<ServiceOptions, 'platform' | 'home' | 'codeRoot' | 'migrating'> = {}): string | null {
+  const platform = options.platform ?? process.platform;
+  const home = options.home ?? homedir();
+  const codeRoot = options.codeRoot ?? CODE_ROOT;
+  const main = mainCheckout(codeRoot);
+  if (main !== codeRoot) {
+    return `This is a git worktree. Services installed from it would run this worktree's code and stop when it is removed. Run bun run service:install from the main checkout, ${main}. Worktrees already share its corpus and worker.`;
+  }
+  const legacyPlist = join(home, 'Library', 'LaunchAgents', `${MIGRATION.legacyLabel}.plist`);
+  if (platform === 'darwin' && !options.migrating && existsSync(legacyPlist)) {
+    return `The old ${MIGRATION.legacyLabel} job is still installed (${legacyPlist}). Run bun run migrate instead: it moves that job's X cookies and Jev key into the secret store, installs the services, and removes the old job after one good sync.`;
+  }
+  return null;
+}
 
 function context(options: ServiceOptions) {
   const platform = options.platform ?? process.platform;
@@ -233,17 +256,20 @@ function webPort(env: Record<string, string | undefined>): number {
  */
 export async function installService(options: ServiceOptions = {}): Promise<void> {
   const { platform, env, home, run, manager, files, nodePath, nodeVersion, log } = context(options);
+  const blocker = installBlocker({ ...options, platform, home });
+  if (blocker) throw new Error(blocker);
+  const codeRoot = options.codeRoot ?? CODE_ROOT;
   const checks = await setupChecks({ env, platform, nodeVersion });
   for (const check of checks) log(formatCheck(check));
   const failed = checks.filter((check) => check.level === 'fail');
   if (failed.length > 0) throw new Error(`setup checks failed: ${failed.map((check) => `${check.name}: ${check.detail}`).join(' ')}`);
 
   const port = webPort(env);
-  const specs = serviceSpecs({ nodePath, codeRoot: CODE_ROOT, repoRoot: files.repoRoot, home, port });
+  const specs = serviceSpecs({ nodePath, codeRoot, repoRoot: files.repoRoot, home, port });
   log('stopping the web service');
   await manager.stop('x-corpus-web');
   log('building the web app');
-  const build = await run(nodePath, [nextBin(CODE_ROOT), 'build'], { cwd: webDir(CODE_ROOT), showOutput: true });
+  const build = await run(nodePath, [nextBin(codeRoot), 'build'], { cwd: webDir(codeRoot), showOutput: true });
   if (build.code !== 0) {
     throw new Error(
       `the web app build failed (exit ${build.code}). The service files were left as they were, and the web service stays stopped until an install succeeds.`,

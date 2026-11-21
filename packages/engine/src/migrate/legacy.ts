@@ -26,8 +26,6 @@ import type { XAdapter } from '../x/birdclaw.ts';
  * anything of the old one is deleted, and any failure puts the old one back.
  */
 
-/** The label of the LaunchAgent that ran the old nightly script. */
-const LEGACY_LABEL = 'com.ianpoley.birdclaw-nightly';
 
 /** The secrets.env keys the secret store can hold, and the names it keeps them under. */
 const SECRETS_ENV_KEYS: Record<string, SecretName> = { TYPESAFE_API_KEY: 'typesafe-api-key' };
@@ -104,10 +102,10 @@ export async function migrate(options: MigrateOptions = {}): Promise<MigrateResu
   const uid = options.uid ?? process.getuid?.() ?? 0;
   const run = options.run ?? spawnRunner;
   const log = options.log ?? (() => {});
-  const label = options.legacyLabel ?? LEGACY_LABEL;
+  const label = options.legacyLabel ?? MIGRATION.legacyLabel;
   const timeoutMs = options.timeoutMs ?? MIGRATION.waitTimeoutMs;
   const pollMs = options.pollMs ?? MIGRATION.pollMs;
-  const install = options.installServices ?? (() => installService({ platform, env, home, uid, run, log }));
+  const install = options.installServices ?? (() => installService({ platform, env, home, uid, run, log, migrating: true }));
   const uninstall = options.uninstallServices ?? (() => uninstallService({ platform, env, home, uid, run, log }));
   const files = paths(env);
   const birdEnv = join(home, '.birdclaw', 'bird.env');

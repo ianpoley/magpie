@@ -15,7 +15,7 @@ bun run dev        # http://127.0.0.1:3000
 
 `bun run dev -- -p 3001` picks another port. `bun run build` then `bun run start` serves the production build.
 
-For day-to-day use, `bun run service:install` runs the production build as the `x-corpus-web` background service on http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides), next to the `x-corpus-worker` that syncs. Setup, update and migration steps are in the repo `README.md`. The service has no sign-in and listens on loopback only, so it assumes a machine where only you have a login. Secrets and the X connection are per user while data is per clone: connecting X from a dev server in another clone replaces the cookies the service uses.
+For day-to-day use, `bun run service:install` runs the production build as the `x-corpus-web` background service on http://127.0.0.1:3030 (`X_CORPUS_PORT` overrides), next to the `x-corpus-worker` that syncs. Setup, update and migration steps are in the repo `README.md`. The service has no sign-in and listens on loopback only, so it assumes a machine where only you have a login. Secrets and the X connection are per user while data is per clone: connecting X from a dev server in another clone replaces the cookies the service uses. A dev server in a linked git worktree serves the main checkout's corpus, so its edits change your real store.
 
 The page reads the store on every request and again whenever you return to the window, so a sync that finished in the background shows up without a reload. If the store does not exist yet, the screen says so and stays empty until the first sync.
 
