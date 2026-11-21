@@ -84,11 +84,13 @@ Set up Magpie on this machine. Read README.md and packages/engine/SETUP.md first
    repo dependencies, and setup finds Node 26 itself or says how to install it.
 2. Run `bun run setup --yes`. Without a terminal it never prompts: it installs the
    background services and links the Claude skill, and stops at anything that holds
-   a secret or would replace something (the old birdclaw-nightly job, services
-   installed from another clone, a skill linked elsewhere). Fix what you can and
+   a secret or would replace something (the old birdclaw-nightly job, an install
+   still under the old x-corpus names, services installed from another clone, a
+   skill linked elsewhere). Fix what you can and
    explain what you can't.
-3. If it lists the old birdclaw-nightly job, services from another clone, or a skill
-   linked elsewhere, stop and ask me before doing anything about it.
+3. If it lists the old birdclaw-nightly job, the x-corpus rename, services from
+   another clone, or a skill linked elsewhere, stop and ask me before doing anything
+   about it.
 4. Do not ask for, read, or handle my X cookies or my Jev key. Tell me to run
    `bun run setup` myself in a terminal: it opens the web app for Connect X, reads the
    Jev key with echo off, and skips everything already done.
@@ -224,7 +226,7 @@ Every sync writes plain files you can read from any tool:
 
 ## Things to know
 
-- **Upgrading from x-corpus.** Magpie used to be called x-corpus, and installs from then keep their services (`x-corpus-web`, `x-corpus-worker`), keychain entries and `~/.config/x-corpus` under that name. They keep working after `git pull`. Run `bun run setup` (or `bun run service:install`) from the main checkout to rename them: it stops the old services, copies the secrets, moves the config folder, starts the services under their new names, waits for the renamed worker, and only then removes the old ones. If anything fails it puts the x-corpus install back. Old `X_CORPUS_*` environment variables are still read; the `MAGPIE_*` names win when both are set.
+- **Upgrading from x-corpus.** Magpie used to be called x-corpus, and installs from then keep their services (`x-corpus-web`, `x-corpus-worker`), keychain entries and `~/.config/x-corpus` under that name. After `git pull`, run `bun run setup` (or `bun run service:install`) from the main checkout straight away to rename them: the web service still runs its build from before the rename until then. The rename stops the old services, copies the secrets, moves the config folder, starts the services under their new names, waits for the renamed worker, and only then removes the old ones. If anything fails it puts the x-corpus install back. Old `X_CORPUS_*` environment variables are still read; the `MAGPIE_*` names win when both are set.
 - **Secrets and services are per user, data is per clone.** The cookies, the Jev key and the connection live in the macOS Keychain or Linux Secret Service (service `magpie`) and in `~/.config/magpie`. The corpus lives in each clone. Connecting X from another clone or worktree replaces the cookies the installed service uses, and running `service:install` from another clone points both services at that clone.
 - **Worktrees share the main checkout's corpus.** A linked git worktree reads `data/`, `state/` and `logs/` from its main checkout, so a dev server in a worktree shows your real posts and the real worker's status. Edits you make there change your real store. A worktree never upgrades that store's schema: a branch with a store migration needs `MAGPIE_ROOT` pointed at a copy. `setup` and `service:install` refuse to install services from a worktree and name the main checkout instead. `MAGPIE_ROOT` overrides the data root.
 - **No sign-in.** The web app answers loopback requests only and has no login. That assumes only you have a login on the machine.

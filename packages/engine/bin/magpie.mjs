@@ -166,8 +166,8 @@ async function status() {
     const state = !unit.installed ? 'not installed' : unit.running ? 'running' : unit.loaded ? 'loaded, not running' : 'installed, not loaded';
     console.log(`[status] ${unit.name.padEnd(16)} ${state}${unit.installed ? `  (${unit.file})` : ''}`);
   }
-  for (const name of report.legacyUnits) {
-    console.log(`[status] ${name.padEnd(16)} still installed under its old name: run bun run setup (or bun run service:install) to rename it`);
+  if (report.legacyUnits.length > 0) {
+    console.log('[status] old names         these services still run as x-corpus: run bun run setup (or bun run service:install) to rename them to magpie');
   }
   const { worker } = report;
   if (worker === null) console.log('[status] worker heartbeat  none: the worker has not run here');

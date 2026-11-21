@@ -126,8 +126,10 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       log('  Reinstalling renames them to magpie, waits for the renamed worker, and only then removes the old ones.');
       log('  If anything fails it puts the x-corpus install back.');
       if (!(await agree('  Rename and reinstall now?', { defaultYes: true, safe: false }))) {
-        todo.push('Rename the install from x-corpus to magpie: bun run service:install');
-        return false;
+        todo.push(
+          'Rename the install from x-corpus to magpie: bun run service:install. Do it soon: the web app still runs its build from before the rename.',
+        );
+        return services.running;
       }
     } else if (services.dataRoot !== null && services.dataRoot !== services.here) {
       log(`  The services are installed for another clone, ${services.dataRoot}.`);

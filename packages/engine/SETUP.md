@@ -62,6 +62,8 @@ bun run service:install          # rebuilds and restarts both services
 bun run service:status
 ```
 
+Coming from a version from before the rename to Magpie, when the services were `x-corpus-web` and `x-corpus-worker`: run `bun run setup` at a terminal right after `git pull` instead. It offers to rename the install (services, keychain entries and `~/.config/x-corpus`) and puts it back if anything fails. See "Upgrading from x-corpus" in the README.
+
 If you upgrade Node and the path the services captured goes away, they stay stopped until you rerun `service:install`; `service:status` reports it.
 
 To remove the services: `bun run service:uninstall`. Add `-- --purge-secrets` to also delete the stored X cookies and Jev key and disconnect X.

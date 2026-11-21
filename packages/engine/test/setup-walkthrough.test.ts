@@ -219,5 +219,5 @@ test('an install still under the x-corpus names is renamed only when asked at a 
   const agent = machine({ interactive: false, yes: true, services: legacy, connected: true, jev: true, skill: 'linked' });
   const result = await walkthrough(agent.deps);
   assert.deepEqual(agent.did, []);
-  assert.ok(result.todo.includes('Rename the install from x-corpus to magpie: bun run service:install'));
+  assert.ok(result.todo.some((line) => line.startsWith('Rename the install from x-corpus to magpie: bun run service:install.')));
 });
