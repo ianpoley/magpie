@@ -544,3 +544,18 @@ test('a Homebrew Cellar node maps to its opt link, which survives upgrades', (t)
 
   assert.equal(upgradeSafeNodePath('/home/someone/.nvm/versions/node/v26.5.0/bin/node'), '/home/someone/.nvm/versions/node/v26.5.0/bin/node');
 });
+
+test('status reports when the checkout has moved past the commit the services were built from', async (t) => {
+  const machine = fakeMachine(t, 'darwin');
+  let head = 'aaa111';
+  const run = machine.options.run!;
+  machine.options.run = async (command, args, runOptions) =>
+    command === 'git' && args.includes('rev-parse') ? { code: 0, stdout: `${head}\n`, stderr: '' } : run(command, args, runOptions);
+  mkdirSync(join(machine.root, 'apps', 'web', '.next'), { recursive: true });
+  await installService(machine.options);
+  assert.equal(readFileSync(join(machine.root, 'apps', 'web', '.next', 'magpie-commit'), 'utf8'), 'aaa111\n');
+
+  assert.equal((await serviceStatus(machine.options)).buildBehindCode, false);
+  head = 'bbb222';
+  assert.equal((await serviceStatus(machine.options)).buildBehindCode, true);
+});

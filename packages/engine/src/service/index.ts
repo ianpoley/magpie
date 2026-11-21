@@ -20,6 +20,7 @@ export type { CommandResult, Runner } from './manager.ts';
 
 const CODE_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
 const webDir = (codeRoot: string) => join(codeRoot, 'apps', 'web');
+const builtCommitFile = (codeRoot: string) => join(webDir(codeRoot), '.next', 'magpie-commit');
 const nextBin = (codeRoot: string) => join(webDir(codeRoot), 'node_modules', 'next', 'dist', 'bin', 'next');
 
 export function serviceSpecs(input: {
@@ -273,6 +274,8 @@ async function installUnits(options: ServiceOptions): Promise<void> {
       `the web app build failed (exit ${build.code}). The service files were left as they were, and the web service stays stopped until an install succeeds.`,
     );
   }
+  const head = await run('git', ['-C', codeRoot, 'rev-parse', 'HEAD']);
+  if (head.code === 0) writeFileSync(builtCommitFile(codeRoot), `${head.stdout.trim()}\n`);
 
   mkdirSync(files.logsDir, { recursive: true });
   for (const spec of specs) {
@@ -420,7 +423,19 @@ export type ServiceStatus = {
   here: string;
   legacyUnits: string[];
   appUrl: string;
+  buildBehindCode: boolean;
 };
+
+async function buildBehindCode(run: Runner, root: string): Promise<boolean> {
+  let built: string;
+  try {
+    built = readFileSync(builtCommitFile(root), 'utf8').trim();
+  } catch {
+    return false;
+  }
+  const head = await run('git', ['-C', root, 'rev-parse', 'HEAD']);
+  return head.code === 0 && head.stdout.trim() !== built;
+}
 
 export async function serviceStatus(options: ServiceOptions = {}): Promise<ServiceStatus> {
   const { platform, env, run, manager, files } = context(options);
@@ -475,5 +490,6 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     here: files.repoRoot,
     legacyUnits,
     appUrl: `http://127.0.0.1:${webPort(env)}`,
+    buildBehindCode: installed !== undefined && (await buildBehindCode(run, mainCheckout(options.codeRoot ?? CODE_ROOT))),
   };
 }
