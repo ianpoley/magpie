@@ -198,24 +198,24 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
 
   async function jevKey() {
     log('');
-    log('Categories (optional)');
+    log('Jev key');
     if (await deps.jevStored()) {
-      done.push('The Jev key is stored; categories are on.');
+      done.push('The Jev key is stored.');
       return;
     }
-    const later = 'Optional: turn on categories with a Jev (TypeSafe) key: bun run secrets:set-jev';
+    const later = 'Add the Jev (TypeSafe) key: bun run secrets:set-jev, or paste it into the web app, which asks for it.';
     if (!deps.interactive) {
       todo.push(later);
       return;
     }
-    log('  Categories need a Jev (TypeSafe) API key. Without one, syncing and search still work.');
+    log('  Magpie needs a Jev (TypeSafe) API key to sort posts into topics. Skip it here and the web app asks for it.');
     const key = await deps.secret('  Jev key (typing is hidden; press Enter to skip): ');
     if (!key) {
       todo.push(later);
       return;
     }
     const stored = await deps.storeJev(key);
-    if (stored.ok) done.push(`The Jev key is stored (${stored.message}); categories are on.`);
+    if (stored.ok) done.push(`The Jev key is stored (${stored.message}).`);
     else todo.push(`The Jev key was not stored (${stored.message}). Try again: bun run secrets:set-jev`);
   }
 

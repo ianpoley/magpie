@@ -10,14 +10,13 @@ import {
   AlertDialogTrigger,
 } from "@ui-sdk/react/alert-dialog";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
-import { Field, FieldError, FieldLabel } from "@ui-sdk/react/field";
-import { PasswordInput, PasswordInputControl, PasswordInputToggle } from "@ui-sdk/react/password-input";
-import { CircleCheck, Eye, EyeOff } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 
 import { connectX, disconnectX } from "@/app/actions";
 import type { ActionErrorCode } from "@/lib/types";
 
+import { SecretField } from "./secret-field";
 import type { SyncController } from "./sync-status";
 import { alertBackdrop, alertContent, dangerAnswer, dialogContent, primaryAnswer, quietAnswer } from "./styles";
 
@@ -26,7 +25,7 @@ export type ConnectXController = ReturnType<typeof createConnectXController>;
 
 const CONNECTED_PAUSE_MS = 1_200;
 
-const KEPT = { keychain: "in your keychain on this machine", file: "in an owner-only file on this machine", unknown: "on this machine" };
+export const KEPT = { keychain: "in your keychain on this machine", file: "in an owner-only file on this machine", unknown: "on this machine" };
 
 type Failure = { code: ActionErrorCode; message: string };
 
@@ -50,31 +49,6 @@ const fieldOf = (failure: Failure | null): "auth_token" | "ct0" | null => {
   if (failure.message.startsWith("ct0")) return "ct0";
   return null;
 };
-
-function CookieField({ name, value, onChange, error }: { name: string; value: string; onChange: (value: string) => void; error: string | null }) {
-  return (
-    <Field name={name} invalid={error ? true : undefined}>
-      <FieldLabel className="font-mono text-[13px] text-ink">{name}</FieldLabel>
-      <PasswordInput
-        required
-        autoComplete="off"
-        value={value}
-        onValueChange={onChange}
-        className="h-10 rounded-full pl-4 text-[16px] transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_1px_var(--color-primary)] sm:text-[14px]"
-      >
-        <PasswordInputControl spellCheck={false} />
-        <PasswordInputToggle aria-label={`Show ${name}`} className="focus-ring size-8 cursor-pointer rounded-full border-0 bg-transparent text-ink-muted hover:bg-sunken">
-          {(state) => (state.visible ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />)}
-        </PasswordInputToggle>
-      </PasswordInput>
-      {error ? (
-        <FieldError match role="alert" className="text-[13px] text-like-text">
-          {error}
-        </FieldError>
-      ) : null}
-    </Field>
-  );
-}
 
 function ConnectForm({ sync, onDone }: { sync: SyncController; onDone: () => void }) {
   const [authToken, setAuthToken] = useState("");
@@ -137,8 +111,8 @@ function ConnectForm({ sync, onDone }: { sync: SyncController; onDone: () => voi
         </DialogDescription>
       </div>
       <fieldset disabled={checking} className="m-0 flex flex-col gap-3 border-0 p-0">
-        <CookieField name="auth_token" value={authToken} onChange={setAuthToken} error={field === "auth_token" ? failure?.message ?? null : null} />
-        <CookieField name="ct0" value={ct0} onChange={setCt0} error={field === "ct0" ? failure?.message ?? null : null} />
+        <SecretField name="auth_token" value={authToken} onChange={setAuthToken} error={field === "auth_token" ? failure?.message ?? null : null} />
+        <SecretField name="ct0" value={ct0} onChange={setCt0} error={field === "ct0" ? failure?.message ?? null : null} />
       </fieldset>
       {formError ? (
         <p role="alert" className="text-[13px] leading-snug text-like-text">

@@ -243,6 +243,8 @@ export type ActionErrorCode =
   | "no_store"
   | "x_rejected"
   | "x_unreachable"
+  | "jev_rejected"
+  | "jev_unreachable"
   | "not_connected"
   | "run_in_progress"
   | "no_worker"

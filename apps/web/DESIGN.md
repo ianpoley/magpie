@@ -10,7 +10,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
 
 - **Palette:** a peach → powder-blue wash at the top of main, a dawn-indigo sidebar warmed by a faint sunrise, a **burnt-orange primary** (H 38) and **rose likes** (H 5), so likes never read as the primary. Bookmarks stay **indigo** (H 275).
 - **The flock** is a murmuration in each gutter beside the list, with one bird per post on screen (up to 320). Each one flies as a single body that wheels, stretches and folds. Filtering, searching or asking sends birds home or brings them back over about 0.9s. While an ask is judging, they circle the search field. Surprise sends a bird diving, pinning glints a group gold, and removing a post drops one.
-- **Pixel art lives in the logo, the flock and illustrations only**, never in UI text. The sidebar mark is a perched magpie with a coin in its bill. It beats its wings on load, when you act, and when the pointer reaches it. Empty states show a few birds circling an empty patch.
+- **Pixel art lives in the logo, the flock and illustrations only**, never in UI text. The sidebar mark is a perched magpie with a coin in its bill. It beats its wings on load, when you act, and when the pointer reaches it. Empty states show three magpies circling an empty patch. Each one flies side-on (19×23 art px at 2px each) through a six-frame wingbeat played up and back down: wings up, level and edge-on, then down, with the far wing showing behind on the upstroke. Each bird turns to face the way it's flying. The flock's 6×3 birds read as a murmuration at a distance but as bars up close, so the empty state doesn't use them.
 - **Every author gets one of 8 matched hues** (`authorHue(handle)`), so you learn to spot repeat authors.
 
 ## Rules
@@ -46,6 +46,11 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - **Cards** (`post-card.tsx`): attachments sit in the card's right margin, out of the reading flow. The lead picture is a 120px square crop, with a filmstrip of 36px crops and a `+n` under it. If the post has no pictures, the quote's pictures are used and labelled "In the quote". A video or GIF gets a play mark. The quote and the linked page are one-line strips. Text clamps at 4 lines, with blank lines collapsed. Nothing is hidden. About 244px a post, against 570px before.
   - **Rows** (`post-list-row.tsx`): an inbox on one white sheet per month, with hairline dividers. Each row shows the author line (name, handle, date, and glyphs for photos, quote and link) and two lines of text. Under that sit up to three topic chips, the like count and the four actions. A 72px thumbnail goes on the right. Month headings with counts pin under the tool row as one frosted band with it. There are no headings under Most liked or during an Ask, since those aren't in date order. About 122px a post.
   - A search hit past the clamp moves the text to start just before the hit. A hit in a quote or a link title marks its strip or glyph, so a match never looks false.
+- **First-run setup** (`components/setup-gate.tsx`), decided 2026-11-20 in `/proto/setup`. X and a Jev key are both required. Until both are saved, the page shows only the setup screen, which is the dawn sidebar on the left with the mark and the two steps, and the form on the wash.
+  - Step 1 connects X (`auth_token`, `ct0`), and step 2 saves the Jev key. A step that's already done is skipped, so an install with X but no key opens at step 2. Back returns to X.
+  - Each value is checked before it's stored. X is checked with whoami. The Jev key is checked by listing the account's models, which costs nothing. A refusal shows under its field, and an unreachable service or a locked keychain shows under the form.
+  - The first sync is asked for once both are saved. A locked keychain counts as a stored key, so it shows the app and its warning, never the setup screen.
+  - Copy says what happens and stops. There's no slogan.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces use `rounded-inner` (10px), and avatars use `rounded-avatar` (12px).
 - **Type:**
   - Text is Hanken Grotesk.
@@ -76,6 +81,12 @@ Murmur variations (2026-11-20). None was taken, and plain Murmur stays:
 - **Roost:** the flock perches on the sidebar tree rows.
 - **Migration:** the right gutter as a clickable minimap of the list.
 - **Daylight:** a clock-driven dawn, day, dusk and night theme.
+
+Setup round (2026-11-20, `/proto/setup`): **Gate** ✅ was chosen, then split into two steps with the copy cut back, at the user's request. No reason was given for passing on the others. The costs below were seen in the prototype and are not the user's reasons.
+- **Current:** a "Nothing has synced yet" card and a Connect X button in the sidebar, with no Jev at all. On a phone, Connect X was hidden behind the menu.
+- **Steps:** a centered card with numbered how-to steps and a "You're set" screen. It had the most clicks before the app.
+- **Checklist:** setup inside the app shell as a two-item checklist, done in any order. The shell made it look as if Magpie already worked.
+- Gate as one form, with all three fields and one button, became the two-step Gate.
 
 Post density round (2026-11-20, `/proto/density`, on the real list): **Margin ⇄ Index** ✅ was chosen. It's Margin's cards with a switch to Index's rows. No reason was given for passing on the others. The costs below were measured in the prototype and are not the user's reasons.
 - **Current:** a full-width media grid in every card. About 570px a post.

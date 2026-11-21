@@ -86,3 +86,15 @@ export async function readSyncState(runs?: Runs): Promise<SyncState> {
     ...read,
   };
 }
+
+/**
+ * Whether a Jev key is stored, for the page's setup check only: unlike
+ * everything above, this reads a secret, so it stays out of the polled sync
+ * status. When the store can't be read, it says yes, so a locked keychain
+ * shows the app and its warning instead of the setup screen.
+ */
+export async function readJevKeyStored(): Promise<boolean> {
+  const { createSecretStore } = await engineSecrets();
+  const read = await createSecretStore().get("typesafe-api-key");
+  return !read.ok || read.value !== null;
+}

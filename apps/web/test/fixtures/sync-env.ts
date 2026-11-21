@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { join } from "node:path";
@@ -16,6 +17,9 @@ import { tempDir } from "../../../../packages/engine/test/fixtures/export.ts";
  *   probe…     whoami fails without saying why, one page of bookmarks works
  *   rejected…  whoami fails without saying why, bookmarks get HTTP 401
  *   offline…   whoami cannot reach X
+ *
+ * and a stub TypeSafe that takes Jev keys starting `good` and refuses the
+ * rest, except keys starting `offline`, whose connection it drops.
  *
  * Importing this sets the environment, so import it before anything that
  * reads it. Nothing is ever unset, so no test can reach the real install.
@@ -35,6 +39,22 @@ process.env.MAGPIE_KEYCHAIN_SERVICE = "magpie-web-test";
 process.env.BIRDCLAW_HOME = join(scratch.dir, "birdclaw");
 process.env.MAGPIE_BIRD_BIN = bird;
 process.env.MAGPIE_BIRDCLAW_BIN = bird;
+// A real key in the shell must never be read or sent.
+process.env.TYPESAFE_API_KEY = "";
+
+const jevChecks: string[] = [];
+const typesafe = createServer((request, response) => {
+  const key = (request.headers.authorization ?? "").replace(/^Bearer /, "");
+  jevChecks.push(`${request.method} ${request.url}`);
+  if (key.startsWith("offline")) return request.socket.destroy();
+  if (key.startsWith("good")) return response.writeHead(200, { "content-type": "application/json" }).end('{"models":[]}');
+  response.writeHead(401, { "content-type": "application/json" }).end('{"error":"unauthorized"}');
+});
+await new Promise<void>((resolve) => typesafe.listen(0, "127.0.0.1", resolve));
+typesafe.unref();
+const { port } = typesafe.address() as { port: number };
+process.env.TYPESAFE_BASE_URL = `http://127.0.0.1:${port}`;
+export const typesafeCalls = (): string[] => [...jevChecks];
 
 writeFileSync(
   bird,
@@ -56,6 +76,7 @@ export const birdCalls = (): string[] => (existsSync(birdLog) ? readFileSync(bir
 
 export function freshInstall(t: TestContext): void {
   for (const path of [configDir, root, birdLog]) rmSync(path, { recursive: true, force: true });
+  jevChecks.length = 0;
   mkdirSync(stateDir, { recursive: true });
   t.after(() => {
     for (const path of [configDir, root, birdLog]) rmSync(path, { recursive: true, force: true });

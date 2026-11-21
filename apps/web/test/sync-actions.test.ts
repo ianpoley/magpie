@@ -10,6 +10,7 @@ import {
   holdRunLock,
   syncRequestPath,
   resolveLikeNext,
+  typesafeCalls,
   writeHeartbeat,
 } from "./fixtures/sync-env.ts";
 import { createSecretStore } from "../../../packages/engine/src/secrets/store.ts";
@@ -28,11 +29,18 @@ const storedSession = async () => {
   assert.equal(read.ok, true);
   return read.ok ? read.value : undefined;
 };
+const storedJevKey = async () => {
+  const read = await createSecretStore().get("typesafe-api-key");
+  assert.equal(read.ok, true);
+  return read.ok ? read.value : undefined;
+};
+const saveTestJevKey = async () => assert.equal((await createSecretStore().set("typesafe-api-key", "goodJEVkey")).ok, true);
 const code = (result: { ok: boolean; code?: string }): string => (result.ok ? "ok" : String(result.code));
 const wrongType = <T,>(value: unknown): T => value as T;
 
 test("connecting with cookies X accepts stores them, starts a new connection, asks for a sync and names the account", async (t) => {
   freshInstall(t);
+  await saveTestJevKey();
   const old = { handle: "someone", connectedAt: "2026-01-01T00:00:00.000Z" };
   writeConnection(connectionPath, { ...old, rejection: { generation: old.connectedAt, at: old.connectedAt, message: "401" } });
 
@@ -49,6 +57,63 @@ test("connecting with cookies X accepts stores them, starts a new connection, as
   const sent = JSON.stringify(result);
   assert.equal(sent.includes(GOOD), false);
   assert.equal(sent.includes(CT0), false);
+});
+
+test("connecting X before a Jev key is saved stores the cookies but asks for no sync yet", async (t) => {
+  freshInstall(t);
+
+  const result = await actions.connectX(GOOD, CT0);
+
+  assert.equal(code(result), "ok");
+  assert.deepEqual(await storedSession(), { authToken: GOOD, ct0: CT0 });
+  assert.equal(existsSync(syncRequestPath), false);
+});
+
+test("a Jev key TypeSafe accepts is stored, and with X connected setup is done, so a sync is asked for", async (t) => {
+  freshInstall(t);
+  writeConnection(connectionPath, { handle: "owner", connectedAt: new Date().toISOString() });
+  const key = "goodKEY-0123456789abcdef";
+
+  const result = await actions.saveJevKey(key);
+
+  assert.equal(code(result), "ok");
+  assert.equal(await storedJevKey(), key);
+  assert.equal(existsSync(syncRequestPath), true);
+  assert.deepEqual(typesafeCalls(), ["GET /v1/models"]);
+  assert.equal(JSON.stringify(result).includes(key), false);
+});
+
+test("a Jev key saved before X is connected is stored, and no sync is asked for yet", async (t) => {
+  freshInstall(t);
+
+  const result = await actions.saveJevKey("goodKEY-0123456789abcdef");
+
+  assert.equal(code(result), "ok");
+  assert.equal(await storedJevKey(), "goodKEY-0123456789abcdef");
+  assert.equal(existsSync(syncRequestPath), false);
+});
+
+test("a Jev key TypeSafe refuses, or that can't be checked, is not stored", async (t) => {
+  freshInstall(t);
+  writeConnection(connectionPath, { handle: "owner", connectedAt: new Date().toISOString() });
+
+  const rejected = await actions.saveJevKey("wrongKEY-0123456789");
+  const offline = await actions.saveJevKey("offlineKEY-0123456789");
+
+  assert.equal(code(rejected), "jev_rejected");
+  assert.equal(code(offline), "jev_unreachable");
+  assert.equal(await storedJevKey(), null);
+  assert.equal(existsSync(syncRequestPath), false);
+});
+
+test("a Jev key with a space, a newline or a quote, an empty one, or one that isn't text is refused before TypeSafe is asked", async (t) => {
+  freshInstall(t);
+
+  for (const key of ["good key", "goodkey\n", 'good"key', "", wrongType<string>(42)]) {
+    assert.equal(code(await actions.saveJevKey(key)), "invalid_input", JSON.stringify(key));
+  }
+  assert.deepEqual(typesafeCalls(), []);
+  assert.equal(await storedJevKey(), null);
 });
 
 test("cookies X refuses are reported as rejected and nothing is stored", async (t) => {

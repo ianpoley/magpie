@@ -56,7 +56,7 @@ bun run setup
 
 1. Install the background services: the sync worker and the web app on http://127.0.0.1:3030.
 2. Connect X: it opens the web app, where you paste your X cookies into the **Connect X** dialog.
-3. Optional: paste your Jev key to turn on categories. Typing is hidden.
+3. Paste your Jev (TypeSafe) key. Typing is hidden. If you skip it, the web app asks for it before it shows anything.
 4. Optional: link the Claude skill, so your agents can search your saved posts.
 
 It ends with what is running and what is left. Run it again at any time: it skips what is done, so on a machine that is set up it asks nothing.
@@ -134,7 +134,8 @@ for this feature, and cite each one with the @handle and post URL.
 - macOS or Linux
 - [Node](https://nodejs.org) 26 (`.node-version`; supported range `>=25.8.1 <27`). `bun run setup` finds one even when nvm or another version manager puts an older Node first on your `PATH`, and installs the services with it. If you run `service:install` by hand, switch first: the services keep the Node they were installed with.
 - [Bun](https://bun.sh) 1.3
-- Optional, for categories: the [Claude Code CLI](https://claude.com/claude-code), installed and logged in, and a Jev (TypeSafe) API key
+- A Jev (TypeSafe) API key
+- Optional, for categories: the [Claude Code CLI](https://claude.com/claude-code), installed and logged in
 - On Linux: libsecret's `secret-tool` and a running Secret Service, or secrets fall back to an owner-only file
 
 ### Install
@@ -157,11 +158,11 @@ Open http://127.0.0.1:3030 and press **Connect X** in the sidebar's sync panel. 
 ### Optional extras
 
 ```bash
-bun run secrets:set-jev          # Jev key, typed hidden; enables categories
+bun run secrets:set-jev          # Jev key, typed hidden (or paste it into the web app)
 bash packages/skill/install.sh   # links the Claude skill into ~/.claude/skills
 ```
 
-Without the Jev key or the Claude CLI, the sync and export still work and categorization is skipped. The first categorize run takes several minutes; later runs only handle new posts.
+The web app asks for X and the Jev key until both are saved. Without the Claude CLI, the sync and export still work and categorization is skipped. The first categorize run takes several minutes; later runs only handle new posts.
 
 ### Update or remove
 
