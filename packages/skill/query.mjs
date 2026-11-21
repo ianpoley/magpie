@@ -96,6 +96,23 @@ async function openStore() {
   return { db, version };
 }
 
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+function warnIfStale(db) {
+  const row = db.prepare(`SELECT MAX(finished_at) AS at FROM run_stages WHERE stage = 'x_bookmarks' AND outcome = 'ok'`).get();
+  const at = Date.parse(row?.at ?? '');
+  if (Number.isNaN(at)) {
+    if (db.prepare(`SELECT 1 FROM run_stages WHERE stage = 'x_bookmarks' LIMIT 1`).get()) {
+      console.error(`Note: no sync from X has succeeded yet, so this corpus may be missing saves. Tell the user; \`bun run service:status\` in ${CLONE_ROOT} shows why.\n`);
+    }
+    return;
+  }
+  if (Date.now() - at < STALE_AFTER_MS) return;
+  const days = Math.floor((Date.now() - at) / STALE_AFTER_MS);
+  console.error(`Note: this corpus last synced from X ${days === 1 ? '1 day' : `${days} days`} ago (${new Date(at).toISOString().slice(0, 10)}), `
+    + `so newer saves are missing. Tell the user; \`bun run service:status\` in ${CLONE_ROOT} shows why.\n`);
+}
+
 function hiddenPostIds(db) {
   return new Set(db.prepare('SELECT post_id FROM post_hidden').all().map(r => String(r.post_id)));
 }
@@ -291,6 +308,7 @@ if (command) {
   const store = await openStore();
   if (!store) fail(`No category store at ${STORE}. The sync job creates it; keyword search (node query.mjs <terms...>) works without it. Override the path with MAGPIE_STORE.`);
   const { db } = store;
+  warnIfStale(db);
   if (command === 'categories') runCategories(db);
   else if (command === 'topic') runTopic(db, terms.join(' '));
   else runResources(db, terms.join(' '));
@@ -315,7 +333,7 @@ if (opts.source === 'all' || opts.source === 'bookmarks') records.push(...load('
 if (opts.source === 'all' || opts.source === 'likes') records.push(...load('likes.normalized.jsonl'));
 
 if (!records.length) {
-  console.error(`No corpus found in ${DIR}. Is the birdclaw sync set up? Override with MAGPIE_DIR.`);
+  console.error(`No corpus found in ${DIR}. Is Magpie set up (bun run setup)? Override with MAGPIE_DIR.`);
   process.exit(1);
 }
 
@@ -330,6 +348,7 @@ records = [...byKey.values()];
 
 const store = await openStore();
 if (store) {
+  warnIfStale(store.db);
   const dropped = removedPostIds(store);
   if (!opts.includeHidden) for (const id of hiddenPostIds(store.db)) dropped.add(id);
   store.db.close();

@@ -256,6 +256,26 @@ test('resources lists what a category links to, most-posted first', (t) => {
   assert.deepEqual(json(store, ['resources', 'politics', '--include-hidden']).map((r) => [r.title, r.posts]), [['Spring docs', 1]]);
 });
 
+test('every command says when the corpus has not synced from X for a day, and stays quiet while it is fresh', (t) => {
+  const { db, path } = tempStore(t);
+  const seedSync = (finishedAt, outcome = 'ok') => {
+    const runId = Number(db.prepare(`INSERT INTO runs (started_at, status) VALUES (?, 'complete')`).run(finishedAt).lastInsertRowid);
+    db.prepare(`INSERT INTO run_stages (run_id, stage, outcome, finished_at) VALUES (?, 'x_bookmarks', ?, ?)`).run(runId, outcome, finishedAt);
+  };
+  seedSync(new Date().toISOString(), 'failed');
+  assert.match(run(path, ['animation']).stderr, /no sync from X has succeeded yet/);
+  seedSync(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+  for (const args of [['animation'], ['categories'], ['animation', '--json']]) {
+    const result = run(path, args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /last synced from X 3 days ago/, args.join(' '));
+  }
+  assert.doesNotThrow(() => JSON.parse(run(path, ['animation', '--json']).stdout));
+
+  seedSync(new Date().toISOString());
+  assert.equal(run(path, ['animation']).stderr, '');
+});
+
 test('a missing store is reported clearly by category commands', (t) => {
   const store = missingStore(t);
   for (const args of [['categories'], ['topic', 'animation'], ['resources', 'animation']]) {
