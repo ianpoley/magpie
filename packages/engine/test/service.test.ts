@@ -273,6 +273,17 @@ test('install goes ahead when the old job is installed but its cookie file is go
   assert.ok(machine.loaded.has('x-corpus-worker'));
 });
 
+for (const platform of ['darwin', 'linux'] as const) {
+  test(`status on ${platform} reads back the data root the installed worker runs against`, async (t) => {
+    const machine = fakeMachine(t, platform);
+    assert.equal((await serviceStatus(machine.options)).dataRoot, null);
+    await installService(machine.options);
+    const status = await serviceStatus(machine.options);
+    assert.equal(status.dataRoot, machine.root);
+    assert.equal(status.here, machine.root);
+  });
+}
+
 test('on Linux install writes both units, reloads systemd, enables and restarts both', async (t) => {
   const machine = fakeMachine(t, 'linux');
   await installService(machine.options);

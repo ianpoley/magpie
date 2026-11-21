@@ -68,6 +68,10 @@ export function launchd(options: { home: string; uid: number; run: Runner }): Se
       const args = /<key>ProgramArguments<\/key>\s*<array>\s*<string>([^<]*)<\/string>/.exec(text);
       return args ? unescape(args[1]) : null;
     },
+    dataRootOf(text) {
+      const root = /<key>X_CORPUS_ROOT<\/key>\s*<string>([^<]*)<\/string>/.exec(text);
+      return root ? unescape(root[1]) : null;
+    },
     stop: bootout,
     async start(names) {
       for (const name of names) {

@@ -29,6 +29,8 @@ export interface ServiceManager {
   render(spec: ServiceSpec): string;
   /** The node an installed unit runs, read back from its file. */
   nodePathOf(text: string): string | null;
+  /** The data root (X_CORPUS_ROOT) an installed unit runs against, read back from its file. */
+  dataRootOf(text: string): string | null;
   stop(name: ServiceName): Promise<void>;
   /** Once the unit files are written: loads them and starts or restarts every one. */
   start(names: readonly ServiceName[]): Promise<void>;

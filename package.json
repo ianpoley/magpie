@@ -14,7 +14,7 @@
     "start": "bun --filter @x-corpus/web start",
     "lint": "bun --filter @x-corpus/web lint",
     "sync": "bun --filter @x-corpus/engine sync",
-    "setup": "node packages/engine/bin/x-corpus.mjs setup",
+    "setup": "bun packages/engine/bin/setup.mjs",
     "service:install": "node packages/engine/bin/x-corpus.mjs service install",
     "service:uninstall": "node packages/engine/bin/x-corpus.mjs service uninstall",
     "service:status": "node packages/engine/bin/x-corpus.mjs service status",
