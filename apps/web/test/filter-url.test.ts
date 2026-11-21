@@ -90,11 +90,11 @@ test("a repeated parameter is read from its first value without an error", () =>
 });
 
 test("an author round-trips after the category selection", () => {
-  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, author: "ada_l", keyword: "" });
+  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" });
   assert.equal(query, "topics=12&author=ada_l");
-  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { topicIds: [12], areaIds: [], unfiled: false, author: "ada_l", keyword: "" });
-  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: "ada_l", keyword: "" }), "author=ada_l");
-  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, author: null, keyword: "" }), "");
+  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { topicIds: [12], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" });
+  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" }), "author=ada_l");
+  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, collection: "everything", author: null, keyword: "" }), "");
 });
 
 test("an author that is not an X handle is ignored", () => {
@@ -105,9 +105,19 @@ test("an author that is not an X handle is ignored", () => {
 });
 
 test("search words round-trip last, encoded, and trimmed", () => {
-  const query = linkedQuery({ topicIds: [], areaIds: [3], unfiled: false, author: null, keyword: "  evals & agents " });
+  const query = linkedQuery({ topicIds: [], areaIds: [3], unfiled: false, collection: "everything", author: null, keyword: "  evals & agents " });
   assert.equal(query, "areas=3&q=evals%20%26%20agents");
   assert.equal(parseLinked(Object.fromEntries(new URLSearchParams(query))).keyword, "evals & agents");
   assert.equal(parseLinked({ q: "x".repeat(500) }).keyword.length, 200);
   assert.equal(parseLinked({}).keyword, "");
+});
+
+test("Bookmarks or Likes round-trips first, and anything else means Everything", () => {
+  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, collection: "likes", author: null, keyword: "" });
+  assert.equal(query, "collection=likes&topics=12");
+  assert.equal(parseLinked(Object.fromEntries(new URLSearchParams(query))).collection, "likes");
+  assert.equal(parseLinked({ collection: "bookmarks" }).collection, "bookmarks");
+  for (const collection of [undefined, "", "everything", "Likes", "toString"]) {
+    assert.equal(parseLinked({ collection }).collection, "everything", String(collection));
+  }
 });

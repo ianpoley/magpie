@@ -43,7 +43,7 @@ The page reads the store on every request and again whenever you return to the w
   - Under a category filter, confident matches come first and a divider sets the possible matches apart.
   - A card opens the full post with its quoted post and media. Copy link and Open on X are on the card and in the dialog. The dialog lists every titled link, suggests up to four similar posts (sharing a linked resource or topics), and steps to the previous or next post in the list with its arrows or `j` and `k`. In the dialog, an @mention of someone you have saved posts from shows all of their posts.
   - Remove from corpus, in the post dialog, takes a post out of this corpus only; nothing changes on X. The toast offers Undo, and the Removed list in the sidebar restores it later.
-- **Deep links:** the category selection, the author, and the search are in the address, so they can be bookmarked and Back works: `?topics=1,3&areas=2`, `?unfiled=1`, `?author=shuding`, `?q=scroll%20animation`. Typing a search updates the current entry instead of adding one per letter.
+- **Deep links:** the collection, the category selection, the author, and the search are in the address, so they can be bookmarked and Back works: `?collection=likes`, `?topics=1,3&areas=2`, `?unfiled=1`, `?author=shuding`, `?q=scroll%20animation`. Typing a search updates the current entry instead of adding one per letter.
 - **Loopback only:** the server answers only requests whose `Host` is `localhost`, `127.0.0.1`, or `[::1]`, on any port. Any other name gets a 403 (`src/proxy.ts`).
 
 ## Layout of the code

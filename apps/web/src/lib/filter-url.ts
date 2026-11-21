@@ -1,4 +1,4 @@
-import type { FilterState } from "./types.ts";
+import type { Collection, FilterState } from "./types.ts";
 
 export type CategorySelection = Pick<FilterState, "topicIds" | "areaIds" | "unfiled">;
 
@@ -36,7 +36,9 @@ export function parseSelection(query: QueryValues): CategorySelection {
   return { topicIds: ids(query.topics), areaIds: ids(query.areas), unfiled: false };
 }
 
-export type LinkedFilter = CategorySelection & Pick<FilterState, "author" | "keyword">;
+export type LinkedFilter = CategorySelection & Pick<FilterState, "collection" | "author" | "keyword">;
+
+const LINKED_COLLECTIONS: readonly Collection[] = ["bookmarks", "likes"];
 
 const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
 const MAX_KEYWORD_LENGTH = 200;
@@ -44,6 +46,7 @@ const MAX_KEYWORD_LENGTH = 200;
 export function linkedQuery(filter: LinkedFilter): string {
   const keyword = filter.keyword.trim();
   return [
+    filter.collection === "everything" ? "" : `collection=${filter.collection}`,
     selectionQuery(filter),
     filter.author === null ? "" : `author=${filter.author}`,
     keyword === "" ? "" : `q=${encodeURIComponent(keyword)}`,
@@ -54,7 +57,9 @@ export function linkedQuery(filter: LinkedFilter): string {
 
 export function parseLinked(query: QueryValues): LinkedFilter {
   const author = first(query.author);
+  const collection = LINKED_COLLECTIONS.find((name) => name === first(query.collection)) ?? "everything";
   return {
+    collection,
     ...parseSelection(query),
     author: HANDLE.test(author) ? author : null,
     keyword: first(query.q).trim().slice(0, MAX_KEYWORD_LENGTH),
