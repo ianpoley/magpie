@@ -238,7 +238,7 @@ Run from the repo root:
 ```bash
 bun run setup            # first run: install deps, check the machine, walk through what is left (--yes: no prompts)
 bun run service:install  # build, then install or update both services
-bun run service:status
+bun run service:status   # what is running and how the last sync went; exits 1 when something needs attention
 bun run service:uninstall
 bun run secrets:set-jev  # store the Jev key
 bun run sync             # run one whole sync now
