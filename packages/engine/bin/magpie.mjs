@@ -151,7 +151,11 @@ async function setup(args) {
   if (!result.ok) process.exit(1);
 }
 
-const ago = (ms) => (ms < 120_000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60_000)} min`);
+const ago = (ms) => {
+  if (ms < 120_000) return `${Math.round(ms / 1000)} s`;
+  if (ms < 120 * 60_000) return `${Math.round(ms / 60_000)} min`;
+  return `${Math.round(ms / 3_600_000)} h`;
+};
 
 async function status() {
   const report = await service.serviceStatus();
@@ -159,15 +163,24 @@ async function status() {
     const state = !unit.installed ? 'not installed' : unit.running ? 'running' : unit.loaded ? 'loaded, not running' : 'installed, not loaded';
     console.log(`[status] ${unit.name.padEnd(16)} ${state}${unit.installed ? `  (${unit.file})` : ''}`);
   }
+  if (report.units.some((unit) => unit.name.endsWith('-web') && unit.running)) {
+    console.log(`[status] web app           ${report.appUrl}`);
+  }
   if (report.legacyUnits.length > 0) {
     console.log('[status] old names         these services still run as x-corpus: run bun run setup (or bun run service:install) to rename them to magpie');
   }
   const { worker } = report;
   if (worker === null) console.log('[status] worker heartbeat  none: the worker has not run here');
   else {
-    const doing = worker.state === 'running' ? 'syncing' : `idle, ${worker.schedule}${worker.nextRunAt ? `, next run ${worker.nextRunAt}` : ''}`;
+    const doing = worker.state === 'running' ? 'syncing' : `idle, ${worker.schedule}${worker.nextRunAt ? `, next run in ${ago(Math.max(0, Date.parse(worker.nextRunAt) - Date.now()))}` : ''}`;
     const stale = worker.fresh ? '' : ' (stale: the worker is not running)';
     console.log(`[status] worker heartbeat  ${ago(worker.heartbeatAgeMs)} ago${stale}; ${doing}`);
+    const last = worker.lastAttempt;
+    if (last === null) console.log('[status] last sync         none yet');
+    else {
+      const when = `finished ${ago(Date.now() - Date.parse(last.finishedAt))} ago (${last.trigger === 'request' ? 'requested' : 'scheduled'})`;
+      console.log(`[status] last sync         ${last.result}, ${when}${last.message ? `: ${last.message}` : ''}`);
+    }
   }
   const backend = {
     keychain: 'the OS secret store',
