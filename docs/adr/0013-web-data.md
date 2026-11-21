@@ -171,6 +171,10 @@ Everything the screen shows, read in one transaction so a sync writing at the sa
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/read-snapshot.ts#L333-L338)
 
+#### 0013.53 `read (quoted text)`
+
+A quote of a post that is also saved reads as that saved post's text, which already has its links expanded and its media link dropped. Any other quote expands links that the store followed for any post. A quote's trailing t.co is not dropped on the guess that it is its picture: of 28 such links the store had followed, 6 led to real pages.
+
 ### `apps/web/src/lib/resources.ts`
 
 #### 0013.24 `videoStill`
