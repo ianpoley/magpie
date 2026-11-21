@@ -226,6 +226,11 @@ test("most-saved authors are capped at ten, most saved first", () => {
   const top = mostSavedAuthors(posts, false);
   assert.equal(top.length, 10);
   assert.deepEqual([top[0].handle, top[0].count, top[9].handle], ["author11", 12, "author2"]);
+
+  const withPicked = mostSavedAuthors(posts, false, 10, "AUTHOR0");
+  assert.deepEqual([withPicked.length, withPicked[10].handle, withPicked[10].count], [11, "author0", 1]);
+  assert.equal(mostSavedAuthors(posts, false, 10, "author5").length, 10);
+  assert.equal(mostSavedAuthors(posts, false, 10, "nobody").length, 10);
 });
 
 test("a category's count is the number of posts selecting it alone lists, with and without hidden posts", () => {

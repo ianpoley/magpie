@@ -124,7 +124,7 @@ export function categoryCounts(snapshot: Snapshot, revealHidden: boolean, collec
   return counts;
 }
 
-export function mostSavedAuthors(posts: Post[], revealHidden: boolean, limit: number = MOST_SAVED_AUTHORS): AuthorCount[] {
+export function mostSavedAuthors(posts: Post[], revealHidden: boolean, limit: number = MOST_SAVED_AUTHORS, keep: string | null = null): AuthorCount[] {
   const byHandle = new Map<string, AuthorCount>();
   for (const post of posts) {
     if (post.hidden && !revealHidden) continue;
@@ -141,9 +141,10 @@ export function mostSavedAuthors(posts: Post[], revealHidden: boolean, limit: nu
       });
     }
   }
-  return [...byHandle.values()]
-    .sort((a, b) => b.count - a.count || a.handle.localeCompare(b.handle))
-    .slice(0, limit);
+  const ranked = [...byHandle.values()].sort((a, b) => b.count - a.count || a.handle.localeCompare(b.handle));
+  const top = ranked.slice(0, limit);
+  const kept = keep === null ? undefined : byHandle.get(keep.toLowerCase());
+  return kept && !top.includes(kept) ? [...top, kept] : top;
 }
 
 export function postChips(post: Post, state: FilterState): Chip[] {
