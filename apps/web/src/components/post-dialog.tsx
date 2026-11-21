@@ -41,6 +41,17 @@ function frontHeight(front: boolean) {
   };
 }
 
+const scrolledToHit = new WeakSet<HTMLElement>();
+
+function scrollToFirstHit(body: HTMLElement) {
+  if (scrolledToHit.has(body)) return;
+  scrolledToHit.add(body);
+  const hit = body.querySelector("mark");
+  if (!hit) return;
+  const top = hit.getBoundingClientRect().top - body.getBoundingClientRect().top;
+  if (top > body.clientHeight * 0.75) body.scrollTop = top - body.clientHeight / 3;
+}
+
 type PostDialogProps = {
   controller: PostDialogController;
   postsById: Map<string, Post>;
@@ -203,7 +214,9 @@ function PostLayer({
                 <div
                   key={post.id}
                   ref={(node) => {
-                    if (node && document.activeElement === document.body) node.closest<HTMLElement>("[data-slot=dialog-content]")?.focus();
+                    if (!node) return;
+                    if (document.activeElement === document.body) node.closest<HTMLElement>("[data-slot=dialog-content]")?.focus();
+                    scrollToFirstHit(node);
                   }}
                   className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5"
                 >
