@@ -31,6 +31,7 @@ export type Post = {
   authorAvatarUrl: string | null;
   authorAvatarHue: number | null;
   likeCount: number;
+  replyToId: string | null;
   quoted: QuotedPost | null;
   media: Media[];
   bookmarked: boolean;

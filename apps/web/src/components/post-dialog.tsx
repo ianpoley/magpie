@@ -41,6 +41,19 @@ function frontHeight(front: boolean) {
   };
 }
 
+function OpenPost({ id, saved, dialog, what }: { id: string; saved: boolean; dialog: PostDialogController; what: string }) {
+  return saved ? (
+    <DialogTrigger controller={dialog} payload={id} aria-label={`Open post: ${what}`} className={PILL}>
+      Open post
+    </DialogTrigger>
+  ) : (
+    <a href={`https://x.com/i/status/${id}`} target="_blank" rel="noreferrer" aria-label={`Open on X: ${what}`} className={PILL}>
+      Open on X
+      <ExternalLink className="size-3.5" aria-hidden="true" />
+    </a>
+  );
+}
+
 const scrolledToHit = new WeakSet<HTMLElement>();
 
 function scrollToFirstHit(body: HTMLElement) {
@@ -220,6 +233,12 @@ function PostLayer({
                   }}
                   className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5"
                 >
+                  {post.replyToId ? (
+                    <p className="-mb-1 flex items-center gap-2 text-[13px] text-ink-muted">
+                      A reply to another post
+                      <OpenPost id={post.replyToId} saved={postsById.has(post.replyToId)} dialog={child} what="the post this replies to" />
+                    </p>
+                  ) : null}
                   {text ? (
                     <PostText
                       text={text}
@@ -236,18 +255,7 @@ function PostLayer({
                       keyword={keyword}
                       parentId={post.id}
                       mentions={mentions}
-                      action={
-                        post.quoted.id && postsById.has(post.quoted.id) ? (
-                          <DialogTrigger controller={child} payload={post.quoted.id} className={PILL}>
-                            Open post
-                          </DialogTrigger>
-                        ) : post.quoted.id ? (
-                          <a href={`https://x.com/i/status/${post.quoted.id}`} target="_blank" rel="noreferrer" aria-label="Open on X: the quoted post" className={PILL}>
-                            Open on X
-                            <ExternalLink className="size-3.5" aria-hidden="true" />
-                          </a>
-                        ) : null
-                      }
+                      action={post.quoted.id ? <OpenPost id={post.quoted.id} saved={postsById.has(post.quoted.id)} dialog={child} what="the quoted post" /> : null}
                     />
                   ) : null}
                   <MediaGrid media={post.media} postId={post.id} />
