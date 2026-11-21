@@ -12,7 +12,8 @@
     "dev": "bun --filter @magpie/web dev",
     "build": "bun --filter @magpie/web build",
     "start": "bun --filter @magpie/web start",
-    "lint": "bun --filter @magpie/web lint",
+    "lint": "bun --filter @magpie/web lint && bun run lint:comments",
+    "lint:comments": "eslint --quiet .",
     "sync": "bun --filter @magpie/engine sync",
     "setup": "bun packages/engine/bin/setup.mjs",
     "service:install": "node packages/engine/bin/magpie.mjs service install",
@@ -21,11 +22,13 @@
     "secrets:set-jev": "node packages/engine/bin/magpie.mjs secrets set-jev",
     "migrate": "node packages/engine/bin/magpie.mjs migrate",
     "build:markdown": "bun --filter @magpie/engine build:markdown",
-    "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs' 'apps/web/test/**/*.test.ts'",
+    "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs' 'apps/web/test/**/*.test.ts' 'eslint-rules/**/*.test.mjs'",
     "typecheck": "bun --filter @magpie/engine typecheck && bun --filter @magpie/web typecheck",
     "categorize": "bun --filter @magpie/engine categorize"
   },
   "devDependencies": {
+    "@typescript-eslint/parser": "8.73.0",
+    "eslint": "9.39.5",
     "typescript": "^5.9.3"
   },
   "packageManager": "bun@1.3.14",

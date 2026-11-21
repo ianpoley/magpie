@@ -1,0 +1,7 @@
+{
+  "packages/engine/src/config.ts": {
+    "magpie/no-comments": {
+      "count": 1
+    }
+  }
+}
