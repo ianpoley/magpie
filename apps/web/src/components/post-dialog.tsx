@@ -49,6 +49,7 @@ type PostDialogProps = {
   topicsById: Map<number, Topic>;
   chipsFor: (post: Post) => Chip[];
   similarFor: (post: Post) => Post[];
+  quotedByFor: (post: Post) => Post[];
   neighborsOf: (postId: string) => { previous: string | null; next: string | null };
   isAuthor: (handle: string) => boolean;
   onShowAuthor: (handle: string) => void;
@@ -73,7 +74,7 @@ function PostLayer({
   root: PostDialogController;
   depth: number;
 }) {
-  const { controller, postsById, topics, areas, topicsById, chipsFor, similarFor, neighborsOf, isAuthor, onShowAuthor } = props;
+  const { controller, postsById, topics, areas, topicsById, chipsFor, similarFor, quotedByFor, neighborsOf, isAuthor, onShowAuthor } = props;
   const { activeTopicIds, keyword, onSelectTopic, onSelectAuthor, onCopyLink, onRemove } = props;
   const [child] = useState(() => createDialogController<string>());
   const [topicsEditor] = useState(createPostTopicsController);
@@ -131,7 +132,8 @@ function PostLayer({
           const hue = authorHue(post.authorHandle);
           const date = formatDate(post.createdAt);
           const chips = chipsFor(post);
-          const similar = similarFor(post);
+          const quotedBy = quotedByFor(post);
+          const similar = similarFor(post).filter((other) => !quotedBy.includes(other));
           const text = withoutTrailingUrl(post.text, post.linkedPages[0]?.url ?? null);
           const { previous, next } = neighborsOf(post.id);
           return (
@@ -263,6 +265,16 @@ function PostLayer({
                       </PopoverTrigger>
                     </li>
                   </ul>
+                  {quotedBy.length > 0 ? (
+                    <section aria-label="Quoted by" className="flex flex-col gap-1.5 border-t border-line pt-4">
+                      <h3 className="text-eyebrow text-ink-muted">Quoted by</h3>
+                      <ul className="-mx-2.5 flex flex-col">
+                        {quotedBy.map((other) => (
+                          <PostRow key={other.id} post={other} dialog={child} />
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
                   {similar.length > 0 ? (
                     <section aria-label="More like this" className="flex flex-col gap-1.5 border-t border-line pt-4">
                       <h3 className="text-eyebrow text-ink-muted">More like this</h3>
