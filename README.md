@@ -56,7 +56,7 @@ bun run setup
 
 1. Install the background services: the sync worker and the web app on http://127.0.0.1:3030.
 2. Connect X: it opens the web app, where you paste your X cookies into the **Connect X** dialog.
-3. Paste your Jev (TypeSafe) key. Typing is hidden. If you skip it, the web app asks for it before it shows anything.
+3. Paste your Jev (TypeSafe) key. Magpie needs it, and typing is hidden. Skip it here and the web app asks for it before it shows anything.
 4. Optional: link the Claude skill, so your agents can search your saved posts.
 
 It ends with what is running and what is left. Run it again at any time: it skips what is done, so on a machine that is set up it asks nothing.
@@ -72,7 +72,7 @@ claude
 ```
 
 > [!IMPORTANT]
-> Never paste your X cookies or your Jev key into the agent chat. You enter the cookies in the web app's **Connect X** dialog, and the Jev key in your own terminal. The prompts below tell the agent to stop and hand those steps to you.
+> Never paste your X cookies or your Jev key into the agent chat. You enter both in the web app's setup screen, or the Jev key in your own terminal. The prompts below tell the agent to stop and hand those steps to you.
 
 ### Prompt: set up Magpie on this machine
 
@@ -151,18 +151,22 @@ bun run service:status
 
 The services are LaunchAgents on macOS and `systemd --user` units on Linux. They start at login and restart on failure.
 
-### Connect X
+### Connect X and add your Jev key
 
-Open http://127.0.0.1:3030 and press **Connect X** in the sidebar's sync panel. Paste your `auth_token` and `ct0` cookies from the browser's dev tools (Application, Cookies, x.com). The first sync starts right away, and **Sync now** runs another at any time.
+Open http://127.0.0.1:3030. Until both are saved, it shows only the setup screen, in two steps:
+
+1. **Connect X:** paste your `auth_token` and `ct0` cookies from the browser's dev tools (Application, Cookies, x.com).
+2. **Jev key:** paste your Jev (TypeSafe) API key. To store it from a terminal instead, run `bun run secrets:set-jev` (typed hidden).
+
+Each value is checked before it's saved. The first sync starts once both are saved, and **Sync now** runs another at any time.
 
 ### Optional extras
 
 ```bash
-bun run secrets:set-jev          # Jev key, typed hidden (or paste it into the web app)
 bash packages/skill/install.sh   # links the Claude skill into ~/.claude/skills
 ```
 
-The web app asks for X and the Jev key until both are saved. Without the Claude CLI, the sync and export still work and categorization is skipped. The first categorize run takes several minutes; later runs only handle new posts.
+Without the Claude CLI, the sync and export still work and categorization is skipped. The first categorize run takes several minutes; later runs only handle new posts.
 
 ### Update or remove
 

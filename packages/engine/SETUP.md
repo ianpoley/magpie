@@ -16,7 +16,7 @@ Bun runs a small pre-check first. It runs `bun install`, then finds a Node in ra
 - **Checks:** the Node range, the pinned Birdclaw and bird, the Claude CLI and the secret store. A failed check stops here with the fix.
 - **Background services:** installs them (step 2 below). On a Mac with the old `birdclaw-nightly` job it offers `migrate` instead (see below). If the services belong to another clone, it asks before pointing them here; the default is no.
 - **Connect X:** opens the web app and waits until you have connected (step 3). Press Enter to skip.
-- **Jev key:** typed hidden. Enter skips it here, and the web app asks for it instead (step 4).
+- **Jev key:** typed hidden. Enter skips it here, and the web app asks for it instead (step 3).
 - **Claude skill:** links `packages/skill` into `~/.claude/skills`.
 
 At a terminal it asks before each step. `bun run setup --yes`, or a run with no terminal, never prompts. `--yes` takes only the steps that hold no secret and replace nothing: the services and the skill. Without `--yes` it only reports. Every run ends with what is done and what is still to do, and skips what is already done. In a linked git worktree it only reports on the main checkout.
@@ -34,9 +34,9 @@ bun run service:status
 
 This builds the web app and installs two user-level services (LaunchAgents on macOS, `systemd --user` units on Linux): `magpie-web` on http://127.0.0.1:3030 (`MAGPIE_PORT` overrides) and `magpie-worker`, which syncs every 3 hours. Change the cadence with `SYNC_INTERVAL_HOURS` in `~/.config/magpie/settings.env`. `bun run dev` stays on port 3000.
 
-## 3. Connect X
+## 3. Connect X and add the Jev key
 
-Open http://127.0.0.1:3030, find the sync panel in the sidebar, press **Connect X**, and paste your `auth_token` and `ct0` cookies. Copy them from the browser's dev tools: Application, Cookies, x.com. The cookies go into the secret store. The first sync starts right away; **Sync now** runs another any time.
+Open http://127.0.0.1:3030. Until X and a Jev key are both saved, it shows only the setup screen. Step 1 takes your `auth_token` and `ct0` cookies, copied from the browser's dev tools: Application, Cookies, x.com. Step 2 takes your Jev (TypeSafe) API key; `bun run secrets:set-jev` stores it from a terminal instead (typed hidden or piped on stdin). Each value is checked before it goes into the secret store. The first sync starts once both are saved; **Sync now** runs another any time.
 
 Birdclaw syncs using your X browser session cookies, which X's terms do not allow. Your account could be limited or suspended. The cookies give full access to the account, so treat them like a password.
 
@@ -44,15 +44,16 @@ Secrets and the connection are per user; data is per clone. Connecting X from an
 
 The app has no sign-in and listens on loopback only. That assumes a machine where only you have a login: any other local account could open the app, read the corpus, and connect or disconnect X.
 
-## 4. Categorization (optional, recommended)
+## 4. Categorization
+
+Tagging uses the Jev key from step 3. Category upkeep also needs the Claude Code CLI:
 
 ```bash
-bun run secrets:set-jev          # Jev (TypeSafe) key, typed hidden or piped on stdin
 claude --version                 # Claude Code CLI, installed and logged in
 bash packages/skill/install.sh   # link the Claude skill into ~/.claude/skills
 ```
 
-The first run resolves every link, asks Claude for the starting categories, and tags the whole corpus; it takes several minutes. Later runs only handle what is new. Without the key or the CLI, the sync and export still work and the step logs a warning.
+The first run resolves every link, asks Claude for the starting categories, and tags the whole corpus; it takes several minutes. Later runs only handle what is new. Without the CLI, the sync and export still work and the step logs a warning.
 
 ## 5. Update
 
