@@ -1,5 +1,5 @@
 import { matchesKeyword } from "./search.ts";
-import type { AuthorCount, Band, Chip, FilterResult, FilterState, Post, Snapshot, TimeRange } from "./types.ts";
+import type { AuthorCount, Band, Chip, Collection, FilterResult, FilterState, Post, Snapshot, TimeRange } from "./types.ts";
 
 export const DEFAULT_FILTER: FilterState = {
   collection: "everything",
@@ -15,6 +15,9 @@ export const DEFAULT_FILTER: FilterState = {
 };
 
 export const MOST_SAVED_AUTHORS = 10;
+
+export const inCollection = (post: Post, collection: Collection): boolean =>
+  collection === "everything" || (collection === "bookmarks" ? post.bookmarked : post.liked);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGE_DAYS: Record<Exclude<TimeRange, "all">, number> = { week: 7, month: 30, year: 365 };
@@ -69,8 +72,7 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number,
 
   const placement = (post: Post): Band | null => {
     if (post.hidden && !showHidden) return null;
-    if (state.collection === "bookmarks" && !post.bookmarked) return null;
-    if (state.collection === "likes" && !post.liked) return null;
+    if (!inCollection(post, state.collection)) return null;
     if (state.unfiled && !post.unfiled) return null;
     if (author !== null && !sameHandle(post.authorHandle, author)) return null;
     if (since !== null && (post.createdAtMs === null || post.createdAtMs < since)) return null;
@@ -100,11 +102,12 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number,
 
 export type CategoryCounts = { topics: Map<number, number>; areas: Map<number, number>; unfiled: number };
 
-export function categoryCounts(snapshot: Snapshot, revealHidden: boolean): CategoryCounts {
+export function categoryCounts(snapshot: Snapshot, revealHidden: boolean, collection: Collection = "everything"): CategoryCounts {
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
   const counts: CategoryCounts = { topics: new Map(), areas: new Map(), unfiled: 0 };
   for (const post of snapshot.posts) {
+    if (!inCollection(post, collection)) continue;
     const shown = revealHidden || !post.hidden;
     if (shown && post.unfiled) counts.unfiled++;
     const inAreas = new Set<number>();

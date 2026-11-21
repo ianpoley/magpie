@@ -137,7 +137,7 @@ Several topics narrow to posts in all of them; an area stands for any topic insi
 
 #### 0013.19 `categoryCounts`
 
-How many posts each topic, each area, and Unfiled would list when it is the only thing selected, by the same rule as `applyFilter`: unsure matches count, and a hidden post counts only when everything is revealed or the topic or area is itself hidden.
+How many posts each topic, each area, and Unfiled would list when it is the only thing selected, by the same rule as `applyFilter`: unsure matches count, and a hidden post counts only when everything is revealed or the topic or area is itself hidden. Counts are taken within the collection in view (Everything, Bookmarks or Likes). The sidebar still orders rows by their Everything counts, so switching collection changes the numbers without reshuffling the tree.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/filter.ts#L115-L120)
 

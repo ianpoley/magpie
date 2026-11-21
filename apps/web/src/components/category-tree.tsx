@@ -17,8 +17,7 @@ export const HIDDEN_NODE = "hidden";
 export const areaNode = (id: number): string => `area:${id}`;
 export const topicNode = (id: number): string => `topic:${id}`;
 
-const byCount = <T extends { postCount: number; name: string }>(a: T, b: T): number =>
-  b.postCount - a.postCount || a.name.localeCompare(b.name);
+const byCount = <T extends { rank: number; name: string }>(a: T, b: T): number => b.rank - a.rank || a.name.localeCompare(b.name);
 
 const ROW =
   "relative h-8 rounded-[10px] text-[13px] text-side-ink data-selected:bg-side-wash data-selected:font-semibold";
@@ -109,15 +108,17 @@ export function CategoryTree({
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
 
-  const counts = categoryCounts(snapshot, filter.revealHidden);
-  const shownTopics = snapshot.topics.map((topic) => ({ ...topic, postCount: counts.topics.get(topic.id) ?? 0 }));
-  const shownAreas = snapshot.areas.map((area) => ({ ...area, postCount: counts.areas.get(area.id) ?? 0 }));
+  const ranks = categoryCounts(snapshot, filter.revealHidden);
+  const counts = filter.collection === "everything" ? ranks : categoryCounts(snapshot, filter.revealHidden, filter.collection);
+  const shownTopics = snapshot.topics.map((topic) => ({ ...topic, postCount: counts.topics.get(topic.id) ?? 0, rank: ranks.topics.get(topic.id) ?? 0 }));
+  const shownAreas = snapshot.areas.map((area) => ({ ...area, postCount: counts.areas.get(area.id) ?? 0, rank: ranks.areas.get(area.id) ?? 0 }));
+  type Ranked<T> = T & { rank: number };
 
-  const topicsOf = (area: Area, hidden: boolean): Topic[] =>
+  const topicsOf = (area: Area, hidden: boolean): Ranked<Topic>[] =>
     shownTopics.filter((topic) => topic.areaId === area.id && (area.hidden || topic.hiddenSelf === hidden)).sort(byCount);
 
   const visibleAreas = shownAreas.filter((area) => !area.hidden);
-  const group = (hidden: boolean) => (area: Area) => ({ area, topics: topicsOf(area, hidden) });
+  const group = (hidden: boolean) => (area: Ranked<Area>) => ({ area, topics: topicsOf(area, hidden) });
   const all: CategoryRows = {
     pinned: visibleAreas.filter((area) => area.kind === "system").map(group(false)).filter(({ topics }) => topics.length > 0),
     unfiled: true,
