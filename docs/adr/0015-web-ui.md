@@ -189,7 +189,7 @@ Before paint, so a picture that is still loading never flashes in and out.
 
 #### 0015.27 `Flock (module)`
 
-The flock: a murmuration of tiny pixel magpies that IS the result set, one bird per post on screen. Filter, search or ask and the sift becomes visible: birds leave as results drop and arrive as they return. Usability first: the flock lives in the gutters (never behind the content column), stays low-contrast, and only crosses the header during the brief swirl while an ask is judging. Nothing in it needs opening or hovering.
+The flock: a murmuration of tiny pixel magpies that IS the result set, one bird per post up to 100, then fewer (see birdsFor). Filter, search or ask and the sift becomes visible: birds leave as results drop and arrive as they return. Usability first: the flock lives in the gutters (never behind the content column), stays low-contrast, and only crosses the header during the brief swirl while an ask is judging. Nothing in it needs opening or hovering.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/flock.tsx#L2-L5)
 
@@ -211,13 +211,13 @@ Toward the middle of the screen, where the opened post appears.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/flock.tsx#L157)
 
-#### 0015.110 `birdsFor`
-
-One bird per post saturated at MAX_BIRDS (320), so in a collection of 2,000 posts Everything, Bookmarks, Likes and every top category showed the same full flock and the flock stopped saying how much was there. Up to ONE_BIRD_EACH (100) posts it is still one bird each; above that the count grows with log(count / 100) / log(collection / 100), so the whole collection is 320 and each step down the sidebar loses birds. A collection of 320 or fewer keeps one bird per post throughout. The mapping lives in the Flock component, so the murmuration keeps taking a plain bird count.
-
-#### 0015.109 `createSky loop`
+#### 0015.110 `createSky loop`
 
 The flock steps and draws at most once every MIN_FRAME_MS (10ms). Birds move in 2px steps at about 40px a second, so frames past 60 a second show nothing new, and a 120Hz screen was running the flock twice as often as it needed. The gate is 10ms rather than 16.7ms so a 90Hz screen still steps every frame instead of falling to 45.
+
+#### 0015.111 `birdsFor`
+
+One bird per post saturated at MAX_BIRDS (320), so in a collection of 2,000 posts Everything, Bookmarks, Likes and every top category showed the same full flock and the flock stopped saying how much was there. Up to ONE_BIRD_EACH (100) posts it is still one bird each; above that the count grows with log(count / 100) / log(collection / 100), so the whole collection is 320 and each step down the sidebar loses birds. It never gives more birds than posts. A collection of 320 or fewer keeps one bird per post throughout. The mapping lives in the Flock component, so the murmuration keeps taking a plain bird count.
 
 #### 0015.31 `Flock`
 
@@ -629,7 +629,7 @@ The shown posts as runs of one month each, for the Rows layout. A new run also s
 
 #### 0015.90 `murmuration module`
 
-The murmuration behind the post list: one bird per post on screen (up to MAX_BIRDS), in two flocks, one per gutter. Pure and DOM-free (the canvas, measuring and drawing live in components/flock.tsx), so it can be stepped in tests.
+The murmuration behind the post list: up to MAX_BIRDS birds, as many as Flock asks for, in two flocks, one per gutter. Pure and DOM-free (the canvas, measuring and drawing live in components/flock.tsx), so it can be stepped in tests.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/murmuration.ts#L1-L2)
 
@@ -644,7 +644,7 @@ How a flock holds together and changes shape, as starling murmurations do:
 - A goal point drifts slowly round each gutter and the flock follows it, so the body keeps wheeling and stretching.
 - Near the content column birds turn away gradually, over a margin, toward the goal,
   so the flock banks off the column instead of piling against it.
-- The screen's other edges are soft: a flock may sweep up to OFFSCREEN past them (the sidebar side, the window side,
+- The screen's other edges are soft: a flock may sweep up to LEASH of its gutter's width (at most OFFSCREEN) past them (the sidebar side, the window side,
   top and bottom) and wheel back in, as a real murmuration leaves the frame. Its goal stays on screen, so it always returns.
   Pinning's gold glint and the still flock under reduced motion stay on screen, since they are meant to be seen.
 - Now and then a small scare sends nearby birds sharply off; alignment carries it through the flock as a wave.
