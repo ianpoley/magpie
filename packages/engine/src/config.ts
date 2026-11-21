@@ -99,6 +99,8 @@ export const INGEST = {
 
 export const STORE_BUSY_TIMEOUT_MS = 5_000;
 
+export const DEV_FOCUS_WORDING = 'software development, engineering, design, and building products';
+
 export type Paths = {
   repoRoot: string;
   dataDir: string;
@@ -118,6 +120,7 @@ export type Paths = {
   settings: string;
   secretBackend: string;
   xConnection: string;
+  categoryFocus: string;
   claudeCli: string;
   birdclawHome: string;
 };
@@ -199,6 +202,7 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     settings: join(configDir, 'settings.env'),
     secretBackend: join(configDir, 'secret-backend.json'),
     xConnection: join(configDir, 'x-connection.json'),
+    categoryFocus: join(configDir, 'category-focus.json'),
     claudeCli: join(homedir(), '.local', 'bin', 'claude'),
     birdclawHome: resolve(env.BIRDCLAW_HOME || join(homedir(), '.birdclaw')),
   };
