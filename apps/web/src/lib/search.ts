@@ -23,7 +23,7 @@ export function aroundHit(text: string, query: string, after: number, lead = 48)
 }
 
 export function matchesKeyword(post: Post, query: string): boolean {
-  const fields = [post.text.replace(X_URL, ""), post.authorName, post.authorHandle, post.quoted?.text ?? "", ...post.linkedPages.map((page) => page.title)];
+  const fields = [post.text.replace(X_URL, ""), post.authorName, post.authorHandle, (post.quoted?.text ?? "").replace(X_URL, ""), ...post.linkedPages.map((page) => page.title)];
   return words(query).every((word) => {
     const pattern = new RegExp(escape(word), "i");
     return fields.some((field) => pattern.test(field));

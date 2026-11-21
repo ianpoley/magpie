@@ -82,6 +82,9 @@ test("addresses on X itself are not searched, other addresses are", () => {
   assert.equal(matchesKeyword(linking, "otherperson"), false);
   assert.equal(matchesKeyword(linking, "acme"), true);
   assert.equal(matchesKeyword(linking, "status-page"), true);
+  const quoting = post("8", { quoted: { ...quoted, text: "See https://x.com/i/article/99 and https://github.com/acme/tool" } });
+  assert.equal(matchesKeyword(quoting, "article"), false);
+  assert.equal(matchesKeyword(quoting, "acme"), true);
 });
 
 test("phrase highlighting marks the query only as typed", () => {
