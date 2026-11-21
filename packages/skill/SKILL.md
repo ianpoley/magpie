@@ -95,4 +95,4 @@ Ranking: posts hitting more of your **distinct** query terms rank first, then by
 
 Notes:
 - **Bookmarks** are a complete backfill (~1000+). **Likes** may be partial — X rate-limits that endpoint, so the archive fills in over time.
-- Corpus freshness: synced in the background every few hours (default 3) by the magpie worker service.
+- Corpus freshness: synced in the background every few hours (default 3) by the magpie worker service. When no sync from X has succeeded for a day, every command first prints a note on stderr saying how old the corpus is. Pass it on to the user: their newest saves are missing and the worker likely needs attention.
