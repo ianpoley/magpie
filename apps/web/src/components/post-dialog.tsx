@@ -196,9 +196,9 @@ export function PostDialog({
                     className="text-[16px]"
                   />
                 ) : null}
-                <LinkedPages pages={post.linkedPages} keyword={keyword} links />
-                {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} full /> : null}
-                <MediaGrid media={post.media} full />
+                <LinkedPages pages={post.linkedPages} keyword={keyword} />
+                {post.quoted ? <Quoted quoted={post.quoted} keyword={keyword} /> : null}
+                <MediaGrid media={post.media} />
                 <ul className="flex flex-wrap items-center gap-1.5">
                   {chips.map((chip) => {
                     const topic = topicsById.get(chip.topicId);

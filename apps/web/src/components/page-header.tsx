@@ -7,17 +7,21 @@ import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { Menu, MenuContent, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@ui-sdk/react/menu";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle } from "@ui-sdk/react/toggle";
-import { ArrowDownUp, CalendarDays, Check, ChevronDown, Image as ImageIcon, Search, Shuffle, Sparkles, X, type LucideIcon } from "lucide-react";
+import { ArrowDownUp, CalendarDays, Check, ChevronDown, Image as ImageIcon, LayoutList, Rows3, Search, Shuffle, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { MAX_QUERY_CHARS } from "@/lib/ask";
 import type { Sort, TimeRange } from "@/lib/types";
 
 import { formatCount, plural } from "./format";
+import type { PostLayout } from "./post-layout";
 import { menuContent, menuItem, pillControl } from "./styles";
+import { Tip } from "./tip";
 
 export type SearchMode = "search" | "ask";
 export type View = "posts" | "resources";
+
+const LAYOUT_ITEM = "focus-ring flex h-8 w-9 items-center justify-center px-0 text-ink-muted data-checked:text-on-primary [&>svg]:size-4";
 
 export const SEARCH_INPUT_ID = "post-search";
 
@@ -62,6 +66,8 @@ export type PageHeaderProps = {
   onTimeRange: (timeRange: TimeRange) => void;
   onSort: (sort: Sort) => void;
   onMediaOnly: (mediaOnly: boolean) => void;
+  layout: PostLayout;
+  onLayout: (layout: PostLayout) => void;
   view: View;
   onView: (view: View) => void;
   count: number;
@@ -250,11 +256,14 @@ function usePinnedPadding() {
     const root = document.documentElement;
     const ro = new ResizeObserver(() => {
       root.style.scrollPaddingTop = `${el.offsetHeight + 8}px`;
+      // Month headings in the Rows layout pin just under it.
+      root.style.setProperty("--pinned-h", `${el.offsetHeight}px`);
     });
     ro.observe(el);
     return () => {
       ro.disconnect();
       root.style.scrollPaddingTop = "";
+      root.style.removeProperty("--pinned-h");
     };
   }, []);
   return ref;
@@ -291,6 +300,22 @@ export function PageHeader(h: PageHeaderProps) {
               <CountLine h={h} />
             </div>
           </div>
+          {/* A set-once choice, so it sits up here rather than in the pinned row. */}
+          {h.view === "posts" ? (
+            <SegmentedControl aria-label="Layout" value={h.layout} onValueChange={(next) => next && h.onLayout(next as PostLayout)} className="shrink-0 border-0 bg-sunken p-[3px]">
+              <SegmentedControlIndicator />
+              <Tip label="Cards">
+                <SegmentedControlItem value="cards" aria-label="Cards" className={LAYOUT_ITEM}>
+                  <LayoutList aria-hidden="true" />
+                </SegmentedControlItem>
+              </Tip>
+              <Tip label="Rows">
+                <SegmentedControlItem value="rows" aria-label="Rows" className={LAYOUT_ITEM}>
+                  <Rows3 aria-hidden="true" />
+                </SegmentedControlItem>
+              </Tip>
+            </SegmentedControl>
+          ) : null}
           <SegmentedControl aria-label="View" value={h.view} onValueChange={(next) => next && h.onView(next as View)} className="shrink-0 border-0 bg-sunken p-[3px]">
             <SegmentedControlIndicator />
             <SegmentedControlItem value="posts" className="focus-ring h-8 px-3.5 text-[13px] font-semibold">

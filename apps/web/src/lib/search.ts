@@ -22,6 +22,18 @@ export function highlightRanges(text: string, query: string, phrase = false): Ra
 }
 
 /**
+ * The text from a little before the first match, when that match sits more
+ * than `after` characters in, so a clamped row or card still shows why it
+ * matched. It cuts at a word boundary and marks the cut with an ellipsis.
+ */
+export function aroundHit(text: string, query: string, after: number, lead = 48): string {
+  const first = highlightRanges(text, query)[0];
+  if (!first || first[0] < after) return text;
+  const space = text.lastIndexOf(" ", first[0] - lead);
+  return `…${text.slice(space < 0 ? Math.max(0, first[0] - lead) : space + 1)}`;
+}
+
+/**
  * Whether every word of the query, and every phrase in quotes, occurs
  * somewhere in the post: its text, its quoted post's text, the author's name
  * or handle, or the title of a page it links to. Separate words need not be

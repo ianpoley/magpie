@@ -1,10 +1,12 @@
-import { ExternalLink, Globe } from "lucide-react";
+import { ExternalLink, Globe, Play } from "lucide-react";
 
+import { mediaKind } from "@/lib/media";
 import { displayUrl, trimUrl, URL_PATTERN } from "@/lib/post-links";
 import { highlightRanges } from "@/lib/search";
 import type { LinkedPage, Media, QuotedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
+import { FadeImg } from "./fade-img";
 
 /** Text with the search marked. `phrase` marks the query only as typed, for the category search. */
 export function Marked({ text, keyword, phrase = false }: { text: string; keyword: string; phrase?: boolean }) {
@@ -101,8 +103,8 @@ export function PostText({
   return <p id={id} className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
 }
 
-/** The titles of the pages a post links to. With `links`, each row opens its page. */
-export function LinkedPages({ pages, keyword, links = false }: { pages: LinkedPage[]; keyword: string; links?: boolean }) {
+/** The titles of the pages a post links to, each row opening its page. */
+export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: string }) {
   if (pages.length === 0) return null;
   return (
     <ul className="flex flex-col gap-1.5">
@@ -121,7 +123,7 @@ export function LinkedPages({ pages, keyword, links = false }: { pages: LinkedPa
         const row = "flex min-w-0 items-center gap-2.5 rounded-inner bg-sunken px-3 py-2";
         return (
           <li key={page.title} className="flex min-w-0">
-            {links && page.url ? (
+            {page.url ? (
               <a
                 href={page.url}
                 target="_blank"
@@ -141,42 +143,37 @@ export function LinkedPages({ pages, keyword, links = false }: { pages: LinkedPa
   );
 }
 
-const GRID: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-2" };
-
-/** A post's pictures. `full` shows each whole; otherwise up to four cropped previews. */
-export function MediaGrid({ media, full = false }: { media: Media[]; full?: boolean }) {
+/** A post's pictures, each shown whole. */
+export function MediaGrid({ media }: { media: Media[] }) {
   if (media.length === 0) return null;
-  if (full) {
-    return (
-      <div className="flex flex-col gap-2">
-        {media.map((item) => (
-          // eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally
-          <img key={item.url} src={item.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="img-outline max-h-[70dvh] w-full rounded-inner bg-sunken object-contain" />
-        ))}
-      </div>
-    );
-  }
-  const shown = media.slice(0, 4);
-  const more = media.length - shown.length;
   return (
-    <div className={`grid gap-1.5 ${GRID[shown.length]}`}>
-      {shown.map((item, index) => (
-        <div key={item.url} className={`relative overflow-hidden rounded-inner bg-sunken ${shown.length === 1 ? "aspect-[16/9]" : "aspect-[4/3]"}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally */}
-          <img src={item.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="img-outline size-full rounded-inner object-cover" />
-          {more > 0 && index === shown.length - 1 ? (
-            <span className="absolute right-1.5 bottom-1.5 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-surface tabular-nums">
-              +{more}
-            </span>
-          ) : null}
-        </div>
+    <div className="flex flex-col gap-2">
+      {media.map((item) => (
+        // eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally
+        <img key={item.url} src={item.url} alt="" loading="lazy" referrerPolicy="no-referrer" className="img-outline max-h-[70dvh] w-full rounded-inner bg-sunken object-contain" />
       ))}
     </div>
   );
 }
 
-/** The post this one quotes, set into the card as an inner surface. */
-export function Quoted({ quoted, keyword, full = false }: { quoted: QuotedPost; keyword: string; full?: boolean }) {
+/** A fixed square crop of one picture, with a play mark when it stands for a video or GIF. `small` is for crops under 40px. */
+export function Thumb({ item, className, small = false }: { item: Media; className: string; small?: boolean }) {
+  return (
+    <span className={`relative block shrink-0 overflow-hidden rounded-inner bg-sunken ${className}`}>
+      <FadeImg src={item.url} className="img-outline size-full rounded-[inherit] object-cover" />
+      {mediaKind(item) === "photo" ? null : (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className={`flex items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-ink)_62%,transparent)] text-surface ${small ? "size-4" : "size-7"}`}>
+            <Play className={`translate-x-px fill-current ${small ? "size-2" : "size-3.5"}`} aria-hidden="true" />
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** The post this one quotes, in full, set in as an inner surface. */
+export function Quoted({ quoted, keyword }: { quoted: QuotedPost; keyword: string }) {
   const handle = quoted.authorHandle ?? "";
   const name = quoted.authorName ?? (handle || "Quoted post");
   return (
@@ -186,10 +183,8 @@ export function Quoted({ quoted, keyword, full = false }: { quoted: QuotedPost; 
         <span className="truncate font-semibold text-ink">{name}</span>
         {handle ? <span className="truncate text-ink-muted">@{handle}</span> : null}
       </div>
-      {quoted.text ? (
-        <PostText text={quoted.text} keyword={keyword} links={full} className={`text-[14px] ${full ? "" : "line-clamp-4"}`} />
-      ) : null}
-      <MediaGrid media={quoted.media} full={full} />
+      {quoted.text ? <PostText text={quoted.text} keyword={keyword} links className="text-[14px]" /> : null}
+      <MediaGrid media={quoted.media} />
     </blockquote>
   );
 }
