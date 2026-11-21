@@ -443,7 +443,7 @@ export function CorpusScreen({
         </aside>
 
         <main className="bg-wash relative min-w-0 flex-1">
-          <Flock count={result.posts.length} asking={ask?.status === "running"} />
+          <Flock count={result.posts.length} collection={totals.everything} asking={ask?.status === "running"} />
           <div className="relative z-[1] mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
             <PageHeader
               menuButton={
