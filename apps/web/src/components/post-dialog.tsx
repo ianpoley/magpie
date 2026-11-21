@@ -41,6 +41,37 @@ function frontHeight(front: boolean) {
   };
 }
 
+function Steps({ previous, next, controller, className }: { previous: string | null; next: string | null; controller: PostDialogController; className: string }) {
+  if (previous === null && next === null) return null;
+  const step = "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent";
+  return (
+    <span className={`flex items-center ${className}`}>
+      <button
+        type="button"
+        aria-label="Previous post"
+        aria-keyshortcuts="k"
+        title="Previous post (k)"
+        disabled={previous === null}
+        onClick={() => previous !== null && void controller.open({ payload: previous })}
+        className={`${iconButton} ${step}`}
+      >
+        <ChevronUp aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label="Next post"
+        aria-keyshortcuts="j"
+        title="Next post (j)"
+        disabled={next === null}
+        onClick={() => next !== null && void controller.open({ payload: next })}
+        className={`${iconButton} ${step}`}
+      >
+        <ChevronDown aria-hidden="true" />
+      </button>
+    </span>
+  );
+}
+
 function OpenPost({ id, saved, dialog, what }: { id: string; saved: boolean; dialog: PostDialogController; what: string }) {
   return saved ? (
     <DialogTrigger controller={dialog} payload={id} aria-label={`Open post: ${what}`} className={PILL}>
@@ -193,32 +224,7 @@ function PostLayer({
                     </DialogDescription>
                   </div>
                   <CollectionMarks post={post} />
-                  {previous !== null || next !== null ? (
-                    <span className="flex items-center max-sm:hidden">
-                      <button
-                        type="button"
-                        aria-label="Previous post"
-                        aria-keyshortcuts="k"
-                        title="Previous post (k)"
-                        disabled={previous === null}
-                        onClick={() => previous !== null && void controller.open({ payload: previous })}
-                        className={`${iconButton} disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent`}
-                      >
-                        <ChevronUp aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Next post"
-                        aria-keyshortcuts="j"
-                        title="Next post (j)"
-                        disabled={next === null}
-                        onClick={() => next !== null && void controller.open({ payload: next })}
-                        className={`${iconButton} disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent`}
-                      >
-                        <ChevronDown aria-hidden="true" />
-                      </button>
-                    </span>
-                  ) : null}
+                  <Steps previous={previous} next={next} controller={controller} className="max-sm:hidden" />
                   <DialogClose aria-label="Close" className={iconButton}>
                     <X aria-hidden="true" />
                   </DialogClose>
@@ -311,6 +317,7 @@ function PostLayer({
                 </div>
 
                 <footer className="flex flex-wrap items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">
+                  <Steps previous={previous} next={next} controller={controller} className="-ml-2 sm:hidden" />
                   <div className="ml-auto flex items-center gap-2">
                     <Button
                       aria-label="Remove from corpus"
