@@ -13,6 +13,7 @@ import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
   DEFAULT_FILTER,
+  inCollection,
   mostSavedAuthors,
   postChips,
   selectTopicOnly,
@@ -308,7 +309,7 @@ export function CorpusScreen({
     bookmarks: shownPosts.filter((post) => post.bookmarked).length,
     likes: shownPosts.filter((post) => post.liked).length,
   };
-  const authors = mostSavedAuthors(snapshot.posts, applied.revealHidden);
+  const authors = mostSavedAuthors(snapshot.posts.filter((post) => inCollection(post, applied.collection)), applied.revealHidden);
   const authorHandles = new Set(shownPosts.map((post) => post.authorHandle.toLowerCase()));
   const authorName =
     applied.author === null
