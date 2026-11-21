@@ -282,8 +282,35 @@
     background: color-mix(in oklch, var(--color-ink) 45%, transparent);
   }
 
+  /* Posts opened from "More like this" stack like a history. The ones behind take the
+   * front card's height and step back, so only their top edges peek out; the third
+   * one back and beyond fade away. */
+  .post-card {
+    interpolate-size: allow-keywords;
+    transform-origin: top;
+    transition:
+      height 250ms cubic-bezier(0.22, 1, 0.36, 1),
+      translate 250ms cubic-bezier(0.22, 1, 0.36, 1),
+      scale 250ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 150ms ease-out;
+
+    & > * {
+      transition: opacity 150ms ease-out;
+    }
+  }
+  [data-slot="dialog-content"][data-nested-open] > .post-card {
+    height: var(--front-height);
+    translate: 0 calc(var(--dialog-stack) * -14px);
+    scale: calc(1 - var(--dialog-stack) * 0.05);
+    opacity: clamp(0, calc(3 - var(--dialog-stack)), 1);
+
+    & > * {
+      opacity: 0.5;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    :is([data-slot="tree-group"], [data-slot="dialog-content"], [data-slot="dialog-backdrop"]) {
+    :is([data-slot="tree-group"], [data-slot="dialog-content"], [data-slot="dialog-backdrop"], .post-card, .post-card > *) {
       transition: none;
     }
   }
