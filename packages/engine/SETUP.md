@@ -72,6 +72,6 @@ To remove the services: `bun run service:uninstall`. Add `-- --purge-secrets` to
 
 ## Notes
 
-- Logs are in `logs/` in the clone: per-run logs plus each service's stdout and stderr.
+- Logs are in `logs/` in the clone: each service's stdout and stderr. The worker writes a line when each sync starts and finishes; `service:status` shows the last one.
 - If the machine is asleep at a scheduled time, the worker syncs when it wakes.
 - A sync requested while another is running is not queued twice; the screen says "already running".
