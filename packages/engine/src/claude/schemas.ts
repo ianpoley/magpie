@@ -88,3 +88,24 @@ export function categoryListSchema(judgeFocus: boolean): JsonSchema {
     additionalProperties: false,
   };
 }
+
+export type AreaJudgment = {
+  areas: { name: string; in_focus: boolean }[];
+};
+
+export const areaJudgmentSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    areas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string' }, in_focus: { type: 'boolean' } },
+        required: ['name', 'in_focus'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['areas'],
+  additionalProperties: false,
+};
