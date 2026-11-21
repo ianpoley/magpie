@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { join } from "node:path";
 import { after, test, type TestContext } from "node:test";
@@ -13,6 +13,10 @@ const scratch = tempDir();
 after(scratch.cleanup);
 const MISSING_STORE = join(scratch.dir, "missing", "corpus.sqlite");
 process.env.MAGPIE_STORE = MISSING_STORE;
+const CONFIG_DIR = join(scratch.dir, "config");
+process.env.MAGPIE_CONFIG_DIR = CONFIG_DIR;
+process.env.HOME = join(scratch.dir, "home");
+const FOCUS_FILE = join(CONFIG_DIR, "category-focus.json");
 
 const SRC = new URL("../src/", import.meta.url);
 registerHooks({
@@ -145,4 +149,75 @@ test("a refused edit leaves the store as it was", async (t) => {
   assert.equal(topicName(path, topicId), "Agents");
   assert.equal(read(path, (db) => db.prepare(`SELECT COUNT(*) AS n FROM overrides`).get()?.n), 0);
   assert.equal(refreshes.count, before);
+});
+
+function useFocusFile(t: TestContext): void {
+  rmSync(FOCUS_FILE, { force: true });
+  t.after(() => rmSync(FOCUS_FILE, { force: true }));
+}
+
+const savedFocus = (): unknown => JSON.parse(readFileSync(FOCUS_FILE, "utf8"));
+
+test("saving focus mode with a blank focus, a focus over 500 characters or an unknown mode is refused and writes nothing", async (t) => {
+  useFocusFile(t);
+
+  assert.equal(code(await actions.saveFocus("focus", "   ")), "invalid_input");
+  assert.equal(code(await actions.saveFocus("focus", "f".repeat(501))), "invalid_input");
+  assert.equal(code(await actions.saveFocus(wrongType("some"), "climbing")), "invalid_input");
+  assert.equal(code(await actions.saveFocus("focus", wrongType(3))), "invalid_input");
+
+  assert.equal(existsSync(FOCUS_FILE), false);
+});
+
+test("the first focus choice asks for a sync, and a later change does not", async (t) => {
+  useFocusFile(t);
+  const { path } = useStore(t);
+  const request = join(path, "..", "sync-request");
+
+  assert.deepEqual(await actions.saveFocus("all", ""), { ok: true, areasExist: false });
+  assert.equal(existsSync(request), true);
+  rmSync(request);
+
+  assert.equal(code(await actions.saveFocus("focus", " climbing ")), "ok");
+  assert.deepEqual(savedFocus(), { mode: "focus", focus: "climbing" });
+  assert.equal(existsSync(request), false);
+});
+
+test("a saved focus change stays saved when the re-sort preview cannot reach Claude", async (t) => {
+  useFocusFile(t);
+  const { path } = useStore(t);
+  const db = openStore(path);
+  seedArea(db, "Cooking");
+  db.close();
+
+  assert.deepEqual(await actions.saveFocus("focus", "climbing"), { ok: true, areasExist: true });
+  const preview = await actions.previewFocusChange();
+
+  assert.equal(code(preview), "resort_failed");
+  assert.deepEqual(savedFocus(), { mode: "focus", focus: "climbing" });
+  assert.equal(read(path, (store) => store.prepare(`SELECT hidden FROM areas WHERE name = 'Cooking'`).get()?.hidden), 0);
+});
+
+test("applying a previewed re-sort changes the listed areas, skips ones set by hand since, and refreshes once", async (t) => {
+  const { path } = useStore(t);
+  const db = openStore(path);
+  const cooking = seedArea(db, "Cooking");
+  const politics = seedArea(db, "Politics", { hidden: true });
+  const handSet = seedArea(db, "Sports");
+  db.prepare(`UPDATE areas SET set_by_owner = 1 WHERE id = ?`).run(handSet);
+  db.close();
+  const before = refreshes.count;
+
+  const result = await actions.applyFocusChange({ toHide: [{ id: cooking }, { id: handSet }], toShow: [{ id: politics }] });
+
+  assert.deepEqual(result, { ok: true, changed: 2, skipped: 1 });
+  const hidden = (areaId: number) => read(path, (store) => store.prepare(`SELECT hidden FROM areas WHERE id = ?`).get(areaId)?.hidden);
+  assert.deepEqual([hidden(cooking), hidden(politics), hidden(handSet)], [1, 0, 0]);
+  assert.equal(refreshes.count, before + 1);
+});
+
+test("a re-sort with an id that is not a positive whole number is refused before the store is touched", async () => {
+  assert.equal(code(await actions.applyFocusChange({ toHide: [{ id: 1.5 }], toShow: [] })), "invalid_input");
+  assert.equal(code(await actions.applyFocusChange({ toHide: [], toShow: wrongType({ id: 1 }) })), "invalid_input");
+  assert.equal(code(await actions.applyFocusChange(wrongType(null))), "invalid_input");
 });
