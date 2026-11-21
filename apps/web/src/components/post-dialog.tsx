@@ -12,6 +12,7 @@ import type { Area, Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { formatDate, formatLikes } from "./format";
+import { focusRequestedMedia } from "./media-focus";
 import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, postCardOpen, type PostDialogController } from "./post-card";
 import { PostRow } from "./resources-view";
@@ -235,7 +236,7 @@ function PostLayer({
                   ref={(node) => {
                     if (!node) return;
                     if (document.activeElement === document.body) node.closest<HTMLElement>("[data-slot=dialog-content]")?.focus();
-                    scrollToFirstHit(node);
+                    if (!focusRequestedMedia(node, post)) scrollToFirstHit(node);
                   }}
                   className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-5"
                 >

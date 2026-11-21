@@ -142,7 +142,7 @@ export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: 
 export function MediaGrid({ media, postId }: { media: Media[]; postId: string }) {
   if (media.length === 0) return null;
   return (
-    <div className="flex flex-col gap-2">
+    <div data-media-grid className="flex flex-col gap-2">
       {media.map((item) =>
         mediaKind(item) === "photo" ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote X media, shown as saved; nothing to optimize locally

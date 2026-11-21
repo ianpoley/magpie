@@ -241,6 +241,38 @@ The empty-state bird: a magpie flying side-on, in six frames of one wingbeat (up
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/magpie.tsx#L89-L93)
 
+### `apps/web/src/components/media-focus.ts`
+
+#### 0015.109 `requestMediaFocus`
+
+Clicking a thumbnail in the list opens the post window scrolled to that media and presses its play button. The dialog's payload stays a bare post id, because stepping with j/k and the nested layers depend on that, so the click leaves a one-shot request here instead. The window's body takes it when it mounts for that post, and a request for any other post is dropped. When the request is taken, it replaces the scroll to the first search hit.
+
+### `apps/web/src/components/media-preview.tsx`
+
+#### 0015.110 `MediaPreview`
+
+Resting the mouse on a list thumbnail for 350ms shows its media large, docked to the left of the thumbnail. A light curved line runs from a dot beside the thumbnail to the preview. The rest of the page dims, with a cutout that keeps the thumbnail bright. It enters in 220ms with `cubic-bezier(0.32, 0.72, 0, 1)` (fading, sliding 12px from the thumbnail's side, and growing from 0.96, while the line draws itself), and leaves in 140ms ease-in. It is at most 640px wide and keeps the media's own shape, read from the loaded thumbnail. Leaving the thumbnail, clicking it, or any scroll closes it. The preview is a non-interactive picture: the post window still holds the controls.
+
+Chosen from a prototype round. Rejected:
+
+- Growing the thumbnail in place: too small to read screenshots or diagrams.
+- A card beside the thumbnail with a caption line: it covered the post's text and added a surface.
+- A large centered preview: big enough, but nothing tied it to its thumbnail.
+- Growing out of the thumbnail and back: the tie showed only while it moved.
+- A lit cutout with a centered preview: the ring sat too far from the preview on wide screens.
+- A tinted wedge joining the two: the heaviest, and it covered the post's text.
+- A frame with an arrow at the thumbnail: the white arrow disappeared against the white card.
+- The wedge appearing after the preview grows out of the thumbnail: too busy.
+- The line without the dim: the line and preview were lost against the cards.
+
+#### 0015.111 `playWithSound`
+
+Browsers allow audible autoplay only after the person has clicked or pressed a key on the page, and a hover is not such a gesture. The video tries to play with sound and, if the browser refuses, plays muted instead of not at all. A GIF has no sound, so it stays muted.
+
+#### 0015.112 `MediaPreview enter`
+
+Only a mouse on a device that can hover opens a preview: touch fires hover on tap, and the tap already opens the post. With reduced motion, the preview shows the still image and does not animate.
+
 ### `apps/web/src/components/merge-dialog.tsx`
 
 #### 0015.34 `MergeDialog`

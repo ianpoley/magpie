@@ -61,6 +61,7 @@ export function MediaPlayer({ item, postId }: { item: Media; postId: string }) {
       ) : (
         <button
           type="button"
+          data-media-play
           onClick={play}
           disabled={playback.status === "loading"}
           aria-label={`Play ${kind}`}
