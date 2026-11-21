@@ -201,3 +201,13 @@ The store schema is a contract shared by the sync job, the web app and the skill
 Read again under the write lock: another process may have migrated first.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/store/schema.ts#L272)
+
+### `packages/engine/src/store/edits.ts`, added later
+
+#### 0002.20 `purgeRemoved`
+
+Empties the Removed list, the way emptying a trash can works. It stores one timestamp in `meta` under `removed_purged_through`: the newest `removed_at` at the moment of the purge. The Removed list shows only posts removed after it, and `restorePost` refuses anything at or before it.
+
+The rows themselves stay, with `removed_at` set. Purged posts are usually still bookmarked or liked on X, so a deleted row would come back as a new, visible post on the next sync. The existing `removed_at` tombstone already keeps them out on every code version, including the services that run from the main checkout. A purge only hides the posts; it doesn't erase them from disk.
+
+A watermark in `meta`, not a new column or table, means no migration. A migration made from a worktree trips the guard in `openStore` (0002.2), because worktrees share the main checkout's store. `removed_at` values are fixed-width ISO strings, so comparing them as text gives time order.
