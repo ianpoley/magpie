@@ -63,7 +63,7 @@ bun run service:install          # rebuilds and restarts both services
 bun run service:status
 ```
 
-If you upgrade Node and the path the services captured goes away, they stay stopped until you rerun `service:install`; `service:status` reports it.
+With Homebrew's Node the services run it through the keg's `opt` link, which survives `brew upgrade`. With another version manager, if the path the services captured goes away they stay stopped until you rerun `service:install`; `service:status` reports it.
 
 To remove the services: `bun run service:uninstall`. Add `-- --purge-secrets` to also delete the stored X cookies and Jev key and disconnect X.
 

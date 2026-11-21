@@ -28,6 +28,7 @@ export type ServicesState = {
   dataRoot: string | null;
   here: string;
   legacy?: boolean;
+  upgradeSafeNode?: string | null;
 };
 
 export type SkillState = 'linked' | 'elsewhere' | 'missing' | 'none';
@@ -115,6 +116,13 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       if (!(await agree('  Point them at this clone?', { defaultYes: false, safe: false }))) {
         done.push(`Left the services on ${services.dataRoot}.`);
         return false;
+      }
+    } else if (services.installed && services.running && services.upgradeSafeNode) {
+      log('  The services run a Node path that Homebrew deletes when it upgrades Node, which would stop them.');
+      log(`  Reinstalling points them at ${services.upgradeSafeNode}, the same Node under a path that survives upgrades.`);
+      if (!(await agree('  Reinstall them now?', { defaultYes: true, safe: true }))) {
+        todo.push('Point the services at a Node path Homebrew keeps across upgrades: bun run service:install');
+        return true;
       }
     } else if (services.installed && services.running) {
       done.push('Background sync and the web app are already running.');

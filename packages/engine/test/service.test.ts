@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createSecretStore } from '../src/secrets/store.ts';
 import type { CommandResult, ServiceOptions } from '../src/service/index.ts';
-import { installService, serviceSpecs, serviceStatus, setupChecks, uninstallService } from '../src/service/index.ts';
+import { installService, serviceSpecs, serviceStatus, setupChecks, uninstallService, upgradeSafeNodePath } from '../src/service/index.ts';
 import { renderPlist } from '../src/service/launchd.ts';
 import { renderUnit } from '../src/service/systemd.ts';
 import { writeConnection, writeWorkerStatus } from '../src/sync/state.ts';
@@ -348,7 +348,7 @@ test('status reports each unit, the worker heartbeat, the recorded backend and t
   assert.ok(status.worker !== null && status.worker.heartbeatAgeMs >= 30_000 && status.worker.heartbeatAgeMs < 60_000);
   assert.equal(status.worker.fresh, true);
   assert.equal(status.secretBackend, 'file');
-  assert.deepEqual(status.node, { path: machine.options.nodePath, exists: true, version: 'v26.5.0', inRange: true, range: '>=25.8.1 <27' });
+  assert.deepEqual(status.node, { path: machine.options.nodePath, exists: true, version: 'v26.5.0', inRange: true, range: '>=25.8.1 <27', upgradeSafePath: null });
 
   rmSync(machine.options.nodePath!);
   const after = await serviceStatus(machine.options);
@@ -521,4 +521,23 @@ test('the install inside migrate leaves the x-corpus config and keychain entries
   assert.equal(existsSync(oldConfig), true);
   assert.equal(existsSync(newConfig), false);
   assert.deepEqual([...keychain.keys()].sort(), ['x-corpus/typesafe-api-key', 'x-corpus/x-session']);
+});
+
+test('a Homebrew Cellar node maps to its opt link, which survives upgrades', (t) => {
+  const prefix = dir(t);
+  const cellar = join(prefix, 'Cellar', 'node', '26.5.0', 'bin', 'node');
+  mkdirSync(join(prefix, 'Cellar', 'node', '26.5.0', 'bin'), { recursive: true });
+  writeFileSync(cellar, '');
+  assert.equal(upgradeSafeNodePath(cellar), cellar);
+
+  mkdirSync(join(prefix, 'opt'));
+  symlinkSync('../Cellar/node/26.5.0', join(prefix, 'opt', 'node'));
+  assert.equal(upgradeSafeNodePath(cellar), join(prefix, 'opt', 'node', 'bin', 'node'));
+
+  rmSync(join(prefix, 'opt', 'node'));
+  mkdirSync(join(prefix, 'Cellar', 'node', '26.13.1', 'bin'), { recursive: true });
+  symlinkSync('../Cellar/node/26.13.1', join(prefix, 'opt', 'node'));
+  assert.equal(upgradeSafeNodePath(cellar), cellar);
+
+  assert.equal(upgradeSafeNodePath('/home/someone/.nvm/versions/node/v26.5.0/bin/node'), '/home/someone/.nvm/versions/node/v26.5.0/bin/node');
 });

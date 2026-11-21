@@ -164,3 +164,9 @@ One ExecStart word: bare when it is plain, otherwise quoted; `$` would expand a 
 `enable --now` would leave a running unit on its old definition.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/systemd.ts#L72)
+
+#### 0009.25 `upgradeSafeNodePath`
+
+`process.execPath` resolves Homebrew's symlinks to `Cellar/node/<version>/bin/node`, and `brew upgrade` deletes that directory, so services pinned to it stop. The keg's `opt/<formula>` link names the same binary and follows upgrades. It is used only while it resolves to the very Node running the install, so the version that passed the setup checks is the one the services run.
+
+The `opt` link follows the formula, not the major version: once Homebrew's `node` moves to 27, the services run a Node outside `engines.node`. `service:status` reports that and exits 1, which is louder than the services stopping on a deleted path.
