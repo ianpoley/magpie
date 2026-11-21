@@ -6,7 +6,7 @@ import { useState, type KeyboardEvent } from "react";
 
 import { categoryCounts } from "@/lib/filter";
 import { HIDDEN_LABEL, noCategories, searchCategories, UNFILED_LABEL, type CategoryRows } from "@/lib/category-search";
-import type { Area, FilterState, Snapshot, Topic } from "@/lib/types";
+import type { Area, FilterState, Post, Snapshot, Topic } from "@/lib/types";
 
 import { CategoryMenu, CategoryMenuTrigger, createCategoryMenu, type CategoryEdits, type CategoryMenuController } from "./category-menu";
 import { formatCount } from "./format";
@@ -86,6 +86,7 @@ function AreaRow({
 export function CategoryTree({
   snapshot,
   filter,
+  viewed,
   query = "",
   expanded,
   edits,
@@ -96,6 +97,7 @@ export function CategoryTree({
 }: {
   snapshot: Snapshot;
   filter: FilterState;
+  viewed: (post: Post) => boolean;
   query?: string;
   expanded: string[];
   edits: CategoryEdits;
@@ -109,7 +111,7 @@ export function CategoryTree({
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
 
   const ranks = categoryCounts(snapshot, filter.revealHidden);
-  const counts = filter.collection === "everything" ? ranks : categoryCounts(snapshot, filter.revealHidden, filter.collection);
+  const counts = categoryCounts(snapshot, filter.revealHidden, viewed);
   const shownTopics = snapshot.topics.map((topic) => ({ ...topic, postCount: counts.topics.get(topic.id) ?? 0, rank: ranks.topics.get(topic.id) ?? 0 }));
   const shownAreas = snapshot.areas.map((area) => ({ ...area, postCount: counts.areas.get(area.id) ?? 0, rank: ranks.areas.get(area.id) ?? 0 }));
   type Ranked<T> = T & { rank: number };
