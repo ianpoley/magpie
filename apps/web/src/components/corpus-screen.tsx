@@ -186,6 +186,7 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
 const selectionInAddress = (): LinkedFilter => {
   const params = new URLSearchParams(window.location.search);
   return parseLinked({
+    collection: params.get("collection") ?? undefined,
     topics: params.get("topics") ?? undefined,
     areas: params.get("areas") ?? undefined,
     unfiled: params.get("unfiled") ?? undefined,
