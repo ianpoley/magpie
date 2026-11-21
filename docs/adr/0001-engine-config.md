@@ -60,3 +60,13 @@ A command-line tool: `pinned` is the entry file of the repo's own pinned package
 The bird and Birdclaw commands. Each defaults to the pinned engine dependency; MAGPIE_BIRD_BIN and MAGPIE_BIRDCLAW_BIN replace them with another executable, such as a test stub.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L296-L300)
+
+### `packages/engine/src/config.ts`, added later
+
+#### 0001.9 `category-focus.json`
+
+The category focus setting is a file in the config dir, next to `x-connection.json`, written atomically. It holds `{ mode: "all" | "focus", focus: string }`.
+
+It is a file, not a store row, because setup can run before any sync has created the store, and store access refuses with `no_store` until then.
+
+Reading it: the file wins. With no file, a store that is an upgrade reads as focus on software: either it carries the legacy marker in `meta`, or it is below the marker's schema version and has categories. Anything else reads as not chosen, and setup asks. Checking only whether categories exist would misread a new install whose first discovery ran before the choice.
