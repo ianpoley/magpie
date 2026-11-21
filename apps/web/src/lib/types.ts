@@ -193,6 +193,7 @@ export type ActionErrorCode =
   | "system_area"
   | "not_undoable"
   | "already_undone"
+  | "purged"
   | "invalid_input"
   | "no_store"
   | "x_rejected"

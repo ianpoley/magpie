@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { openStore } from "../../../packages/engine/src/store/db.ts";
+import { purgeRemoved, removePost } from "../../../packages/engine/src/store/edits.ts";
 import {
   seedArea,
   seedLink,
@@ -365,4 +366,17 @@ test("post text reads with resolved links expanded, and search finds the destina
   const snap = readSnapshot(db);
   assert.equal(snap.posts[0].text, "Try this https://github.com/acme/widget");
   assert.deepEqual(shown(snap, { keyword: "acme widget" }), ["9"]);
+});
+
+test("emptying Removed takes its posts off the list for good, and a post removed afterwards is listed", (t) => {
+  const { db } = tempStore(t);
+  for (const id of ["old", "new", "kept"]) seedPost(db, id);
+  removePost(db, "old");
+  purgeRemoved(db);
+  db.prepare(`UPDATE posts SET removed_at = '9999-01-01T00:00:00.000Z' WHERE id = 'new'`).run();
+
+  const snap = readSnapshot(db);
+
+  assert.deepEqual(snap.removed.map((p) => p.id), ["new"]);
+  assert.deepEqual(snap.posts.map((p) => p.id), ["kept"]);
 });

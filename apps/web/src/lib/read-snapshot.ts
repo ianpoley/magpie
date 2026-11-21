@@ -162,7 +162,7 @@ function read(db: DatabaseSync): Snapshot {
     .prepare(
       `SELECT id, text, created_at, url, author_handle, author_name, author_avatar_url, bookmarked, liked, removed_at
        FROM posts
-       WHERE removed_at IS NOT NULL AND (bookmarked = 1 OR liked = 1)
+       WHERE removed_at > COALESCE((SELECT value FROM meta WHERE key = 'removed_purged_through'), '') AND (bookmarked = 1 OR liked = 1)
        ORDER BY removed_at DESC, id`,
     )
     .all()
