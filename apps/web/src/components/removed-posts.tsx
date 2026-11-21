@@ -1,18 +1,60 @@
 "use client";
 
+import {
+  AlertDialog,
+  AlertDialogBackdrop,
+  AlertDialogClose,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  createAlertDialogController,
+} from "@ui-sdk/react/alert-dialog";
+import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
-import { ExternalLink, Undo2, X } from "lucide-react";
+import { ExternalLink, Trash2, Undo2, X } from "lucide-react";
 import { useTransition } from "react";
 
 import { shortenUrls } from "@/lib/post-links";
-import type { RemovedPost } from "@/lib/types";
+import type { Post, RemovedPost } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { formatDate } from "./format";
-import { dialogContent, iconButton, softButton } from "./styles";
+import { formatCount, formatDate, plural } from "./format";
+import { alertBackdrop, alertContent, dangerAnswer, dangerButton, dialogContent, iconButton, quietAnswer, softButton } from "./styles";
 
 export const createRemovedPostsController = () => createDialogController();
 export type RemovedPostsController = ReturnType<typeof createRemovedPostsController>;
+
+export const createConfirmRemoveController = () => createAlertDialogController<Post>();
+export type ConfirmRemoveController = ReturnType<typeof createConfirmRemoveController>;
+
+export function ConfirmRemove({ controller, onConfirm }: { controller: ConfirmRemoveController; onConfirm: (post: Post) => Promise<void> }) {
+  return (
+    <AlertDialog controller={controller}>
+      <AlertDialogBackdrop className={alertBackdrop} />
+      <AlertDialogContent<Post> className={alertContent}>
+        {(state) => {
+          const post = state.payload;
+          if (!post) return <AlertDialogTitle className="sr-only">Remove post</AlertDialogTitle>;
+          return (
+            <>
+              <AlertDialogTitle className="text-display text-[20px]">Remove this post?</AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
+                {post.authorName}’s post leaves Magpie and won’t come back on sync. It stays bookmarked or liked on X, and you can restore it from Removed.
+              </AlertDialogDescription>
+              <div className="mt-5 flex justify-end gap-2">
+                <AlertDialogClose className={quietAnswer}>Keep</AlertDialogClose>
+                <AlertDialogClose value="confirm" className={dangerAnswer} action={() => onConfirm(post)}>
+                  Remove
+                </AlertDialogClose>
+              </div>
+            </>
+          );
+        }}
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 function Row({ post, onRestore }: { post: RemovedPost; onRestore: (postId: string) => Promise<void> }) {
   const [restoring, startRestoring] = useTransition();
@@ -44,14 +86,45 @@ function Row({ post, onRestore }: { post: RemovedPost; onRestore: (postId: strin
   );
 }
 
+function EmptyRemoved({ count, onEmpty }: { count: number; onEmpty: () => Promise<void> }) {
+  const posts = `${formatCount(count)} ${plural(count, "post")}`;
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger render={<Button />} className={dangerButton}>
+        <Trash2 className="size-4" aria-hidden="true" />
+        Empty Removed
+      </AlertDialogTrigger>
+      <AlertDialogBackdrop className={alertBackdrop} />
+      <AlertDialogContent className={alertContent}>
+        <AlertDialogTitle className="text-display text-[20px]">Empty Removed?</AlertDialogTitle>
+        <AlertDialogDescription className="mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
+          {posts} leave this list for good. You can’t restore them afterwards, and syncing won’t bring them back, even though they stay bookmarked or liked on X.
+        </AlertDialogDescription>
+        <div className="mt-5 flex justify-end gap-2">
+          <AlertDialogClose className={quietAnswer}>Keep them</AlertDialogClose>
+          <AlertDialogClose
+            value="confirm"
+            className={dangerAnswer}
+            action={onEmpty}
+          >
+            Empty {posts}
+          </AlertDialogClose>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function RemovedPosts({
   controller,
   posts,
   onRestore,
+  onEmpty,
 }: {
   controller: RemovedPostsController;
   posts: RemovedPost[];
   onRestore: (postId: string) => Promise<void>;
+  onEmpty: () => Promise<void>;
 }) {
   return (
     <Dialog controller={controller}>
@@ -71,11 +144,21 @@ export function RemovedPosts({
         {posts.length === 0 ? (
           <p className="px-5 py-10 text-center text-[14px] text-ink-muted">Nothing is removed.</p>
         ) : (
-          <ul className="min-h-0 divide-y divide-line overflow-y-auto overscroll-contain">
-            {posts.map((post) => (
-              <Row key={post.id} post={post} onRestore={onRestore} />
-            ))}
-          </ul>
+          <>
+            <ul className="min-h-0 divide-y divide-line overflow-y-auto overscroll-contain">
+              {posts.map((post) => (
+                <Row key={post.id} post={post} onRestore={onRestore} />
+              ))}
+            </ul>
+            <footer className="flex items-center gap-3 border-t border-line bg-canvas px-5 py-3.5">
+              <p className="text-[13px] text-ink-muted tabular-nums">
+                {formatCount(posts.length)} {plural(posts.length, "post")}
+              </p>
+              <span className="ml-auto">
+                <EmptyRemoved count={posts.length} onEmpty={onEmpty} />
+              </span>
+            </footer>
+          </>
         )}
       </DialogContent>
     </Dialog>

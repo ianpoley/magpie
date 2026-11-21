@@ -1,5 +1,4 @@
 const NUMBER = new Intl.NumberFormat("en-US");
-const COMPACT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 const MINUTE = 60_000;
@@ -7,7 +6,6 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 export const formatCount = (value: number): string => NUMBER.format(value);
-export const compactCount = (value: number): string => COMPACT.format(value);
 
 export function formatDate(iso: string | null): string | null {
   if (iso === null) return null;

@@ -8,7 +8,7 @@ import { CircleAlert, CircleCheck, Menu as MenuIcon, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useState, useSyncExternalStore } from "react";
 
-import { pinQuery, removePost, restorePost } from "@/app/actions";
+import { pinQuery, purgeRemoved, removePost, restorePost } from "@/app/actions";
 import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
@@ -34,14 +34,14 @@ import { ConnectXDialog, createConnectXController } from "./connect-x-dialog";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { Flock } from "./flock";
-import { formatCount } from "./format";
+import { formatCount, plural } from "./format";
 import { PageHeader, SEARCH_INPUT_ID, type SearchMode, type View } from "./page-header";
 import { postCardOpen } from "./post-card";
 import { PostDialog } from "./post-dialog";
 import { saveLayout, type PostLayout } from "./post-layout";
 import { PostList } from "./post-list";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
-import { createRemovedPostsController, RemovedPosts } from "./removed-posts";
+import { ConfirmRemove, createConfirmRemoveController, createRemovedPostsController, RemovedPosts } from "./removed-posts";
 import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
@@ -219,6 +219,7 @@ export function CorpusScreen({
   const [connectX] = useState(createConnectXController);
   const sync = useSyncStatus(initialSync);
   const [removedPosts] = useState(createRemovedPostsController);
+  const [confirmRemove] = useState(createConfirmRemoveController);
   const [sidebarPanel] = useState(() => createDialogController());
   const [categoryEdits] = useState(createCategoryEdits);
   const [topicsEditor] = useState(createPostTopicsController);
@@ -359,7 +360,16 @@ export function CorpusScreen({
   const restore = async (postId: string) => {
     await runAction(restorePost(postId));
   };
+  const emptyRemoved = async () => {
+    const emptied = await runAction(purgeRemoved());
+    if (!emptied) return;
+    removedPosts.close();
+    toast.success(`Emptied ${formatCount(emptied.purged)} removed ${plural(emptied.purged, "post")}`);
+  };
   const remove = async (post: Post) => {
+    void confirmRemove.open({ payload: post });
+  };
+  const removeConfirmed = async (post: Post) => {
     if (!(await runAction(removePost(post.id)))) return;
     postDialog.close();
     emitMagpie("remove");
@@ -587,10 +597,12 @@ export function CorpusScreen({
         areas={snapshot.areas}
         topicsById={topicsById}
         listed={new Set(result.posts.map((post) => post.id))}
+        onSelectTopic={selectTopic}
       />
       <WhatChanged controller={whatChanged} changes={snapshot.changes} />
       <ConnectXDialog controller={connectX} sync={sync} />
-      <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} />
+      <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} onEmpty={emptyRemoved} />
+      <ConfirmRemove controller={confirmRemove} onConfirm={removeConfirmed} />
       <CategoryDialogs edits={categoryEdits} topics={snapshot.topics} areas={snapshot.areas} topicsById={topicsById} areasById={areasById} />
 
       <ToastRegion side="top" align="center" className="mt-6 w-fit [&_[data-slot=toast-list]]:items-center">

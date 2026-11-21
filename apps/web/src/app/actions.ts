@@ -157,6 +157,10 @@ export async function restorePost(post: string) {
   return withStore(WRITE, () => postId(post), (db, edits, restored) => edits.restorePost(db, restored));
 }
 
+export async function purgeRemoved() {
+  return withStore(WRITE, () => null, (db, edits) => edits.purgeRemoved(db));
+}
+
 export async function pinQuery(query: string, scores: { postId: string; probability: number }[]) {
   return withStore(
     WRITE,

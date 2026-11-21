@@ -13,7 +13,19 @@ import { TopicCombobox } from "./topic-combobox";
 export const createPostTopicsController = () => createPopoverController<string>();
 export type PostTopicsController = ReturnType<typeof createPostTopicsController>;
 
-function Editor({ post, topics, areas, topicsById }: { post: Post; topics: Topic[]; areas: Area[]; topicsById: Map<number, Topic> }) {
+function Editor({
+  post,
+  topics,
+  areas,
+  topicsById,
+  onSelectTopic,
+}: {
+  post: Post;
+  topics: Topic[];
+  areas: Area[];
+  topicsById: Map<number, Topic>;
+  onSelectTopic: (topicId: number) => void;
+}) {
   const [saving, startSaving] = useTransition();
   const current = new Set(post.memberships.map((membership) => membership.topicId));
   const save = (edit: () => Promise<unknown>) => startSaving(async () => void (await edit()));
@@ -34,17 +46,24 @@ function Editor({ post, topics, areas, topicsById }: { post: Post; topics: Topic
             const topic = topicsById.get(topicId);
             if (!topic) return null;
             return (
-              <li key={topicId} className="flex h-9 shrink-0 items-center gap-2 rounded-[9px] pr-0.5 pl-2 hover:bg-sunken">
-                <span className="min-w-0 truncate text-[13px] font-semibold text-ink">{topic.name}</span>
-                {band === "unsure" ? (
-                  <span className="shrink-0 text-[10px] font-semibold tracking-[0.04em] text-chip-possible-text uppercase">possible</span>
-                ) : null}
+              <li key={topicId} className="flex h-9 shrink-0 items-center gap-1 rounded-[9px] pr-0.5 hover:bg-sunken">
+                <button
+                  type="button"
+                  aria-label={`Filter to ${topic.name}`}
+                  onClick={() => onSelectTopic(topicId)}
+                  className="focus-ring flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[9px] border-0 bg-transparent pl-2 text-left"
+                >
+                  <span className="min-w-0 truncate text-[13px] font-semibold text-ink">{topic.name}</span>
+                  {band === "unsure" ? (
+                    <span className="shrink-0 text-[10px] font-semibold tracking-[0.04em] text-chip-possible-text uppercase">possible</span>
+                  ) : null}
+                </button>
                 <button
                   type="button"
                   disabled={saving}
                   aria-label={`Remove ${topic.name}`}
                   onClick={() => save(() => runAction(removePostTopic(post.id, topicId)))}
-                  className="focus-ring pressable ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-muted hover:bg-like-soft hover:text-like-text disabled:cursor-progress disabled:opacity-50"
+                  className="focus-ring pressable flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-muted hover:bg-like-soft hover:text-like-text disabled:cursor-progress disabled:opacity-50"
                 >
                   <X className="size-4" aria-hidden="true" />
                 </button>
@@ -77,6 +96,7 @@ export function PostTopicsEditor({
   topicsById,
   align = "end",
   listed,
+  onSelectTopic,
 }: {
   controller: PostTopicsController;
   postsById: Map<string, Post>;
@@ -85,6 +105,7 @@ export function PostTopicsEditor({
   topicsById: Map<number, Topic>;
   align?: "start" | "end";
   listed?: Set<string>;
+  onSelectTopic: (topicId: number) => void;
 }) {
   useEffect(() => {
     const postId = controller.getPayload();
@@ -102,7 +123,19 @@ export function PostTopicsEditor({
         {(state) => {
           const post = typeof state.payload === "string" ? postsById.get(state.payload) : undefined;
           if (!post) return <PopoverTitle className="text-[14px] font-semibold text-ink">This post is no longer saved</PopoverTitle>;
-          return <Editor key={post.id} post={post} topics={topics} areas={areas} topicsById={topicsById} />;
+          return (
+            <Editor
+              key={post.id}
+              post={post}
+              topics={topics}
+              areas={areas}
+              topicsById={topicsById}
+              onSelectTopic={(topicId) => {
+                controller.close();
+                onSelectTopic(topicId);
+              }}
+            />
+          );
         }}
       </PopoverContent>
     </Popover>

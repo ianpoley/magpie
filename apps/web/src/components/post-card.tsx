@@ -12,7 +12,7 @@ import { aroundHit } from "@/lib/search";
 import type { Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { compactCount, formatDate } from "./format";
+import { formatDate } from "./format";
 import { Marked, PostText, Thumb } from "./post-body";
 import type { PostTopicsController } from "./post-topics-editor";
 import { dangerIconButton, iconButton } from "./styles";
@@ -121,17 +121,6 @@ export function TopicChips({
   );
 }
 
-export function LikeCount({ post }: { post: Post }) {
-  if (post.likeCount <= 0) return null;
-  return (
-    <span className="mr-1.5 flex items-center gap-1 text-[12px] font-medium text-ink-muted tabular-nums">
-      <Heart className="size-3.5" aria-hidden="true" />
-      {compactCount(post.likeCount)}
-      <span className="sr-only"> likes on X</span>
-    </span>
-  );
-}
-
 export function AuthorButton({ post, keyword, onSelectAuthor, className = "" }: { post: Post; keyword: string; onSelectAuthor: (handle: string) => void; className?: string }) {
   return (
     <button
@@ -211,14 +200,6 @@ export function PostCard(props: PostCardProps) {
               ) : null}
             </div>
           ) : null}
-
-          <footer className="mt-auto flex items-end justify-between gap-3 pt-0.5">
-            <TopicChips {...props} />
-            <div className="pointer-events-auto -my-1 -mr-1.5 ml-auto flex shrink-0 items-center gap-0.5">
-              <LikeCount post={post} />
-              <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
-            </div>
-          </footer>
         </div>
 
         {lead ? (
@@ -243,6 +224,12 @@ export function PostCard(props: PostCardProps) {
           </div>
         ) : null}
       </div>
+      <footer className="pointer-events-none relative -mt-1.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 px-4 pb-4 sm:-mt-2.5 sm:px-5 sm:pb-5">
+        <TopicChips {...props} max={3} />
+        <div className="pointer-events-auto -my-1 -mr-1.5 ml-auto flex shrink-0 items-center gap-0.5">
+          <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
+        </div>
+      </footer>
     </article>
   );
 }

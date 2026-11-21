@@ -11,7 +11,7 @@ import type { Post } from "@/lib/types";
 import { AuthorAvatar } from "./author-avatar";
 import { formatDate } from "./format";
 import { Marked, PostText, Thumb } from "./post-body";
-import { AuthorButton, CollectionMarks, LikeCount, PostActions, type PostCardProps, TopicChips } from "./post-card";
+import { AuthorButton, CollectionMarks, PostActions, type PostCardProps, TopicChips } from "./post-card";
 
 const hit = (text: string | null | undefined, keyword: string): boolean => !!text && highlightRanges(text, keyword).length > 0;
 
@@ -86,7 +86,6 @@ export function PostListRow(props: PostCardProps) {
           <div className="flex min-h-7 min-w-0 items-center gap-3">
             <TopicChips {...props} max={3} oneLine />
             <div className="pointer-events-auto -my-1 ml-auto flex shrink-0 items-center gap-0.5">
-              <LikeCount post={post} />
               <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
             </div>
           </div>

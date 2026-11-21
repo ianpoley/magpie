@@ -3,14 +3,14 @@
 import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
-import { ChevronDown, ChevronUp, ExternalLink, Heart, Link2, Tags, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, Link2, Tags, Trash2, X } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
 import type { Area, Chip, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { compactCount, formatDate } from "./format";
+import { formatDate } from "./format";
 import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
 import { CollectionMarks, postCardOpen, type PostDialogController } from "./post-card";
 import { PostRow } from "./resources-view";
@@ -252,13 +252,6 @@ function PostLayer({
                 </div>
 
                 <footer className="flex flex-wrap items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">
-                  {post.likeCount > 0 ? (
-                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-muted tabular-nums">
-                      <Heart className="size-4" aria-hidden="true" />
-                      {compactCount(post.likeCount)}
-                      <span className="sr-only"> likes on X</span>
-                    </span>
-                  ) : null}
                   <div className="ml-auto flex items-center gap-2">
                     <Button
                       aria-label="Remove from corpus"
@@ -287,7 +280,18 @@ function PostLayer({
                   </div>
                 </footer>
               </div>
-              <PostTopicsEditor align="start" controller={topicsEditor} postsById={postsById} topics={topics} areas={areas} topicsById={topicsById} />
+              <PostTopicsEditor
+                align="start"
+                controller={topicsEditor}
+                postsById={postsById}
+                topics={topics}
+                areas={areas}
+                topicsById={topicsById}
+                onSelectTopic={(topicId) => {
+                  onSelectTopic(topicId);
+                  root.close();
+                }}
+              />
               <PostLayer {...props} controller={child} root={root} depth={depth + 1} />
             </>
           );
