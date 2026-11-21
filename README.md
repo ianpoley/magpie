@@ -84,15 +84,13 @@ Set up Magpie on this machine. Read README.md and packages/engine/SETUP.md first
    repo dependencies, and setup finds Node 26 itself or says how to install it.
 2. Run `bun run setup --yes`. Without a terminal it never prompts: it installs the
    background services and links the Claude skill, and stops at anything that holds
-   a secret or would replace something (the old birdclaw-nightly job, an install
-   still under its old names, services installed from another clone, a
-   skill linked elsewhere). Fix what you can and
+   a secret or would replace something (the old birdclaw-nightly job, services
+   installed from another clone, a skill linked elsewhere). Fix what you can and
    explain what you can't.
-3. If it lists the old birdclaw-nightly job, the rename of an old install, services from
-   another clone, or a skill linked elsewhere, stop and ask me before doing anything
-   about it.
+3. If it lists the old birdclaw-nightly job, services from another clone, or a skill
+   linked elsewhere, stop and ask me before doing anything about it.
 4. Do not ask for, read, or handle my X cookies or my Jev key. Tell me to run
-   `bun run setup` myself in a terminal: it opens the web app for Connect X, reads the
+   `bun run setup` myself in a terminal: it opens the web app's setup screen, reads the
    Jev key with echo off, and skips everything already done.
 
 End with setup's "Still to do" list and a short summary: what is running, on which
