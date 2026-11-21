@@ -225,6 +225,7 @@ export function CorpusScreen({
   const [topicsEditor] = useState(createPostTopicsController);
   const [mode, setMode] = useState<SearchMode>("search");
   const [askDraft, setAskDraft] = useState("");
+  const [edited, setEdited] = useState<{ view: string; ids: string[] }>({ view: "", ids: [] });
   const [askRunner] = useState(() => createAskRunner(postAsk));
   const ask = useSyncExternalStore(askRunner.subscribe, askRunner.getState, () => null);
 
@@ -272,7 +273,14 @@ export function CorpusScreen({
   }, []);
 
   const keyword = useDeferredValue(filter.keyword);
-  const browsed = applyFilter(snapshot, { ...filter, keyword }, now);
+  const listView = JSON.stringify({ ...filter, keyword });
+  const held = new Set(edited.view === listView ? edited.ids : []);
+  const holdPost = (postId: string) =>
+    setEdited((current) => {
+      if (current.view !== listView) return { view: listView, ids: [postId] };
+      return current.ids.includes(postId) ? current : { view: listView, ids: [...current.ids, postId] };
+    });
+  const browsed = applyFilter(snapshot, { ...filter, keyword }, now, held);
   const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
 
@@ -589,6 +597,7 @@ export function CorpusScreen({
         onSelectAuthor={selectAuthor}
         onCopyLink={copyLink}
         onRemove={remove}
+        onEditTopics={holdPost}
       />
       <PostTopicsEditor
         controller={topicsEditor}
@@ -598,6 +607,7 @@ export function CorpusScreen({
         topicsById={topicsById}
         listed={new Set(result.posts.map((post) => post.id))}
         onSelectTopic={selectTopic}
+        onEdit={holdPost}
       />
       <WhatChanged controller={whatChanged} changes={snapshot.changes} />
       <ConnectXDialog controller={connectX} sync={sync} />

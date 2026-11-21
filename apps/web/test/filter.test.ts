@@ -112,6 +112,22 @@ test("Unfiled returns posts with no confident topic", () => {
   assert.deepEqual(sorted({ topicIds: [EVALS] }, snap), ["filed", "maybe"]);
 });
 
+test("a held post stays listed in its sorted place after it stops matching, and nothing else is let in", () => {
+  const snap = snapshot({
+    areas: AREAS,
+    topics: TOPICS,
+    posts: [
+      post("newer", { createdAt: "2026-06-03T00:00:00.000Z" }),
+      post("just-filed", { createdAt: "2026-06-02T00:00:00.000Z", in: { [EVALS]: "confident" } }),
+      post("older", { createdAt: "2026-06-01T00:00:00.000Z" }),
+      post("other-filed", { in: { [EVALS]: "confident" } }),
+    ],
+  });
+  const ids = (held: string[]) => applyFilter(snap, filter({ unfiled: true }), NOW, new Set(held)).posts.map((p) => p.id);
+  assert.deepEqual(ids([]), ["newer", "older"]);
+  assert.deepEqual(ids(["just-filed"]), ["newer", "just-filed", "older"]);
+});
+
 test("Unfiled ignores a topic selection", () => {
   const result = run({ unfiled: true, topicIds: [EVALS], areaIds: [FRONTEND] });
   assert.deepEqual(ids(result.posts), ["loose"]);
