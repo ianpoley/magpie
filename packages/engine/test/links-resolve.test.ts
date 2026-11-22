@@ -8,6 +8,7 @@ import { ingest } from '../src/ingest.ts';
 import type { HttpFetch, HttpResponse } from '../src/links/http.ts';
 import { resolveLinks } from '../src/links/resolve.ts';
 import { openStore } from '../src/store/db.ts';
+import { REREAD_HOST_TITLED_VIDEOS } from '../src/store/schema.ts';
 import { exportPost, tempDir, writeExports } from './fixtures/export.ts';
 
 type Route = HttpResponse | Error;
@@ -1002,26 +1003,32 @@ test('a YouTube video is titled from its oEmbed record, with its channel as the 
   assert.deepEqual({ ...resource }, { kind: 'video', title: 'Building evals that matter', description: 'Hamel Husain' });
 });
 
-test('a video stored under its host is read from oEmbed once more, and one that still cannot be read is left alone', async (t) => {
+test('the one-time migration reads a video stored under its host from oEmbed once more, and one that still cannot be read stays under its host', async (t) => {
   const { db, web, run } = setup(t, [{ id: '1', urls: [WATCH] }], { [OEMBED]: oembed({ title: 'Real title' }) });
   await run();
-  db.prepare(`UPDATE links SET title = host, description = NULL, attempts = 1`).run();
-  db.prepare(`UPDATE resources SET title = 'youtube.com'`).run();
-  web.calls.length = 0;
+  const titledByHost = () => {
+    db.prepare(`UPDATE links SET title = host, description = NULL, attempts = 1`).run();
+    db.prepare(`UPDATE resources SET title = 'youtube.com'`).run();
+    web.calls.length = 0;
+  };
 
+  titledByHost();
+  await run();
+  assert.deepEqual(web.calls, [], 'an ordinary sync does not read it again');
+
+  db.exec(REREAD_HOST_TITLED_VIDEOS);
   await run();
   assert.deepEqual(web.calls, [OEMBED]);
   assert.equal(link(db, WATCH).title, 'Real title');
   assert.equal(db.prepare('SELECT title FROM resources').get()?.title, 'Real title');
 
-  db.prepare(`UPDATE links SET title = host, attempts = 1`).run();
+  titledByHost();
   web.set(OEMBED, { status: 404, headers: {}, body: '' });
-  web.calls.length = 0;
+  db.exec(REREAD_HOST_TITLED_VIDEOS);
   await run();
   const row = link(db, WATCH);
   assert.equal(row.status, 'resolved', 'stays a resource');
   assert.equal(row.title, 'youtube.com');
-  assert.equal(row.attempts, 2);
 
   web.calls.length = 0;
   await run();

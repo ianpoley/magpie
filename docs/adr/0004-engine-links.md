@@ -145,7 +145,7 @@ A repo keeps what GitHub said about it; other kinds follow their first link.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/links/resolve.ts#L496)
 
-#### 0004.22 `resolveLinks (the block sat misplaced above rereadVideos)`
+#### 0004.22 `resolveLinks`
 
 The link stage of a sync. Follows every new or retry-due link to its final URL, reads the page's title and description, files each resolved link under a resource, and groups a library's site with the repo that declares it as homepage. A link that fails is recorded and retried on a later run; nothing a single link or GitHub does makes the stage throw.
 
