@@ -63,59 +63,11 @@ The web and worker services for a clone. The PATH starts with the captured node'
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L28-L32)
 
-#### 0009.9 `ServiceOptions.migrating`
-
-Set by `migrate`, which installs while the old job is still on disk and removes it after a good sync.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L200)
-
-#### 0009.10 `legacyInstall`
-
-The old nightly job's plist when `migrate` can move it: on macOS, with the plist and its cookie file both present. Without the cookie file migrate has nothing to move and refuses, so nobody is sent there. Null otherwise.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L209-L213)
-
 #### 0009.11 `installService`
 
 Installs both services, or updates them: runs the setup checks, stops the web service, builds the web app, writes both unit files, then loads and (re)starts both. A failed build leaves the unit files as they were.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L271-L275)
-
-#### 0009.12 `installService`
-
-Migrate holds its own paths and keychain service for its cleanup and rollback; the next install renames.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L281)
-
-#### 0009.13 `installUnits`
-
-Read again: a rename from the old names has just moved the config directory.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L288)
-
-#### 0009.14 `handOverLegacyNames`
-
-Moves an install from the x-corpus names to the Magpie names in one go, so old and new names are never in use side by side: stops the old services, copies the secrets to the new keychain service and reads them back, renames the config directory, installs and starts the services under their new names, and waits for the renamed worker's heartbeat. Only then does it delete the old secrets and unit files. Any failure before that puts every step back and restarts the old services.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L330-L338)
-
-#### 0009.15 `handOverLegacyNames`
-
-Only the default service names move: a keychain service set by hand stays where it was put.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L345)
-
-#### 0009.16 `handOverLegacyNames`
-
-Only a heartbeat written after the old worker stopped proves the renamed one.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L366)
-
-#### 0009.17 `serviceStatus`
-
-Until the rename hands them over, the services that run are the ones under the old names.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L476)
 
 ### `packages/engine/src/service/launchd.ts`
 

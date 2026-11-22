@@ -48,12 +48,11 @@ Examples:
   node query.mjs resources evals`);
 }
 
-const ENV_STORE = process.env.MAGPIE_STORE || process.env.X_CORPUS_STORE;
-const ENV_DIR = process.env.MAGPIE_DIR || process.env.X_CORPUS_DIR;
+const ENV_STORE = process.env.MAGPIE_STORE;
+const ENV_DIR = process.env.MAGPIE_DIR;
 const STORE = ENV_STORE || (ENV_DIR ? join(ENV_DIR, '..', 'state', 'corpus.sqlite') : join(CLONE_ROOT, 'state', 'corpus.sqlite'));
 const KNOWN_SCHEMA_VERSION = 8;
-const CATEGORIES_SCHEMA_VERSION = 2;
-const REMOVAL_SCHEMA_VERSION = 3;
+const BASELINE_SCHEMA_VERSION = 8;
 
 function fail(message) {
   console.error(message);
@@ -89,7 +88,7 @@ async function openStore() {
     return fail(`The store at ${STORE} has schema version ${version}; this script knows version ${KNOWN_SCHEMA_VERSION}. `
       + `Update the magpie skill.`);
   }
-  if (version < CATEGORIES_SCHEMA_VERSION) {
+  if (version < BASELINE_SCHEMA_VERSION) {
     db.close();
     return null;
   }
@@ -117,8 +116,7 @@ function hiddenPostIds(db) {
   return new Set(db.prepare('SELECT post_id FROM post_hidden').all().map(r => String(r.post_id)));
 }
 
-function removedPostIds({ db, version }) {
-  if (version < REMOVAL_SCHEMA_VERSION) return new Set();
+function removedPostIds({ db }) {
   return new Set(db.prepare('SELECT id FROM posts WHERE removed_at IS NOT NULL').all().map(r => String(r.id)));
 }
 

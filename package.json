@@ -20,7 +20,6 @@
     "service:uninstall": "node packages/engine/bin/magpie.mjs service uninstall",
     "service:status": "node packages/engine/bin/magpie.mjs service status",
     "secrets:set-jev": "node packages/engine/bin/magpie.mjs secrets set-jev",
-    "migrate": "node packages/engine/bin/magpie.mjs migrate",
     "build:markdown": "bun --filter @magpie/engine build:markdown",
     "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs' 'apps/web/test/**/*.test.ts' 'eslint-rules/**/*.test.mjs'",
     "typecheck": "bun --filter @magpie/engine typecheck && bun --filter @magpie/web typecheck",

@@ -8,10 +8,8 @@ export type WalkthroughDeps = {
   secret: (prompt: string) => Promise<string>;
   checks: () => Promise<SetupCheck[]>;
   worktreeOf: string | null;
-  legacy: string | null;
   services: () => Promise<ServicesState>;
   install: () => Promise<void>;
-  migrate: () => Promise<{ ok: boolean; message: string }>;
   connection: () => { handle: string | null } | undefined;
   appUrl: string;
   openApp: (url: string) => Promise<void>;
@@ -20,8 +18,6 @@ export type WalkthroughDeps = {
   storeJev: (key: string) => Promise<{ ok: boolean; message: string }>;
   skill: () => SkillState;
   linkSkill: () => Promise<void>;
-  oldLogs: () => { count: number; bytes: number; dir: string };
-  deleteOldLogs: () => void;
 };
 
 export type ServicesState = {
@@ -29,7 +25,6 @@ export type ServicesState = {
   running: boolean;
   dataRoot: string | null;
   here: string;
-  legacy?: boolean;
   upgradeSafeNode?: string | null;
   buildBehindCode?: boolean;
 };
@@ -79,42 +74,13 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   await connectX(servicesRunning);
   await jevKey();
   await claudeSkill();
-  await oldNightlyLogs();
   return finish(true);
 
   async function backgroundSync(): Promise<boolean> {
     log('');
     log('Background sync and the web app');
-    if (deps.legacy) {
-      log(`  The old birdclaw-nightly job is still installed (${deps.legacy}).`);
-      log('  Migrating moves its X cookies and Jev key into the secret store, replacing any X session stored there,');
-      log('  installs the two services, and deletes the old job and its plaintext files after one good sync.');
-      log('  If anything fails it puts the old job back.');
-      if (!(await agree('  Migrate now?', { defaultYes: false, safe: false }))) {
-        todo.push('Move off the old nightly job: bun run migrate');
-        return false;
-      }
-      const result = await deps.migrate();
-      if (!result.ok) {
-        todo.push(`The migration did not complete: ${result.message}`);
-        return false;
-      }
-      done.push('Moved off the old nightly job; background sync and the web app are running.');
-      return true;
-    }
-
     const services = await deps.services();
-    if (services.legacy && (services.dataRoot === null || services.dataRoot === services.here)) {
-      log('  This install still uses its old x-corpus names: the services, the keychain entries and ~/.config/x-corpus.');
-      log('  Reinstalling renames them to magpie, waits for the renamed worker, and only then removes the old ones.');
-      log('  If anything fails it puts the x-corpus install back.');
-      if (!(await agree('  Rename and reinstall now?', { defaultYes: true, safe: false }))) {
-        todo.push(
-          'Rename the install from x-corpus to magpie: bun run service:install. Do it soon: the web app still runs its build from before the rename.',
-        );
-        return services.running;
-      }
-    } else if (services.dataRoot !== null && services.dataRoot !== services.here) {
+    if (services.dataRoot !== null && services.dataRoot !== services.here) {
       log(`  The services are installed for another clone, ${services.dataRoot}.`);
       log('  Installing here points both at this clone and its corpus instead.');
       if (!(await agree('  Point them at this clone?', { defaultYes: false, safe: false }))) {
@@ -240,22 +206,6 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     }
     await deps.linkSkill();
     done.push('The magpie skill is linked into ~/.claude/skills.');
-  }
-
-  async function oldNightlyLogs() {
-    if (deps.legacy) return;
-    const { count, bytes, dir } = deps.oldLogs();
-    if (count === 0) return;
-    const size = bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : bytes >= 1e6 ? `${Math.round(bytes / 1e6)} MB` : 'under 1 MB';
-    log('');
-    log('Old logs');
-    log(`  ${dir} holds ${count} nightly-*.log files (${size}) from the retired nightly job. Nothing reads them.`);
-    if (!(await agree('  Delete them?', { defaultYes: true, safe: false }))) {
-      todo.push(`Optional: free ${size} by deleting the old nightly job's logs: rm ${dir}/nightly-*.log`);
-      return;
-    }
-    deps.deleteOldLogs();
-    done.push(`Deleted ${count} old nightly logs (${size}).`);
   }
 
   function finish(ok: boolean): WalkthroughResult {

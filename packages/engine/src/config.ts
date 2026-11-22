@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -87,19 +87,12 @@ export const SERVICE = {
   probeKeychainService: 'magpie-setup-probe',
 } as const;
 
-export const MIGRATION = {
-  legacyLabel: 'com.ianpoley.birdclaw-nightly',
-  waitTimeoutMs: 15 * 60_000,
-  pollMs: 5_000,
-} as const;
-
 export const INGEST = {
   shrinkGuard: 0.05,
 } as const;
 
 export const STORE_BUSY_TIMEOUT_MS = 5_000;
 
-export const DEV_FOCUS_WORDING = 'software development, engineering, design, and building products';
 
 export type Paths = {
   repoRoot: string;
@@ -148,32 +141,19 @@ export function inheritedStore(store: string, env: Record<string, string | undef
   return resolve(store) === join(main, 'state', 'corpus.sqlite') ? main : null;
 }
 
-export const LEGACY_NAMES = {
-  configDir: 'x-corpus',
-  keychainService: 'x-corpus',
-  services: ['x-corpus-web', 'x-corpus-worker'],
-  skill: 'x-corpus',
-} as const;
-
 export function setting(env: Record<string, string | undefined>, name: string): string | undefined {
-  return env[`MAGPIE_${name}`] || env[`X_CORPUS_${name}`] || undefined;
-}
-
-export function usesLegacyNames(env: Record<string, string | undefined> = process.env, home: string = homedir()): boolean {
-  if (setting(env, 'CONFIG_DIR')) return false;
-  return !existsSync(join(home, '.config', 'magpie')) && existsSync(join(home, '.config', LEGACY_NAMES.configDir));
+  return env[`MAGPIE_${name}`] || undefined;
 }
 
 /**
  * Where things live on disk. Read when called, not at import, so a test can
- * set the overrides first (each also read under its old X_CORPUS_ name):
+ * set the overrides first:
  *   MAGPIE_ROOT        repo root (default: this checkout, or the main checkout
  *                      when this is a linked git worktree, so every worktree
  *                      shares one corpus, store and worker)
  *   MAGPIE_DATA_DIR    export directory (default: <root>/data)
  *   MAGPIE_STORE       store file (default: <root>/state/corpus.sqlite)
- *   MAGPIE_CONFIG_DIR  per-user config and secrets file (default: ~/.config/magpie,
- *                      or ~/.config/x-corpus until it is handed over)
+ *   MAGPIE_CONFIG_DIR  per-user config and secrets file (default: ~/.config/magpie)
  *   BIRDCLAW_HOME      Birdclaw's own home (default: ~/.birdclaw)
  */
 export function paths(env: Record<string, string | undefined> = process.env): Paths {
@@ -181,8 +161,7 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
   const dataDir = resolve(setting(env, 'DATA_DIR') || join(repoRoot, 'data'));
   const store = resolve(setting(env, 'STORE') || join(repoRoot, 'state', 'corpus.sqlite'));
   const stateDir = resolve(store, '..');
-  const configName = usesLegacyNames(env) ? LEGACY_NAMES.configDir : 'magpie';
-  const configDir = resolve(setting(env, 'CONFIG_DIR') || join(homedir(), '.config', configName));
+  const configDir = resolve(setting(env, 'CONFIG_DIR') || join(homedir(), '.config', 'magpie'));
   return {
     repoRoot,
     dataDir,
@@ -234,7 +213,7 @@ export type SecretSettings = {
 export function secretSettings(env: Record<string, string | undefined> = process.env): SecretSettings {
   return {
     keychainService:
-      setting(env, 'KEYCHAIN_SERVICE') || (usesLegacyNames(env) ? LEGACY_NAMES.keychainService : SECRETS.defaultKeychainService),
+      setting(env, 'KEYCHAIN_SERVICE') || SECRETS.defaultKeychainService,
     forceFileBackend: setting(env, 'SECRET_BACKEND') === 'file',
   };
 }

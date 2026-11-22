@@ -1,18 +1,17 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { LEGACY_NAMES, MIGRATION, SCHEDULE, SECRETS, SERVICE, mainCheckout, paths, secretSettings, setting, usesLegacyNames, xTools } from '../config.ts';
-import type { SecretBackend } from '../secrets/backends.ts';
+import { SCHEDULE, SECRETS, SERVICE, mainCheckout, paths, secretSettings, setting, xTools } from '../config.ts';
 import { SECRET_NAMES, createSecretStore, osBackend, probe } from '../secrets/store.ts';
 import type { BackendName } from '../secrets/store.ts';
 import { readWorkerStatus } from '../sync/state.ts';
 import type { WorkerStatus } from '../sync/state.ts';
 import { errorText } from '../util.ts';
 import { launchd } from './launchd.ts';
-import { LEGACY_SERVICE_NAMES, SERVICE_NAMES, spawnRunner } from './manager.ts';
-import type { Runner, ServiceManager, ServiceName, ServiceSpec, UnitName } from './manager.ts';
+import { SERVICE_NAMES, spawnRunner } from './manager.ts';
+import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
 import { systemd } from './systemd.ts';
 
 export { must, spawnRunner } from './manager.ts';
@@ -188,30 +187,13 @@ export type ServiceOptions = {
   run?: Runner;
   log?: (line: string) => void;
   codeRoot?: string;
-  migrating?: boolean;
-  secretBackend?: (service: string) => SecretBackend | null;
-  handoverWaitMs?: number;
-  handoverPollMs?: number;
 };
 
-export function legacyInstall(options: Pick<ServiceOptions, 'platform' | 'home'> = {}): string | null {
-  const platform = options.platform ?? process.platform;
-  const home = options.home ?? homedir();
-  const plist = join(home, 'Library', 'LaunchAgents', `${MIGRATION.legacyLabel}.plist`);
-  return platform === 'darwin' && existsSync(plist) && existsSync(join(home, '.birdclaw', 'bird.env')) ? plist : null;
-}
-
-export function installBlocker(options: Pick<ServiceOptions, 'platform' | 'home' | 'codeRoot' | 'migrating'> = {}): string | null {
-  const platform = options.platform ?? process.platform;
-  const home = options.home ?? homedir();
+export function installBlocker(options: Pick<ServiceOptions, 'codeRoot'> = {}): string | null {
   const codeRoot = options.codeRoot ?? CODE_ROOT;
   const main = mainCheckout(codeRoot);
   if (main !== codeRoot) {
     return `This is a git worktree. Services installed from it would run this worktree's code and stop when it is removed. Run bun run service:install from the main checkout, ${main}. Worktrees already share its corpus and worker.`;
-  }
-  const legacyPlist = legacyInstall({ platform, home });
-  if (legacyPlist && !options.migrating) {
-    return `The old ${MIGRATION.legacyLabel} job is still installed (${legacyPlist}). Run bun run migrate instead: it moves that job's X cookies and Jev key into the secret store, installs the services, and removes the old job after one good sync.`;
   }
   return null;
 }
@@ -248,15 +230,9 @@ export function webPort(env: Record<string, string | undefined> = process.env): 
 
 export async function installService(options: ServiceOptions = {}): Promise<void> {
   const ctx = context(options);
-  const blocker = installBlocker({ ...options, platform: ctx.platform, home: ctx.home });
+  const blocker = installBlocker(options);
   if (blocker) throw new Error(blocker);
-  const legacy = legacyInstallState(ctx);
-  if (options.migrating || (legacy.units.length === 0 && !legacy.config)) return installUnits(options);
-  return handOverLegacyNames(ctx, legacy, options);
-}
-
-async function installUnits(options: ServiceOptions): Promise<void> {
-  const { platform, env, home, run, manager, files, nodePath, nodeVersion, log } = context(options);
+  const { platform, env, home, run, manager, files, nodePath, nodeVersion, log } = ctx;
   const codeRoot = options.codeRoot ?? CODE_ROOT;
   const checks = await setupChecks({ env, platform, nodeVersion });
   for (const check of checks) log(formatCheck(check));
@@ -288,115 +264,12 @@ async function installUnits(options: ServiceOptions): Promise<void> {
   log(`both services are running; the web app is at http://127.0.0.1:${port}`);
 }
 
-type Context = ReturnType<typeof context>;
-type LegacyState = { units: UnitName[]; config: boolean };
-
-function legacyInstallState(ctx: Context): LegacyState {
-  return {
-    units: LEGACY_SERVICE_NAMES.filter((name) => existsSync(ctx.manager.unitPath(name))),
-    config: usesLegacyNames(ctx.env, ctx.home),
-  };
-}
-
-async function handOverLegacyNames(ctx: Context, legacy: LegacyState, options: ServiceOptions): Promise<void> {
-  const { platform, env, home, manager, log } = ctx;
-  const oldConfig = join(home, '.config', LEGACY_NAMES.configDir);
-  const newConfig = join(home, '.config', 'magpie');
-  const secretOptions = { timeoutMs: SECRETS.timeoutMs };
-  const backendFor = options.secretBackend ?? ((service: string) => osBackend(platform, service, secretOptions));
-  const recordedKeychain = (() => {
-    try {
-      return (JSON.parse(readFileSync(join(oldConfig, 'secret-backend.json'), 'utf8')) as { backend?: string }).backend === 'keychain';
-    } catch {
-      return false;
-    }
-  })();
-  const moveKeychain = legacy.config && recordedKeychain && !setting(env, 'KEYCHAIN_SERVICE');
-  const oldStore = moveKeychain ? backendFor(LEGACY_NAMES.keychainService) : null;
-  const newStore = moveKeychain ? backendFor(SECRETS.defaultKeychainService) : null;
-  const did = { stopped: [] as UnitName[], copied: [] as string[], renamed: false, installed: false };
-
-  log('renaming this install from x-corpus to magpie');
-  let since = Date.now();
-  try {
-    for (const name of legacy.units) {
-      await manager.remove([name]);
-      did.stopped.push(name);
-      log(`stopped ${name}`);
-    }
-    since = Date.now();
-    if (oldStore && newStore) {
-      for (const name of SECRET_NAMES) {
-        const read = await oldStore.get(name);
-        if (!read.ok) throw new Error(`${name} could not be read from the keychain service "${LEGACY_NAMES.keychainService}": ${read.message}`);
-        if (read.value === null) continue;
-        const written = await newStore.set(name, read.value);
-        if (!written.ok) throw new Error(`${name} could not be stored under "${SECRETS.defaultKeychainService}": ${written.message}`);
-        did.copied.push(name);
-        const back = await newStore.get(name);
-        if (!back.ok || back.value !== read.value) throw new Error(`${name} did not read back the same from "${SECRETS.defaultKeychainService}".`);
-        log(`copied ${name} to the keychain service "${SECRETS.defaultKeychainService}"`);
-      }
-    }
-    if (legacy.config) {
-      renameSync(oldConfig, newConfig);
-      did.renamed = true;
-      log(`moved ${oldConfig} to ${newConfig}`);
-    }
-    did.installed = true;
-    await installUnits(options);
-    const files = paths(env);
-    const waitMs = options.handoverWaitMs ?? 2 * SCHEDULE.tickMs + 30_000;
-    const deadline = Date.now() + waitMs;
-    for (;;) {
-      const beat = readWorkerStatus(files.workerStatus);
-      if (beat && Date.parse(beat.heartbeatAt) >= since) break;
-      if (Date.now() >= deadline) throw new Error(`the renamed worker wrote no heartbeat within ${Math.round(waitMs / 1000)} s.`);
-      await new Promise((resolve) => setTimeout(resolve, options.handoverPollMs ?? 2_000));
-    }
-    log('the renamed worker is running');
-  } catch (error) {
-    log(`the rename failed: ${errorText(error)}; putting the x-corpus install back`);
-    await rollBack();
-    throw new Error(`renaming from x-corpus to magpie failed and was undone: ${errorText(error)}`);
-  }
-
-  for (const name of did.copied) {
-    const deleted = await oldStore!.delete(name);
-    if (!deleted.ok) log(`could not delete ${name} from the keychain service "${LEGACY_NAMES.keychainService}" (${deleted.message}); delete it by hand`);
-  }
-  for (const name of did.stopped) rmSync(manager.unitPath(name), { force: true });
-  await manager.afterRemove();
-  log('removed the old x-corpus services and secrets');
-
-  async function rollBack() {
-    const step = async (what: string, work: () => Promise<void> | void) => {
-      try {
-        await work();
-      } catch (error) {
-        log(`could not undo: ${what} (${errorText(error)})`);
-      }
-    };
-    if (did.installed) {
-      await step('remove the magpie services', async () => {
-        await manager.remove(SERVICE_NAMES);
-        for (const name of SERVICE_NAMES) rmSync(manager.unitPath(name), { force: true });
-        await manager.afterRemove();
-      });
-    }
-    if (did.renamed) await step(`move ${newConfig} back to ${oldConfig}`, () => renameSync(newConfig, oldConfig));
-    for (const name of did.copied) await step(`delete the copied ${name}`, async () => void (await newStore!.delete(name)));
-    if (did.stopped.length > 0) await step(`restart ${did.stopped.join(' and ')}`, () => manager.start(did.stopped));
-  }
-}
-
 export async function uninstallService(options: ServiceOptions & { purgeSecrets?: boolean } = {}): Promise<void> {
   const { platform, env, manager, files, log } = context(options);
-  const legacyUnits = LEGACY_SERVICE_NAMES.filter((name) => existsSync(manager.unitPath(name)));
-  await manager.remove([...SERVICE_NAMES, ...legacyUnits]);
-  for (const name of [...SERVICE_NAMES, ...legacyUnits]) rmSync(manager.unitPath(name), { force: true });
+  await manager.remove(SERVICE_NAMES);
+  for (const name of SERVICE_NAMES) rmSync(manager.unitPath(name), { force: true });
   await manager.afterRemove();
-  log(`both services are stopped and removed${legacyUnits.length > 0 ? `, and so are the old ${legacyUnits.join(' and ')}` : ''}`);
+  log('both services are stopped and removed');
   const kept = [files.stateDir, files.dataDir, files.markdownDir, files.logsDir, files.configDir].filter((path) => existsSync(path));
   if (kept.length > 0) log(`your corpus, edits and settings stay where they are; delete these by hand to remove them too: ${kept.join(', ')}`);
   if (!options.purgeSecrets) {
@@ -415,13 +288,12 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
 }
 
 export type ServiceStatus = {
-  units: { name: UnitName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
+  units: { name: ServiceName; file: string; installed: boolean; loaded: boolean; running: boolean }[];
   worker: (Pick<WorkerStatus, 'heartbeatAt' | 'state' | 'schedule' | 'nextRunAt' | 'lastAttempt'> & { heartbeatAgeMs: number; fresh: boolean }) | null;
   secretBackend: BackendName | null;
   node: { path: string | null; exists: boolean; version: string | null; inRange: boolean | null; range: string; upgradeSafePath: string | null };
   dataRoot: string | null;
   here: string;
-  legacyUnits: string[];
   appUrl: string;
   buildBehindCode: boolean;
 };
@@ -439,11 +311,8 @@ async function buildBehindCode(run: Runner, root: string): Promise<boolean> {
 
 export async function serviceStatus(options: ServiceOptions = {}): Promise<ServiceStatus> {
   const { platform, env, run, manager, files } = context(options);
-  const legacyUnits: string[] = LEGACY_SERVICE_NAMES.filter((name) => existsSync(manager.unitPath(name)));
-  const current = SERVICE_NAMES.some((name) => existsSync(manager.unitPath(name)));
-  const names: readonly UnitName[] = !current && legacyUnits.length > 0 ? LEGACY_SERVICE_NAMES : SERVICE_NAMES;
   const units = [];
-  for (const name of names) {
+  for (const name of SERVICE_NAMES) {
     const file = manager.unitPath(name);
     units.push({ name, file, installed: existsSync(file), ...(await manager.state(name)) });
   }
@@ -488,7 +357,6 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     },
     dataRoot,
     here: files.repoRoot,
-    legacyUnits,
     appUrl: `http://127.0.0.1:${webPort(env)}`,
     buildBehindCode: installed !== undefined && (await buildBehindCode(run, mainCheckout(options.codeRoot ?? CODE_ROOT))),
   };

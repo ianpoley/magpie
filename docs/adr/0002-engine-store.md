@@ -25,7 +25,7 @@ A collection whose export shrank by more than this share clears no flags.
 
 Opens the store at `path`.
 
-Read-write (the default) creates the file and its directory when missing, switches it to WAL, and migrates it to the current schema.
+Read-write (the default) creates the file and its directory when missing, switches it to WAL, and migrates it to the current schema. Before it migrates a store that already has data, it copies the store with `VACUUM INTO` to `backups/corpus-v<old version>-<time>.sqlite` next to it. Migrations only go forward, so that copy is the one way back from a bad one.
 
 Read-only never creates or changes the file. It fails when the file is missing or its schema is not the version this code knows.
 
@@ -113,14 +113,14 @@ Undoes an automatic change and the later ones that built on it. A topic it creat
 
 ### `packages/engine/src/store/membership.ts`
 
-#### 0002.15 `MEMBERSHIP_VIEWS_V1`
+#### 0002.15 `MEMBERSHIP_VIEWS`
 
 ```text
 Which posts are in which topic, and which posts are Unfiled, hidden or
 pending. Each is defined once, here, as a view in the store, so the sync
 job, the web app and the skill read the same answer with plain SQL.
 
-All five views cover visible posts only: bookmarked or liked, and not
+All the views cover visible posts only: bookmarked or liked, and not
 removed by the user (see `visible_posts` below).
 
   scoring_topics   (topic_id, target_id)
@@ -164,25 +164,23 @@ removed by the user (see `visible_posts` below).
 The two thresholds are read from `meta` (`band_confident`, `band_unsure`),
 so changing them re-bands every stored score without scoring anything again.
 
-This text is a shipped migration. To change a view, add a new constant that
-drops and recreates it and append that as a new migration.
+These views are part of the baseline schema. To change one, append a
+migration that drops and recreates it; never edit the baseline once it ships.
 ```
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/store/membership.ts#L5-L56)
 
-#### 0002.16 `MEMBERSHIP_VIEWS_V2`
+#### 0002.16 `MEMBERSHIP_VIEWS`: `visible_posts`
 
 ```text
   visible_posts    (id)  Posts that are bookmarked or liked and not removed.
     The one definition of a visible post. Every reader of posts goes through
-    it, and so do the views above, which this recreates on top of it.
-    `post_hidden` and `scoring_topics` are unchanged: the first reads only
-    `topic_membership`, the second reads no posts.
+    it, and so do the other views.
 ```
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/store/membership.ts#L168-L174)
 
-#### 0002.21 `MEMBERSHIP_VIEWS_V3`
+#### 0002.21 `MEMBERSHIP_VIEWS`: `membership_standing`
 
 ```text
   membership_standing (topic_membership's columns, post_filed, post_hidden)
@@ -191,11 +189,10 @@ drops and recreates it and append that as a new migration.
       post_hidden  1 when the post is hidden, by the rule post_hidden states
     The flags are window aggregates over the post's rows, so a reader that
     already lists memberships learns Unfiled and hidden in the same read.
-    post_unfiled and post_hidden are recreated on top of it, so the rule is
-    written once.
+    post_unfiled and post_hidden read it, so the rule is written once.
 ```
 
-The web snapshot reads this view instead of `topic_membership`. Reading `post_hidden` and `post_unfiled` as well would each cost about as much again as the membership read itself (on the owner's 3,200-post store: 426 ms for the membership read, 430 and 496 ms for the two views). The window columns add about 6% (453 ms). The recreated `post_hidden` and `post_unfiled` cost about 7% more than before, and only evolve's triggers read them.
+The web snapshot reads this view instead of `topic_membership`. Reading `post_hidden` and `post_unfiled` as well would each cost about as much again as the membership read itself (on the owner's 3,200-post store: 426 ms for the membership read, 430 and 496 ms for the two views). The window columns add about 6% (453 ms). Built on this view, `post_hidden` and `post_unfiled` cost about 7% more than they did when they read `topic_membership` directly, and only evolve's triggers read them.
 
 #### 0002.17 `syncBands`
 
@@ -207,19 +204,17 @@ Stores the two band thresholds where the membership view reads them. The sync jo
 
 #### 0002.22 `run_stages.reason`
 
-A stage can record a typed reason next to its message, so readers branch on it instead of the message's wording. The only reason so far is `secret_store_unreadable`, set on `x_auth` when the X session could not be read from the secret store. The web app shows the keychain as locked from it. The migration that adds the column tags the earlier rows by their message once, so a store upgraded during such a run still reads right.
-
-#### 0002.23 `REREAD_HOST_TITLED_VIDEOS`
-
-Videos resolved before they were read from oEmbed were titled by their host. This one-time migration finds them, resolved YouTube links titled by their host after one attempt, and makes them due for one last try: `failed`, three attempts of `LINKS.maxAttempts` (4), due at once. The next link stage reads them through the ordinary path. A video read from oEmbed gets its title and channel. One that still cannot be read reaches the attempt limit and settles as a resource under its host, and is not asked about again. Until that stage runs, their posts show as pending. The migration replaced a re-read that ran on every sync and found these rows by the same test. The 3 is written out because a shipped migration must not change when the constant does.
+A stage can record a typed reason next to its message, so readers branch on it instead of the message's wording. The only reason so far is `secret_store_unreadable`, set on `x_auth` when the X session could not be read from the secret store. The web app shows the keychain as locked from it.
 
 #### 0002.24 `overrides.merged_from`
 
 The topic a per-post fix first came from when a merge moved it. NULL for a fix made on the topic that holds it, and for every fix merged before the column existed. Undo reads it to give each restored topic back only its own fixes (see 0007.23).
 
-#### 0002.18 `MIGRATIONS`
+#### 0002.18 `BASELINE` and `MIGRATIONS`
 
-The store schema is a contract shared by the sync job, the web app and the skill. Change it only by appending a migration; never edit one that shipped.
+The store schema is a contract shared by the sync job, the web app and the skill. A new store runs `BASELINE` and is stamped `BASELINE_VERSION` (8). Every later change is appended to `MIGRATIONS` as version 9, 10 and so on; never edit one that shipped, nor the baseline.
+
+Before release, the eight pre-release migrations were squashed into `BASELINE`. It builds the same tables, columns, indexes and views the eight-step chain built; the two were compared column by column when it was written. A store at versions 1 to 7 is refused with a message naming the last commit that still upgrades it (`899224e`). The version stays 8, not 1, so stores already at 8 open unchanged.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/store/schema.ts#L5-L8)
 
@@ -245,8 +240,28 @@ A watermark in `meta`, not a new column or table, means no migration. A migratio
 
 Marks an area whose hidden state the owner set by hand. `locked` is too coarse: a rename sets it too. `setAreaHidden` sets both from now on.
 
-The migration adds the column with default 0 and backfills 1 for active automatic areas that are locked, or whose `hidden` differs from the old `is_dev` default. Only a hand edit can produce that mismatch. Renamed areas get flagged as well, which errs safe: they are left alone by re-sort.
-
-The same migration inserts the `category_focus_legacy` row in `meta`, only when an active automatic area already exists. The config reader uses it to tell an upgraded store from a new one (0001.9).
-
 Re-sort touches only active automatic areas that are not flagged. System areas are never flagged and never re-sorted.
+
+### The store as a whole
+
+#### 0002.26 Storage engine: SQLite through `node:sqlite`, no ORM
+
+Decided 2026-11-21, while Magpie had one user and no release.
+
+The store stays one SQLite file opened with Node's built-in `node:sqlite`. A clone plus `bun run setup` needs no database server and no native module, which is the portability Magpie wants. `MAGPIE_STORE` already points it at another file, so there is no connection-string setting.
+
+Rejected for now:
+
+- **An ORM that targets SQLite and Postgres (Drizzle, Prisma, Kysely).** None shares one schema across dialects. Drizzle has no common table object and one dialect per config, so it would mean two schemas and two migration sets. Every Postgres client is async, and all of the store's roughly 144 `.prepare()` calls (engine, web app and skill) are sync. The membership views (0002.15) use SQLite idioms Postgres rejects, such as `MAX(band = 'confident')`, so they would be ported by hand under any ORM. Prisma has no `node:sqlite` adapter; its SQLite adapter is the native `better-sqlite3`.
+- **PGlite (embedded Postgres).** The worker, the web app and the skill open the store at the same time. PGlite runs inside one process, and it was at 0.5.x.
+- **Cloudflare D1 today.** D1 bills rows scanned (free tier: 5M read and 100k written per day). On the owner's store (2,308 posts, 54 topics, about 127k scores), `pairs_to_score` pairs every post with every topic, and a full snapshot read scans an estimated 250k rows, about 20 loads a day. D1 is reached from Workers or over HTTP, so every query would turn async. The X session, the keychain, the services and the Claude CLI stay on the owner's machine anyway.
+
+If Magpie is hosted, keep the SQLite dialect: one SQLite file per user, Turso, or D1, which Drizzle supports with one schema. In order: pick the host; store membership as a table instead of computing it in views on every read; then put queries behind Drizzle with local SQLite as the second backend. A first step that settles the cost is a half-day spike porting `apps/web/src/lib/snapshot.ts` to Drizzle's `node-sqlite` driver with the views declared as raw SQL. Until then, keep new SQL in engine store functions rather than in `apps/web`, so that a later swap touches one package.
+
+#### 0002.27 Migration tooling: keep the in-repo runner
+
+`migrate` (0002.18, 0002.19) already does versioning, one transaction per upgrade, refusal of stores written by newer code, the worktree guard (0002.2) and a backup before each upgrade. Atlas, sqldef (`sqlite3def`), dbmate, golang-migrate, Drizzle Kit, Kysely Migrator, Knex and umzug would add a dependency and a separate command, and most would lose the guard or the sync open.
+
+The one gap is SQLite's `ALTER TABLE`, which cannot drop a constraint or change a column's type. That takes a rebuild: create the new table, copy the rows, drop the old one, rename, with foreign keys off while it runs. When a migration first needs one, generate its SQL on a dev machine with Atlas (`atlas schema diff`) or `sqlite3def --dry-run`, paste it into `MIGRATIONS` as the next version and review it like any other code. Neither tool ships with Magpie.
+
+A cheap guard to add when the schema starts changing again: a test that builds a store from `BASELINE` plus `MIGRATIONS` and compares its tables, indexes and views (via `PRAGMA table_xinfo`, not raw `sqlite_master.sql`) with a committed `schema.sql`, so every schema change shows up as a readable diff.

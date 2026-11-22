@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { inheritedStore, mainCheckout, paths, setting } from '../src/config.ts';
+import { inheritedStore, mainCheckout, paths } from '../src/config.ts';
 import { tempDir } from './fixtures/export.ts';
 
 function checkouts(t: { after: (fn: () => void) => void }) {
@@ -65,12 +65,5 @@ test('a worktree borrows the main checkout store only when no override chose ano
   assert.equal(inheritedStore(store, { MAGPIE_STORE: store }, worktree), null);
   assert.equal(inheritedStore(store, {}, main), null);
   assert.equal(inheritedStore(join(worktree, 'scratch.sqlite'), {}, worktree), null);
-});
-
-test('old X_CORPUS_ settings are still read, so a scratch-copy run never falls through to the live store', () => {
-  assert.equal(paths({ X_CORPUS_STORE: '/tmp/scratch.sqlite' }).store, '/tmp/scratch.sqlite');
-  assert.equal(paths({ X_CORPUS_ROOT: '/srv/old' }).repoRoot, '/srv/old');
-  assert.equal(paths({ MAGPIE_ROOT: '/srv/new', X_CORPUS_ROOT: '/srv/old' }).repoRoot, '/srv/new');
-  assert.equal(setting({ X_CORPUS_PORT: '4000' }, 'PORT'), '4000');
 });
 

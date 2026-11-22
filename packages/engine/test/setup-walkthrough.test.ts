@@ -22,14 +22,12 @@ function machine(state: {
   yes?: boolean;
   checks?: SetupCheck[];
   worktreeOf?: string | null;
-  legacy?: string | null;
   services?: Partial<ServicesState>;
   connected?: boolean;
   connectsWhenOpened?: boolean;
   jev?: boolean;
   jevTyped?: string;
   skill?: SkillState;
-  oldLogs?: { count: number; bytes: number; dir: string };
   answer?: (question: string) => boolean;
 }): Machine {
   const asked: string[] = [];
@@ -39,7 +37,6 @@ function machine(state: {
   let connected = state.connected ?? false;
   let jev = state.jev ?? false;
   let skill: SkillState = state.skill ?? 'missing';
-  let logs = state.oldLogs ?? { count: 0, bytes: 0, dir: '/clone/logs' };
   const deps: WalkthroughDeps = {
     interactive: state.interactive ?? true,
     yes: state.yes ?? false,
@@ -54,15 +51,10 @@ function machine(state: {
     },
     checks: async () => state.checks ?? OK_CHECKS,
     worktreeOf: state.worktreeOf ?? null,
-    legacy: state.legacy ?? null,
     services: async () => services,
     install: async () => {
       did.push('install');
       services = { ...services, installed: true, running: true, dataRoot: services.here, upgradeSafeNode: null, buildBehindCode: false };
-    },
-    migrate: async () => {
-      did.push('migrate');
-      return { ok: true, message: '' };
     },
     connection: () => (connected ? { handle: 'someone' } : undefined),
     appUrl: 'http://127.0.0.1:3030',
@@ -84,11 +76,6 @@ function machine(state: {
     linkSkill: async () => {
       did.push('skill');
       skill = 'linked';
-    },
-    oldLogs: () => logs,
-    deleteOldLogs: () => {
-      did.push('delete logs');
-      logs = { count: 0, bytes: 0, dir: logs.dir };
     },
   };
   return { deps, asked, did, lines };
@@ -139,26 +126,6 @@ test('running services on a build older than the code are rebuilt on yes, and li
   const no = machine({ services: behind, connected: true, jev: true, skill: 'linked', answer: () => false });
   const left = await walkthrough(no.deps);
   assert.ok(left.todo.includes('Rebuild and restart the services on the current code: bun run service:install'));
-});
-
-test("the old nightly job's logs are deleted only on a yes at a terminal, and never while that job is installed", async () => {
-  const setUp = { services: { installed: true, running: true, dataRoot: '/clone' }, connected: true, jev: true, skill: 'linked' as const };
-  const oldLogs = { count: 64, bytes: 1_160_000_000, dir: '/clone/logs' };
-
-  const asked = machine({ ...setUp, oldLogs });
-  const deleted = await walkthrough(asked.deps);
-  assert.deepEqual(asked.did, ['delete logs']);
-  assert.ok(deleted.done.includes('Deleted 64 old nightly logs (1.2 GB).'));
-
-  const agent = machine({ ...setUp, oldLogs, interactive: false, yes: true });
-  const kept = await walkthrough(agent.deps);
-  assert.deepEqual(agent.did, []);
-  assert.ok(kept.todo.some((line) => line.includes('rm /clone/logs/nightly-*.log')));
-
-  const legacy = machine({ ...setUp, oldLogs, legacy: '/Library/LaunchAgents/old.plist', answer: () => false });
-  await walkthrough(legacy.deps);
-  assert.ok(!legacy.did.includes('delete logs'));
-  assert.ok(!legacy.asked.includes('Delete them?'));
 });
 
 test('declined and skipped steps end up on the still-to-do list with the command for each', async () => {
@@ -215,18 +182,6 @@ test('at a terminal, services for another clone are moved here only on an explic
   assert.deepEqual(m.did, ['install']);
 });
 
-test('the old nightly job is migrated only on an explicit yes at a terminal; --yes leaves it and says to migrate', async () => {
-  const atTerminal = machine({ legacy: '/home/someone/Library/LaunchAgents/old.plist', connected: true, jev: true, skill: 'linked' });
-  await walkthrough(atTerminal.deps);
-  assert.deepEqual(atTerminal.did, ['migrate']);
-  assert.match(atTerminal.asked[0], /Migrate now\?/);
-
-  const agent = machine({ interactive: false, yes: true, legacy: '/home/someone/Library/LaunchAgents/old.plist', skill: 'linked' });
-  const result = await walkthrough(agent.deps);
-  assert.deepEqual(agent.did, []);
-  assert.ok(result.todo.includes('Move off the old nightly job: bun run migrate'));
-});
-
 test('in a worktree it only reports on the main checkout and changes nothing', async () => {
   const m = machine({ worktreeOf: '/main', services: { installed: true, running: true, dataRoot: '/main', here: '/main' }, connected: true });
   const result = await walkthrough(m.deps);
@@ -253,17 +208,4 @@ test('a failed install is reported and does not offer to connect X', async () =>
   assert.ok(result.todo.some((line) => line.includes('the web app build failed')));
   assert.ok(result.todo.some((line) => line.includes('Connect X once the web app runs')));
   assert.ok(!m.asked.some((question) => question.includes('Open the web app')));
-});
-
-test('an install still under the x-corpus names is renamed only when asked at a terminal; --yes leaves it and says how', async () => {
-  const legacy = { installed: false, running: false, dataRoot: '/clone', legacy: true };
-  const atTerminal = machine({ services: legacy, connected: true, jev: true, skill: 'linked' });
-  await walkthrough(atTerminal.deps);
-  assert.deepEqual(atTerminal.asked, ['Rename and reinstall now?']);
-  assert.deepEqual(atTerminal.did, ['install']);
-
-  const agent = machine({ interactive: false, yes: true, services: legacy, connected: true, jev: true, skill: 'linked' });
-  const result = await walkthrough(agent.deps);
-  assert.deepEqual(agent.did, []);
-  assert.ok(result.todo.some((line) => line.startsWith('Rename the install from x-corpus to magpie: bun run service:install.')));
 });

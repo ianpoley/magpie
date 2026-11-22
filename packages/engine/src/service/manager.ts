@@ -2,8 +2,6 @@ import { spawn } from 'node:child_process';
 
 export const SERVICE_NAMES = ['magpie-web', 'magpie-worker'] as const;
 export type ServiceName = (typeof SERVICE_NAMES)[number];
-export const LEGACY_SERVICE_NAMES = ['x-corpus-web', 'x-corpus-worker'] as const;
-export type UnitName = ServiceName | (typeof LEGACY_SERVICE_NAMES)[number];
 
 export type ServiceSpec = {
   name: ServiceName;
@@ -19,15 +17,15 @@ export type CommandResult = { code: number; stdout: string; stderr: string };
 export type Runner = (command: string, args: string[], options?: { cwd?: string; showOutput?: boolean }) => Promise<CommandResult>;
 
 export interface ServiceManager {
-  unitPath(name: UnitName): string;
+  unitPath(name: ServiceName): string;
   render(spec: ServiceSpec): string;
   nodePathOf(text: string): string | null;
   dataRootOf(text: string): string | null;
-  stop(name: UnitName): Promise<void>;
-  start(names: readonly UnitName[]): Promise<void>;
-  remove(names: readonly UnitName[]): Promise<void>;
+  stop(name: ServiceName): Promise<void>;
+  start(names: readonly ServiceName[]): Promise<void>;
+  remove(names: readonly ServiceName[]): Promise<void>;
   afterRemove(): Promise<void>;
-  state(name: UnitName): Promise<{ loaded: boolean; running: boolean }>;
+  state(name: ServiceName): Promise<{ loaded: boolean; running: boolean }>;
 }
 
 export async function must(run: Runner, command: string, args: string[]): Promise<CommandResult> {

@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { STORE_BUSY_TIMEOUT_MS, inheritedStore } from '../config.ts';
 import { SCHEMA_VERSION, assertKnownVersion, migrate } from './schema.ts';
@@ -30,6 +30,7 @@ export function openStore(path: string, options: { readOnly?: boolean; inherited
         );
       }
       db.exec('PRAGMA journal_mode = WAL');
+      if (version > 0 && version < SCHEMA_VERSION) backUpBeforeMigrating(db, path, version);
       migrate(db);
     }
     return db;
@@ -37,6 +38,14 @@ export function openStore(path: string, options: { readOnly?: boolean; inherited
     db.close();
     throw error;
   }
+}
+
+function backUpBeforeMigrating(db: Store, path: string, version: number): void {
+  const backupsDir = join(dirname(path), 'backups');
+  mkdirSync(backupsDir, { recursive: true });
+  const stamp = new Date().toISOString().replaceAll(':', '-');
+  const backup = join(backupsDir, `corpus-v${version}-${stamp}.sqlite`);
+  db.prepare('VACUUM INTO ?').run(backup);
 }
 
 export function transaction<T>(db: Store, fn: () => T): T {
