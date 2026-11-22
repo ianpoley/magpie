@@ -147,7 +147,16 @@ function CategoriesSection({ saved: initial, onDirty }: { saved: { mode: FocusMo
 
   return (
     <>
-      <form onSubmit={submit} className="flex flex-col gap-4">
+      <form
+        onSubmit={submit}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey) || event.nativeEvent.isComposing) return;
+          if (saving || !changed || focusIncomplete(mode, focus)) return;
+          event.preventDefault();
+          event.currentTarget.requestSubmit();
+        }}
+        className="flex flex-col gap-4"
+      >
         <FocusChoice
           mode={mode}
           focus={focus}
@@ -166,7 +175,7 @@ function CategoriesSection({ saved: initial, onDirty }: { saved: { mode: FocusMo
           <p role="status" className="mr-auto min-w-0 text-[13px] leading-snug text-pretty text-ink-muted">
             {note}
           </p>
-          <button type="submit" disabled={saving || !changed || focusIncomplete(mode, focus)} className={`${primaryAnswer} h-10 px-5`}>
+          <button type="submit" aria-keyshortcuts="Meta+Enter Control+Enter" disabled={saving || !changed || focusIncomplete(mode, focus)} className={`${primaryAnswer} h-10 px-5`}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
