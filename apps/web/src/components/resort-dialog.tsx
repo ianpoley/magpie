@@ -5,6 +5,7 @@ import { Eye, EyeOff, LoaderCircle, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
 import { applyFocusChange, previewFocusChange } from "@/app/actions";
+import { RESORT_FAILED_MESSAGE } from "@/lib/focus";
 import type { ResortArea, ResortPreview } from "@/lib/types";
 
 import { formatCount, plural } from "./format";
@@ -13,8 +14,6 @@ import { alertBackdrop, dialogContent, primaryAnswer, quietAnswer } from "./styl
 export type ResortOutcome = { changed: number; skipped: number };
 
 type Preview = { status: "loading" } | { status: "ready"; preview: ResortPreview } | { status: "failed"; message: string };
-
-const FAILED_PREVIEW = "The re-sort didn't run, so no category changed. Your new setting is saved.";
 
 function AreaList({ title, icon: Icon, areas }: { title: string; icon: LucideIcon; areas: ResortArea[] }) {
   if (areas.length === 0) return null;
@@ -48,7 +47,7 @@ function ResortBody({ onApplied }: { onApplied: (outcome: ResortOutcome) => void
         setPreview(result.ok ? { status: "ready", preview: { toHide: result.toHide, toShow: result.toShow } } : { status: "failed", message: result.message });
       },
       () => {
-        if (live) setPreview({ status: "failed", message: FAILED_PREVIEW });
+        if (live) setPreview({ status: "failed", message: RESORT_FAILED_MESSAGE });
       },
     );
     return () => {
@@ -69,9 +68,9 @@ function ResortBody({ onApplied }: { onApplied: (outcome: ResortOutcome) => void
     });
   };
 
-  const header = (description: string) => (
+  const header = (title: string, description: string) => (
     <header className="px-5 pt-5 pb-4">
-      <DialogTitle className="text-display text-[20px]">Re-sort your categories?</DialogTitle>
+      <DialogTitle className="text-display text-[20px]">{title}</DialogTitle>
       <DialogDescription className="mt-1.5 text-[13px] leading-[1.5] text-pretty text-ink-muted">{description}</DialogDescription>
     </header>
   );
@@ -79,7 +78,7 @@ function ResortBody({ onApplied }: { onApplied: (outcome: ResortOutcome) => void
   if (preview.status === "loading") {
     return (
       <>
-        {header("Your new setting is saved. Checking which existing categories it would change.")}
+        {header("Re-sort your categories?", "Your new setting is saved. Checking which existing categories it would change.")}
         <p role="status" className="flex items-center gap-2 px-5 pb-2 text-[14px] text-ink-muted">
           <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
           Checking your categories…
@@ -94,7 +93,7 @@ function ResortBody({ onApplied }: { onApplied: (outcome: ResortOutcome) => void
   if (preview.status === "failed") {
     return (
       <>
-        {header("Existing categories stay as they are. New ones follow your new setting.")}
+        {header("Re-sort your categories?", "Existing categories stay as they are. New ones follow your new setting.")}
         <p role="alert" className="mx-5 rounded-inner bg-like-soft px-3 py-2.5 text-[13px] leading-snug text-like-text">
           {preview.message}
         </p>
@@ -110,12 +109,7 @@ function ResortBody({ onApplied }: { onApplied: (outcome: ResortOutcome) => void
   if (total === 0) {
     return (
       <>
-        <header className="px-5 pt-5 pb-4">
-          <DialogTitle className="text-display text-[20px]">Nothing to change</DialogTitle>
-          <DialogDescription className="mt-1.5 text-[13px] leading-[1.5] text-pretty text-ink-muted">
-            Your new setting is saved, and every existing category already matches it.
-          </DialogDescription>
-        </header>
+        {header("Nothing to change", "Your new setting is saved, and every existing category already matches it.")}
         <footer className="flex justify-end gap-2 px-5 pb-5">
           <DialogClose className={primaryAnswer}>Close</DialogClose>
         </footer>
@@ -125,7 +119,7 @@ function ResortBody({ onApplied }: { onApplied: (outcome: ResortOutcome) => void
 
   return (
     <>
-      {header("Your new setting is saved. Apply it to existing categories too? Categories you showed or hid yourself stay as they are.")}
+      {header("Re-sort your categories?", "Your new setting is saved. Apply it to existing categories too? Categories you showed or hid yourself stay as they are.")}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-1">
         <AreaList title="Will be hidden" icon={EyeOff} areas={ready.toHide} />
         <AreaList title="Will be shown" icon={Eye} areas={ready.toShow} />

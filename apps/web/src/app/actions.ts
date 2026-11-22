@@ -18,7 +18,7 @@ import {
   engineSyncState,
 } from "@/lib/engine";
 import { errorName } from "@/lib/error-name";
-import { MAX_FOCUS_CHARS } from "@/lib/focus";
+import { MAX_FOCUS_CHARS, RESORT_FAILED_MESSAGE } from "@/lib/focus";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
 import type { ActionErrorCode, ActionResult, FocusMode, PlayableMedia, ResortChoice, ResortPreview, SyncState, UndoStep } from "@/lib/types";
 
@@ -54,10 +54,14 @@ function flag(value: unknown): boolean {
   return value;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
 function pinScores(value: unknown): { postId: string; probability: number }[] {
   if (!Array.isArray(value) || value.length > MAX_PIN_SCORES) throw new InvalidInput("The scores are not a list of the expected size.");
   return value.map((entry: unknown) => {
-    const score = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
+    const score = asRecord(entry);
     if (typeof score.probability !== "number") throw new InvalidInput("A score is not a number.");
     return { postId: postId(score.postId), probability: score.probability };
   });
@@ -315,10 +319,10 @@ function focusSetting(mode: unknown, focus: unknown): { mode: FocusMode; focus: 
 
 async function autoAreasExist(store: string): Promise<boolean> {
   if (!existsSync(store)) return false;
-  const { openStore } = await engineStore();
+  const [{ openStore }, { hasAutoAreas }] = await Promise.all([engineStore(), engineFocus()]);
   const db = openStore(store, { readOnly: true });
   try {
-    return db.prepare(`SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active' LIMIT 1`).get() !== undefined;
+    return hasAutoAreas(db);
   } finally {
     db.close();
   }
@@ -350,7 +354,7 @@ export async function previewFocusChange(): Promise<ActionResult<ResortPreview>>
     if (!read.ok) return read;
     if (!read.preview.ok) {
       console.error("preview a re-sort:", read.preview.reason);
-      return refused("resort_failed", "The re-sort didn't run, so no category changed. Your new setting is saved.");
+      return refused("resort_failed", RESORT_FAILED_MESSAGE);
     }
     return { ok: true, toHide: read.preview.toHide, toShow: read.preview.toShow };
   });
@@ -366,7 +370,7 @@ export async function applyFocusChange(choice: ResortChoice): Promise<ActionResu
   return withStore(
     WRITE,
     () => {
-      const picked = typeof choice === "object" && choice !== null ? (choice as Record<string, unknown>) : {};
+      const picked = asRecord(choice);
       return { toHide: areaIds(picked.toHide), toShow: areaIds(picked.toShow) };
     },
     (db, _edits, picked) => applyResort(db, picked),
