@@ -77,7 +77,7 @@ const narrowing = (filter: FilterState): boolean =>
   filter.timeRange !== "all" ||
   filter.mediaOnly;
 
-function heading(snapshot: Snapshot, filter: FilterState, authorName: string | null): { eyebrow: string; title: string; detail: string | null } {
+function heading(snapshot: Snapshot, filter: FilterState, authorName: string | null): { eyebrow: string | null; title: string; detail: string | null } {
   const collection = COLLECTION_TITLES[filter.collection];
   const selected = filter.topicIds.length + filter.areaIds.length;
   if (filter.unfiled) return { eyebrow: collection, title: "Unfiled", detail: "Posts no topic has claimed with confidence yet." };
@@ -92,7 +92,7 @@ function heading(snapshot: Snapshot, filter: FilterState, authorName: string | n
   }
   if (selected > 1) return { eyebrow: collection, title: `${selected} categories`, detail: "Posts that are in every one of them." };
   if (filter.author !== null) return { eyebrow: `${collection} · @${filter.author}`, title: authorName ?? `@${filter.author}`, detail: null };
-  return { eyebrow: "Your saved posts", title: collection, detail: null };
+  return { eyebrow: null, title: collection, detail: null };
 }
 
 const solidButton = (label: string, action: () => void) => (
