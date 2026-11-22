@@ -251,8 +251,8 @@ test("the last run carries its stages, and the last complete run is remembered",
     upstreamSyncDetail: "bookmarks export failed",
     message: null,
     stages: [
-      { stage: "ingest", outcome: "ok", message: null, counts: { posts: 3 } },
-      { stage: "links", outcome: "failed", message: "network down", counts: {} },
+      { stage: "ingest", outcome: "ok", message: null, reason: null, counts: { posts: 3 } },
+      { stage: "links", outcome: "failed", message: "network down", reason: null, counts: {} },
     ],
   });
 });

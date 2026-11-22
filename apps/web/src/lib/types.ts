@@ -1,7 +1,7 @@
 import type { ResourceKind } from "@magpie/engine/src/links/canonical.ts";
-import type { UpstreamSync } from "@magpie/engine/src/pipeline.ts";
+import type { StageReason, UpstreamSync } from "@magpie/engine/src/pipeline.ts";
 
-export type { ResourceKind, UpstreamSync };
+export type { ResourceKind, StageReason, UpstreamSync };
 
 export type Band = "confident" | "unsure";
 
@@ -114,6 +114,7 @@ export type RunStage = {
   stage: string;
   outcome: string;
   message: string | null;
+  reason: StageReason | null;
   counts: Record<string, number>;
 };
 

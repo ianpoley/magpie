@@ -369,6 +369,10 @@ test('a secret store that cannot be read counts as a transient failure, not a di
   assert.equal(result.auth.status, 'transient');
   assert.match(String(result.auth.message), /keychain is locked/);
   assert.equal(result.stages[0].outcome, 'failed');
+  assert.equal(result.stages[0].reason, 'secret_store_unreadable');
+  read(files, (db) =>
+    assert.equal(db.prepare(`SELECT reason FROM run_stages WHERE run_id = ? AND stage = 'x_auth'`).get(result.runId)?.reason, 'secret_store_unreadable'),
+  );
 });
 
 test('the categorize command records the upstream sync from the sync status file', async (t) => {
