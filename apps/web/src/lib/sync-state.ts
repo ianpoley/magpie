@@ -5,8 +5,6 @@ import { errorName } from "./error-name.ts";
 import { readRuns } from "./read-snapshot.ts";
 import type { Run, SyncState } from "./types.ts";
 
-const SESSION_UNREADABLE = "The X session could not be read";
-
 const freshWithin = (iso: string | null | undefined, maxAgeMs: number, now: number): boolean => {
   const ms = iso ? Date.parse(iso) : Number.NaN;
   return !Number.isNaN(ms) && now - ms < maxAgeMs;
@@ -31,8 +29,7 @@ function lastRunOf(store: string, openStore: Awaited<ReturnType<typeof engineSto
 }
 
 const sessionUnreadable = (run: Run | null): boolean =>
-  run?.stages.some((stage) => stage.stage === "x_auth" && stage.outcome === "failed" && stage.message?.startsWith(SESSION_UNREADABLE)) ===
-  true;
+  run?.stages.some((stage) => stage.stage === "x_auth" && stage.reason === "secret_store_unreadable") === true;
 
 export async function readSyncFiles(): Promise<SyncFiles> {
   const [{ paths, SCHEDULE }, { createSecretStore }, state, { lockHolder }] = await Promise.all([

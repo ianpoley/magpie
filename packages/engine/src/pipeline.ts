@@ -51,11 +51,14 @@ export type StageName =
 
 export type StageOutcome = 'ok' | 'warning' | 'failed' | 'skipped';
 
+export type StageReason = 'secret_store_unreadable';
+
 export type StageReport = {
   stage: StageName;
   outcome: StageOutcome;
   counts: Record<string, unknown>;
   message: string | null;
+  reason?: StageReason;
 };
 
 export type UpstreamSync = 'ok' | 'failed' | 'unknown';
@@ -83,8 +86,8 @@ export function startRun(db: Store, now: () => Date = () => new Date()): OpenRun
 
   const stages: StageReport[] = [];
   const record = db.prepare(
-    `INSERT INTO run_stages (run_id, stage, outcome, counts_json, message, started_at, finished_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO run_stages (run_id, stage, outcome, counts_json, message, reason, started_at, finished_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const stage: OpenRun['stage'] = async (name, work) => {
     const startedAt = stamp();
@@ -100,9 +103,10 @@ export function startRun(db: Store, now: () => Date = () => new Date()): OpenRun
       outcome: body.outcome,
       counts: body.counts,
       message: body.message ? body.message.slice(0, MESSAGE_MAX_CHARS) : null,
+      ...(body.reason ? { reason: body.reason } : {}),
     };
     stages.push(report);
-    record.run(id, name, report.outcome, JSON.stringify(report.counts), report.message, startedAt, stamp());
+    record.run(id, name, report.outcome, JSON.stringify(report.counts), report.message, report.reason ?? null, startedAt, stamp());
   };
   return { db, id, now, stages, stage };
 }

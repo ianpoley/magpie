@@ -99,12 +99,13 @@ export function readRuns(db: DatabaseSync): { lastRun: Run | null; lastCompleteR
   let lastRun: Run | null = null;
   if (runRow) {
     const stages: RunStage[] = db
-      .prepare(`SELECT stage, outcome, message, counts_json FROM run_stages WHERE run_id = ? ORDER BY id`)
+      .prepare(`SELECT stage, outcome, message, reason, counts_json FROM run_stages WHERE run_id = ? ORDER BY id`)
       .all(Number(runRow.id))
       .map((row) => ({
         stage: String(row.stage),
         outcome: String(row.outcome),
         message: text(row.message),
+        reason: row.reason === "secret_store_unreadable" ? row.reason : null,
         counts: counts(row.counts_json),
       }));
     lastRun = {
