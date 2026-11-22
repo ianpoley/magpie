@@ -5,7 +5,8 @@ import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from "@ui-sdk/react/scroll-area";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
-import { Bookmark, Eye, Heart, History, Layers, Search, Tags, Trash2, X, type LucideIcon } from "lucide-react";
+import { Bookmark, Eye, Heart, History, Layers, Search, Settings, Tags, Trash2, X, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import type { AuthorCount, Collection, FilterState, Post, Snapshot } from "@/lib/types";
@@ -235,6 +236,10 @@ export function Sidebar({
             <span className="ml-auto text-[12px] font-medium text-side-muted tabular-nums">{formatCount(changeCount)}</span>
           ) : null}
         </DialogTrigger>
+        <Link href="/settings" className={`${SIDE_FOOTER_ROW} no-underline`}>
+          <Settings className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
+          Settings
+        </Link>
       </div>
     </div>
   );
