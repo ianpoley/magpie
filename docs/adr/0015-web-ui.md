@@ -17,6 +17,8 @@ When the code changes, update or remove the entry here in the same commit.
 
 The script below sets the remembered sidebar width on this element before React hydrates it.
 
+The sidebar limits are defined once, in `SIDEBAR_WIDTH` in `components/sidebar-width.ts`. The head gets them two ways, both rendered on the server so the first paint already has them. A `<style>` sets them as `:root` variables (`--sidebar-min`, `--sidebar-max`, `--sidebar-fallback`, `--main-min`), which the `w-sidebar` utility reads. The head script is built from `sidebarWidthWithin` by `toString()`, so the script and the runtime check a stored width with the same function. That function takes its limits as arguments, because a stringified function cannot reach an imported constant.
+
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/app/layout.tsx#L27)
 
 ### `apps/web/src/app/page.tsx`

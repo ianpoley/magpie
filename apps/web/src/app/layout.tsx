@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
-import { SIDEBAR_WIDTH_SCRIPT } from "@/components/sidebar-width";
+import { SIDEBAR_LIMITS_CSS, SIDEBAR_WIDTH_SCRIPT } from "@/components/sidebar-width";
 
 import "./globals.css";
 
@@ -27,6 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <head>
+        <style dangerouslySetInnerHTML={{ __html: SIDEBAR_LIMITS_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_WIDTH_SCRIPT }} />
       </head>
       <body className="min-h-full">{children}</body>
