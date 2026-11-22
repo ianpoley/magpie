@@ -14,8 +14,13 @@ export type JevRequest = {
   questions: Record<string, JevQuestion>;
 };
 
+export type JevChoiceQuestion = { instructions: string; criteria: Record<string, string> };
+
+export type JevChoice = { choice: string; probabilities: Record<string, number> };
+
 export interface JevClient {
   ask(request: JevRequest, options?: { signal?: AbortSignal }): Promise<Record<string, number>>;
+  choose?(state: Record<string, unknown>, question: JevChoiceQuestion, options?: { signal?: AbortSignal }): Promise<JevChoice>;
 }
 
 const KEY_NAME = 'TYPESAFE_API_KEY';
@@ -62,6 +67,16 @@ export async function createJevClient(options: { apiKey?: string } = {}): Promis
         answers[id] = probability;
       }
       return answers;
+    },
+    async choose(state, question, options) {
+      const response = await client.systemOne(
+        { state: state as SystemOneRequest['state'], questions: { choice: { type: 'choice', ...question } as SystemOneRequest['questions'][string] } },
+        { signal: options?.signal },
+      );
+      const answer = (response.answers as Record<string, { choice?: unknown; probabilities?: unknown } | undefined>).choice;
+      if (typeof answer?.choice !== 'string') throw new Error('Jev returned no choice');
+      const probabilities = typeof answer.probabilities === 'object' && answer.probabilities !== null ? (answer.probabilities as Record<string, number>) : {};
+      return { choice: answer.choice, probabilities };
     },
   };
 }

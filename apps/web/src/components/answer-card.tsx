@@ -5,7 +5,7 @@ import { toast } from "@ui-sdk/react/toast";
 import { ArrowUp, Check, Copy, FileText, GitBranch, Package, Play, RotateCw, SlidersHorizontal, Sparkles, SquarePen, type LucideIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
-import { answerMarkdown, canFollowUp, MIN_CONFIDENT, READ_LIMIT, type Answer, type AnswerPoint, type ChatState, type Turn } from "@/lib/answer";
+import { answerMarkdown, answerPostIds, canFollowUp, MIN_CONFIDENT, type Answer, type ChatState, type Turn } from "@/lib/answer";
 import type { AskState } from "@/lib/ask";
 import { resourceName, resourcesFor } from "@/lib/resources";
 import type { Post, Snapshot } from "@/lib/types";
@@ -43,13 +43,12 @@ export type AnswerCardProps = {
 
 type Note = { text: string; retry: (() => void) | null };
 
-const reading = (confident: number): string => {
-  const read = Math.min(confident, READ_LIMIT);
-  return read === confident ? `all ${formatCount(confident)} confident matches` : `the ${read} strongest of ${formatCount(confident)} confident matches`;
-};
+const matchCount = (matched: number, confident: number): string =>
+  `${formatCount(matched)} ${plural(matched, "match", "matches")}${matched > confident ? ` (${formatCount(confident)} confident)` : ""}`;
 
-function turnNote(turn: Turn, last: boolean, confident: number, onRetry: () => void): Note | null {
-  if (turn.status === "writing") return turn.answer ? null : { text: `Claude is reading ${reading(confident)}…`, retry: null };
+function turnNote(turn: Turn, last: boolean, chat: ChatState, onRetry: () => void): Note | null {
+  const { confident } = chat;
+  if (turn.status === "writing") return turn.answer ? null : { text: `Claude is reading ${matchCount(chat.matched, confident)}…`, retry: null };
   if (turn.status === "few") {
     const found = confident === 0 ? "No post matches" : `Only ${confident} ${plural(confident, "post matches", "posts match")}`;
     return { text: `${found} with confidence, and an answer needs at least ${MIN_CONFIDENT}. Ask it another way, or read the possible matches in the list.`, retry: null };
@@ -99,8 +98,8 @@ function Question({ children }: { children: string }) {
   );
 }
 
-function Sources({ point, card }: { point: AnswerPoint; card: AnswerCardProps }) {
-  const posts = point.postIds.flatMap((id) => card.postsById.get(id) ?? []);
+function Sources({ ids, card }: { ids: string[]; card: AnswerCardProps }) {
+  const posts = ids.flatMap((id) => card.postsById.get(id) ?? []);
   if (posts.length === 0) return null;
   const handles = posts.map((post) => post.authorHandle.toLowerCase());
   return (
@@ -128,10 +127,30 @@ function Sources({ point, card }: { point: AnswerPoint; card: AnswerCardProps })
   );
 }
 
-function CopyAnswer({ question, answer, confident, postsById }: { question: string; answer: Answer; confident: number; postsById: Map<string, Post> }) {
+const writtenBy = (answer: Answer, chat: ChatState): string =>
+  `Written by ${answer.model} from ${answer.read === chat.matched ? `all ${matchCount(chat.matched, chat.confident)}` : `the ${formatCount(answer.read)} strongest of ${matchCount(chat.matched, chat.confident)}`}.`;
+
+function CopyText({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () =>
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      },
+      () => toast.error("The quote could not be copied"),
+    );
+  return (
+    <button type="button" onClick={copy} aria-label={copied ? "Copied" : label} className={ICON_BUTTON}>
+      {copied ? <Check className="size-3.5" aria-hidden="true" /> : <Copy className="size-3.5" aria-hidden="true" />}
+    </button>
+  );
+}
+
+function CopyAnswer({ question, answer, chat, postsById }: { question: string; answer: Answer; chat: ChatState; postsById: Map<string, Post> }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    const text = answerMarkdown(question, answer, confident, (id) => {
+    const text = answerMarkdown(question, answer, `${writtenBy(answer, chat)} From my saved posts.`, (id) => {
       const post = postsById.get(id);
       return post ? { handle: post.authorHandle, url: post.url } : null;
     });
@@ -151,9 +170,9 @@ function CopyAnswer({ question, answer, confident, postsById }: { question: stri
   );
 }
 
-function Footer({ turn, first, card, confident }: { turn: Turn & { answer: Answer }; first: boolean; card: AnswerCardProps; confident: number }) {
+function Footer({ turn, first, card, chat }: { turn: Turn & { answer: Answer }; first: boolean; card: AnswerCardProps; chat: ChatState }) {
   const { answer } = turn;
-  const citedIds = [...new Set(answer.points.flatMap((point) => point.postIds))];
+  const citedIds = answerPostIds(answer);
   const tools = resourcesFor(card.snapshot, citedIds.flatMap((id) => card.postsById.get(id) ?? [])).slice(0, TOOLS);
   const outside = citedIds.filter((id) => !card.listed.has(id)).length;
   const skipped = first ? (card.ask?.failed ?? 0) : 0;
@@ -181,19 +200,190 @@ function Footer({ turn, first, card, confident }: { turn: Turn & { answer: Answe
         </div>
       ) : null}
       <p className="text-[12px] leading-[1.5] text-pretty text-side-muted tabular-nums">
-        Written by Claude from {answer.read === confident ? `all ${formatCount(confident)}` : `the ${answer.read} strongest of ${formatCount(confident)}`} confident {plural(confident, "match", "matches")}.
+        {writtenBy(answer, chat)}
         {skipped > 0 ? ` ${formatCount(skipped)} ${plural(skipped, "post", "posts")} could not be judged, so the answer may miss some.` : ""}
         {outside > 0 ? ` ${outside} cited ${plural(outside, "post is", "posts are")} outside the filters that are on; ${plural(outside, "its chip opens", "their chips open")} the post.` : ""}
       </p>
       <div className="flex">
-        <CopyAnswer question={turn.question} answer={answer} confident={confident} postsById={card.postsById} />
+        <CopyAnswer question={turn.question} answer={answer} chat={chat} postsById={card.postsById} />
       </div>
     </div>
   );
 }
 
-function AnswerBody({ turn, first, last, card, confident }: { turn: Turn; first: boolean; last: boolean; card: AnswerCardProps; confident: number }) {
-  const note = turnNote(turn, last, confident, card.onRetryAnswer);
+const BODY = "max-w-[65ch] text-[13px] leading-[1.5] text-pretty text-side-ink";
+const TITLE = "text-[14px] leading-[1.35] font-bold text-balance text-side-ink";
+
+function Numbered({ index }: { index: number }) {
+  return (
+    <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-side-wash text-[12px] font-bold text-side-ink tabular-nums">
+      {index + 1}
+    </span>
+  );
+}
+
+function Callout({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="answer-rise flex flex-col gap-1.5 rounded-[12px] bg-side-hover px-3 py-2.5">
+      <p className="text-eyebrow text-side-muted">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function Quote({ text, cut, name, postUrl }: { text: string; cut: boolean; name: string; postUrl: string | null }) {
+  return (
+    <figure className="flex flex-col gap-1 rounded-[12px] bg-answer-field py-2 pr-1.5 pl-3">
+      <div className="flex items-start gap-1">
+        <blockquote className="min-w-0 flex-1 py-0.5 text-[12.5px] leading-[1.5] whitespace-pre-wrap text-side-ink [overflow-wrap:anywhere]">{text}</blockquote>
+        <CopyText text={text} label={`Copy ${name}`} />
+      </div>
+      {cut ? (
+        <figcaption className="pb-0.5 text-[12px] leading-[1.4] text-side-muted">
+          This is only the start.{" "}
+          {postUrl ? (
+            <a href={postUrl} target="_blank" rel="noreferrer" className="font-semibold text-side-ink underline decoration-from-font underline-offset-2">
+              Read the rest in the post
+            </a>
+          ) : (
+            "The rest is in the post."
+          )}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+function Shape({ answer, card }: { answer: Answer; card: AnswerCardProps }) {
+  if (answer.intent === "find")
+    return (
+      <>
+        <ul className="flex flex-col gap-5">
+          {answer.items.map((item, index) => (
+            <li key={index} className="answer-rise flex flex-col gap-2">
+              <div className="flex flex-col gap-0.5">
+                <h3 className={TITLE}>{item.name}</h3>
+                <p className={BODY}>{item.what}</p>
+              </div>
+              {item.quote ? <Quote text={item.quote} cut={item.quoteCut} name={item.name} postUrl={card.postsById.get(item.postIds[0] ?? "")?.url ?? null} /> : null}
+              <Sources ids={item.postIds} card={card} />
+            </li>
+          ))}
+        </ul>
+        {answer.gaps ? <p className="text-[12px] leading-[1.5] text-pretty text-side-muted">Not covered: {answer.gaps}</p> : null}
+      </>
+    );
+  if (answer.intent === "compare")
+    return (
+      <>
+        {answer.options.map((option, index) => (
+          <section key={index} className="answer-rise flex flex-col gap-2.5 rounded-[14px] bg-side-hover p-3">
+            <div className="flex flex-col gap-0.5">
+              <h3 className="text-[15px] leading-[1.3] font-bold text-side-ink">{option.name}</h3>
+              {option.bestFor ? <p className="text-[13px] leading-[1.45] text-pretty text-side-muted">{option.bestFor}</p> : null}
+            </div>
+            <ul className="flex flex-col gap-1">
+              {option.strengths.map((item) => (
+                <li key={`+${item}`} className="flex gap-2 text-[13px] leading-[1.45] text-side-ink">
+                  <span aria-hidden="true" className="w-3 shrink-0 font-bold">+</span>
+                  <span className="sr-only">Strength: </span>
+                  <span className="text-pretty">{item}</span>
+                </li>
+              ))}
+              {option.weaknesses.map((item) => (
+                <li key={`-${item}`} className="flex gap-2 text-[13px] leading-[1.45] text-side-ink">
+                  <span aria-hidden="true" className="w-3 shrink-0 font-bold text-side-muted">−</span>
+                  <span className="sr-only">Weakness: </span>
+                  <span className="text-pretty">{item}</span>
+                </li>
+              ))}
+            </ul>
+            <Sources ids={option.postIds} card={card} />
+          </section>
+        ))}
+        {answer.deciding ? (
+          <section className="answer-rise flex flex-col gap-1.5">
+            <h3 className={TITLE}>How to choose</h3>
+            <p className={BODY}>{answer.deciding}</p>
+          </section>
+        ) : null}
+      </>
+    );
+  if (answer.intent === "howto")
+    return (
+      <>
+        <ol className="flex flex-col gap-5">
+          {answer.steps.map((step, index) => (
+            <li key={index} className="answer-rise flex gap-3">
+              <Numbered index={index} />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <h3 className={TITLE}>{step.title}</h3>
+                  <p className={BODY}>{step.body}</p>
+                </div>
+                <Sources ids={step.postIds} card={card} />
+              </div>
+            </li>
+          ))}
+        </ol>
+        {answer.pitfalls.length > 0 ? (
+          <Callout label="Watch out for">
+            <ul className="flex flex-col gap-3">
+              {answer.pitfalls.map((pitfall, index) => (
+                <li key={index} className="flex flex-col gap-2">
+                  <p className={BODY}>{pitfall.text}</p>
+                  <Sources ids={pitfall.postIds} card={card} />
+                </li>
+              ))}
+            </ul>
+          </Callout>
+        ) : null}
+      </>
+    );
+  return (
+    <>
+      {answer.themes.map((theme, index) => (
+        <section key={index} className="answer-rise flex flex-col gap-2">
+          <div className="flex flex-col gap-1">
+            <h3 className={TITLE}>{theme.title}</h3>
+            <p className={BODY}>{theme.body}</p>
+          </div>
+          <Sources ids={theme.postIds} card={card} />
+        </section>
+      ))}
+      {answer.disagreement ? (
+        <Callout label="Where they disagree">
+          <p className={BODY}>{answer.disagreement}</p>
+        </Callout>
+      ) : null}
+    </>
+  );
+}
+
+function FollowUpChips({ items, card }: { items: string[]; card: AnswerCardProps }) {
+  if (items.length === 0 || !canFollowUp(card.chat)) return null;
+  return (
+    <div className="answer-rise flex flex-col gap-2">
+      <p className="text-eyebrow text-side-muted">Ask next</p>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((item) => (
+          <li key={item} className="flex">
+            <button
+              type="button"
+              onClick={() => card.onFollowUp(item)}
+              className="focus-ring-side pressable min-h-8 cursor-pointer rounded-[14px] border-0 bg-side-hover px-3 py-1.5 text-left text-[13px] leading-[1.4] text-pretty text-side-ink transition-colors duration-150 ease-out hover:bg-side-wash"
+            >
+              {item}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AnswerBody({ turn, first, last, card, chat }: { turn: Turn; first: boolean; last: boolean; card: AnswerCardProps; chat: ChatState }) {
+  const note = turnNote(turn, last, chat, card.onRetryAnswer);
   const { answer } = turn;
   if (!answer) {
     return (
@@ -206,23 +396,9 @@ function AnswerBody({ turn, first, last, card, confident }: { turn: Turn; first:
   return (
     <div className="flex flex-col gap-5" aria-busy={turn.status === "writing"}>
       <p className="max-w-[65ch] text-[15px] leading-[1.45] font-medium text-pretty text-side-ink">{answer.lead}</p>
-      <ol className="flex flex-col gap-5">
-        {answer.points.map((point, index) => (
-          <li key={index} className="answer-rise flex gap-3">
-            <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-side-wash text-[12px] font-bold text-side-ink tabular-nums">
-              {index + 1}
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-[14px] leading-[1.35] font-bold text-balance text-side-ink">{point.title}</h3>
-                <p className="max-w-[65ch] text-[13px] leading-[1.5] text-pretty text-side-ink">{point.body}</p>
-              </div>
-              <Sources point={point} card={card} />
-            </div>
-          </li>
-        ))}
-      </ol>
-      {turn.status === "done" ? <Footer turn={{ ...turn, answer }} first={first} card={card} confident={confident} /> : null}
+      <Shape answer={answer} card={card} />
+      {turn.status === "done" && last ? <FollowUpChips items={answer.followUps} card={card} /> : null}
+      {turn.status === "done" ? <Footer turn={{ ...turn, answer }} first={first} card={card} chat={chat} /> : null}
     </div>
   );
 }
@@ -270,7 +446,7 @@ function Transcript({ card }: { card: AnswerCardProps }) {
               className={`flex flex-col gap-4 ${index > 0 && index === count - 1 ? "min-h-[100cqh]" : ""}`}
             >
               <Question>{turn.question}</Question>
-              <AnswerBody turn={turn} first={index === 0} last={index === count - 1} card={card} confident={chat?.confident ?? 0} />
+              {chat ? <AnswerBody turn={turn} first={index === 0} last={index === count - 1} card={card} chat={chat} /> : null}
             </li>
           ))}
         </ol>
@@ -297,7 +473,7 @@ function Composer({ card }: { card: AnswerCardProps }) {
         ? "A follow-up needs a written answer to build on."
         : !ready
           ? "Try the answer again before asking a follow-up."
-          : `Follow-ups are answered from the same ${Math.min(chat?.turns[0]?.answer?.read ?? READ_LIMIT, READ_LIMIT)} posts, with no new search.`;
+          : `Follow-ups are answered from the same ${formatCount(chat?.turns[0]?.answer?.read ?? 0)} posts, with no new search.`;
   return (
     <form
       className="flex flex-col gap-2 px-4 pt-2 pb-4"
