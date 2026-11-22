@@ -325,10 +325,11 @@ switch (command) {
     if (sub !== 'set-jev' || rest.length > 0) usage(`unknown secrets command: ${[sub, ...rest].join(' ')}`);
     await setJev();
     break;
-  case 'sync':
-    process.argv.splice(2, 1);
-    await import('./sync.mjs');
+  case 'sync': {
+    const { syncCommand } = await import('./sync.mjs');
+    await syncCommand([sub, ...rest].filter((arg) => arg !== undefined));
     break;
+  }
   case 'migrate':
     await migrateCommand([sub, ...rest].filter((arg) => arg !== undefined));
     break;
