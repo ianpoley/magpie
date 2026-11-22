@@ -312,6 +312,13 @@ function JevSection({ stored, kept, onDirty }: { stored: boolean; kept: string; 
   return (
     <div className="flex flex-col gap-4">
       <StatusRow ok={stored || replaced} title={replaced ? "New key saved" : stored ? "A key is saved" : "No key saved"} hint={null} />
+      <p className="text-[13px] leading-snug text-pretty text-ink-muted">
+        Jev keys come from{" "}
+        <a href="https://docs.typesafe.ai" target="_blank" rel="noreferrer" className="focus-ring rounded-sm font-medium text-primary-text underline underline-offset-2">
+          TypeSafe
+        </a>
+        .
+      </p>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <fieldset disabled={checking} className="m-0 border-0 p-0">
           <SecretField
