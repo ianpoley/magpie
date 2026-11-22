@@ -60,6 +60,9 @@ const unavailable = (tool: string, detail: string): SecretFailure => ({
   message: `The secret store is unavailable (${tool} ${detail}).`,
 });
 
+const SECURITY_WORD = /^[A-Za-z0-9._-]{1,128}$/;
+const SECURITY_QUOTABLE = /^[^'\\\x00-\x1f\x7f]*$/;
+
 const SECURITY_NOT_FOUND = 44;
 const SECURITY_LOCKED = new Set([
   36,
@@ -84,6 +87,12 @@ export function securityBackend(options: { service: string; path: string; timeou
       return failure(result);
     },
     async set(account, value) {
+      if (!SECURITY_WORD.test(account) || !SECURITY_WORD.test(service)) {
+        return { ok: false, reason: 'invalid', message: 'The keychain account and service must be letters, digits or the characters . _ -' };
+      }
+      if (!SECURITY_QUOTABLE.test(value)) {
+        return { ok: false, reason: 'invalid', message: 'A keychain value cannot hold a quote, a backslash or a control character.' };
+      }
       const line = `add-generic-password -U -a ${account} -s ${service} -w '${value}'\n`;
       const result = await runTool(path, ['-i'], line, timeoutMs);
       return result.kind === 'done' && result.code === 0 ? { ok: true } : failure(result);
