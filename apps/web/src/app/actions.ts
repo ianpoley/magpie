@@ -10,6 +10,7 @@ import {
   engineClaude,
   engineConfig,
   engineEdits,
+  engineAnswerModel,
   engineFocus,
   engineJev,
   engineResort,
@@ -333,6 +334,15 @@ export async function saveFocus(mode: FocusMode, focus: string): Promise<ActionR
     writeFocus(files.categoryFocus, setting);
     if (firstChoice) state.writeSyncRequest(files.syncRequest);
     return { ok: true, areasExist: await autoAreasExist(files.store) };
+  });
+}
+
+export async function saveAnswerModel(model: string, effort: string): Promise<ActionResult<{ model: string; effort: string }>> {
+  return guarded("save the answer model", async () => {
+    const [{ isAnswerModel, isAnswerEffort, writeAnswerModel }, { paths }] = await Promise.all([engineAnswerModel(), engineConfig()]);
+    if (!isAnswerModel(model)) throw new InvalidInput("Choose one of the listed models.");
+    if (!isAnswerEffort(effort)) throw new InvalidInput("Choose one of the listed effort levels.");
+    return { ok: true, ...writeAnswerModel(paths().answerModel, { model, effort }) };
   });
 }
 

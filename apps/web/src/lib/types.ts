@@ -224,5 +224,9 @@ export type ResortChoice = { toHide: Pick<ResortArea, "id">[]; toShow: Pick<Reso
 
 export type SkillLink = "linked" | "elsewhere" | "missing" | "none";
 
-export type SettingsState = { focus: FocusState; skillLink: SkillLink; jevKeyStored: boolean };
+export type AnswerModelOption = { id: string; label: string };
+
+export type AnswerModelState = { model: string; effort: string; models: readonly AnswerModelOption[]; efforts: readonly string[] };
+
+export type SettingsState = { focus: FocusState; skillLink: SkillLink; jevKeyStored: boolean; answerModel: AnswerModelState };
 

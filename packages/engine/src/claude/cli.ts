@@ -54,13 +54,15 @@ function partialJson(line: string): string {
   return isRecord(delta) && delta.type === 'input_json_delta' && typeof delta.partial_json === 'string' ? delta.partial_json : '';
 }
 
-function cliArgs(schema: JsonSchema, partial: boolean): string[] {
+export type ClaudeModelChoice = { model: string; effort: string };
+
+function cliArgs(schema: JsonSchema, partial: boolean, choice: ClaudeModelChoice): string[] {
   return [
     '--print',
     '--model',
-    CLAUDE.model,
+    choice.model,
     '--effort',
-    CLAUDE.effort,
+    choice.effort,
     '--output-format',
     'stream-json',
     '--verbose',
@@ -113,16 +115,17 @@ function readAnswer(stdout: string): ClaudeSendResult {
   return { ok: true, value: result.structured_output, session };
 }
 
-export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number } = {}): ClaudeAdapter {
+export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number; choice?: ClaudeModelChoice } = {}): ClaudeAdapter {
   const cliPath = options.cliPath ?? paths().claudeCli;
   const timeoutMs = options.timeoutMs ?? CLAUDE.timeoutMs;
+  const choice = options.choice ?? { model: CLAUDE.model, effort: CLAUDE.effort };
 
   return {
     send: (request, options = {}) =>
       new Promise((resolve) => {
         const { onPartial, signal } = options;
         if (signal?.aborted) return resolve({ ok: false, reason: 'exit', message: 'The call was cancelled.' });
-        const child = spawn(cliPath, cliArgs(request.schema, onPartial !== undefined), { stdio: ['pipe', 'pipe', 'pipe'] });
+        const child = spawn(cliPath, cliArgs(request.schema, onPartial !== undefined, choice), { stdio: ['pipe', 'pipe', 'pipe'] });
         let stdout = '';
         let stderr = '';
         let settled = false;

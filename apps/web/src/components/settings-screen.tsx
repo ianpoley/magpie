@@ -1,13 +1,16 @@
 "use client";
 
 import { DialogTrigger } from "@ui-sdk/react/dialog";
+import { Field, FieldLabel } from "@ui-sdk/react/field";
+import { Radio, RadioGroup, RadioIndicator } from "@ui-sdk/react/radio";
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { ArrowLeft, AtSign, CircleCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
 
-import { saveFocus, saveJevKey } from "@/app/actions";
-import type { ActionErrorCode, FocusMode, SettingsState, SkillLink, SyncState } from "@/lib/types";
+import { saveAnswerModel, saveFocus, saveJevKey } from "@/app/actions";
+import type { ActionErrorCode, AnswerModelState, FocusMode, SettingsState, SkillLink, SyncState } from "@/lib/types";
 
 import { ConnectXDialog, createConnectXController, KEPT } from "./connect-x-dialog";
 import { FocusChoice, focusIncomplete } from "./focus-choice";
@@ -193,6 +196,104 @@ function JevSection({ stored, kept }: { stored: boolean; kept: string }) {
   );
 }
 
+const MODEL_DETAIL: Record<string, string> = {
+  "claude-opus-5-5": "The default. Strong answers at a moderate cost.",
+  "claude-sonnet-5-5": "Faster, and lighter on your Claude plan.",
+  "claude-haiku-5-5": "The fastest and lightest. Answers are thinner.",
+  "claude-fable-5-2": "The most capable model. The slowest, and the heaviest on your plan.",
+};
+
+const EFFORT_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "X-high", max: "Max" };
+
+const EFFORT_DETAIL: Record<string, string> = {
+  low: "Quick answers that think the least.",
+  medium: "The default. A balance of depth and speed.",
+  high: "Thinks longer before it answers.",
+  xhigh: "Thinks much longer. An answer can take a few minutes.",
+  max: "Thinks as long as it needs. An answer can take ten minutes or more.",
+};
+
+const EFFORT_ITEM = "focus-ring h-8 flex-1 px-2.5 text-[13px] font-semibold whitespace-nowrap";
+
+function AnswerModelSection({ saved: initial }: { saved: AnswerModelState }) {
+  const [choice, setChoice] = useState({ model: initial.model, effort: initial.effort });
+  const [note, setNote] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+
+  const save = (next: { model: string; effort: string }) => {
+    const before = choice;
+    setChoice(next);
+    setNote(null);
+    setFailure(null);
+    startSaving(async () => {
+      try {
+        const result = await saveAnswerModel(next.model, next.effort);
+        if (!result.ok) {
+          setChoice(before);
+          return setFailure(result.message);
+        }
+        setNote("Saved. The next answer uses it.");
+      } catch {
+        setChoice(before);
+        setFailure("The setting could not be saved. Try again.");
+      }
+    });
+  };
+
+  return (
+    <Section id="settings-answers" title="Answers" description="Which Claude model writes answers to Ask, and how long it thinks. Answers read up to 400,000 characters of matching posts.">
+      <div className="flex flex-col gap-5">
+        <Field>
+          <FieldLabel className="text-[13px] font-semibold text-ink">Model</FieldLabel>
+          <RadioGroup value={choice.model} onValueChange={(next) => next && next !== choice.model && save({ ...choice, model: String(next) })} className="flex flex-col gap-2">
+            {initial.models.map((option) => (
+              <label
+                key={option.id}
+                data-slot="card"
+                className="flex cursor-pointer items-center gap-3 rounded-inner bg-sunken px-3.5 py-3 shadow-[inset_0_0_0_1px_transparent] transition-[background-color,box-shadow] duration-150 ease-out has-[[data-checked]]:bg-primary-soft has-[[data-checked]]:shadow-[inset_0_0_0_1.5px_var(--color-primary)]"
+              >
+                <span data-slot="stack" className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-ink">{option.label}</span>
+                  <span data-slot="hint" className="text-[13px] leading-snug text-pretty text-ink-muted">
+                    {MODEL_DETAIL[option.id] ?? ""}
+                  </span>
+                </span>
+                <Radio value={option.id} className="shrink-0">
+                  <RadioIndicator />
+                </Radio>
+              </label>
+            ))}
+          </RadioGroup>
+        </Field>
+        <div className="flex flex-col gap-2">
+          <p id="settings-effort" className="text-[13px] font-semibold text-ink">
+            Effort
+          </p>
+          <SegmentedControl
+            aria-labelledby="settings-effort"
+            value={choice.effort}
+            onValueChange={(next) => next && next !== choice.effort && save({ ...choice, effort: String(next) })}
+            className="flex w-full border-0 bg-sunken p-[3px] sm:w-fit"
+          >
+            <SegmentedControlIndicator />
+            {initial.efforts.map((effort) => (
+              <SegmentedControlItem key={effort} value={effort} className={EFFORT_ITEM}>
+                {EFFORT_LABEL[effort] ?? effort}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+          <p className="text-[13px] leading-snug text-pretty text-ink-muted">{EFFORT_DETAIL[choice.effort] ?? ""}</p>
+        </div>
+        {failure ? <FormAlert message={failure} /> : null}
+        <p role="status" className="min-h-[1lh] text-[13px] leading-snug text-pretty text-ink-muted">
+          {saving ? "Saving…" : note}
+        </p>
+      </div>
+    </Section>
+  );
+}
+
 function connectionText({ connection, handle }: SyncState): string {
   if (connection === "needs_reconnect") return "X stopped accepting the saved cookies";
   return handle ? `Connected as @${handle}` : "Connected";
@@ -232,6 +333,8 @@ export function SettingsScreen({ settings, sync: initialSync }: { settings: Sett
             </DialogTrigger>
           </div>
         </Section>
+
+        <AnswerModelSection saved={settings.answerModel} />
 
         <JevSection stored={settings.jevKeyStored} kept={KEPT[sync.state.secretBackend ?? "unknown"]} />
 

@@ -501,11 +501,12 @@ export function CorpusScreen({
 
   const contentColumn = useRef<HTMLDivElement>(null);
 
-  const confidentKey = ask ? result.posts.slice(0, result.unsureStart ?? result.posts.length).map((post) => post.id).join(",") : "";
+  const rankedKey = ask ? result.posts.map((post) => post.id).join(",") : "";
+  const confidentCount = ask ? (result.unsureStart ?? result.posts.length) : 0;
   const judged = ask?.status === "done" ? ask.query : null;
   useEffect(() => {
-    if (judged !== null && chatWanted) chatRunner.start(judged, confidentKey === "" ? [] : confidentKey.split(","));
-  }, [judged, confidentKey, chatRunner, chatWanted]);
+    if (judged !== null && chatWanted) chatRunner.start(judged, rankedKey === "" ? [] : rankedKey.split(","), confidentCount);
+  }, [judged, rankedKey, confidentCount, chatRunner, chatWanted]);
 
   const pendingCite = useRef<string | null>(null);
   const showCited = (postId: string) => {

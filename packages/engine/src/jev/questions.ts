@@ -64,7 +64,7 @@ function quotedText(quotedJson: string | null): string | null {
   return null;
 }
 
-export function readPostContent(db: Store, postIds: string[]): Map<string, PostContent> {
+export function readPostContent(db: Store, postIds: string[], charLimit: number = ASK.contentCharLimit): Map<string, PostContent> {
   const post = db.prepare(`SELECT text, quoted_json FROM posts WHERE id = ?`);
   const links = db.prepare(
     `SELECT l.host, l.title, l.description
@@ -82,7 +82,7 @@ export function readPostContent(db: Store, postIds: string[]): Map<string, PostC
         text: String(row.text),
         quotedText: quotedText(row.quoted_json as string | null),
         links: links.all(id) as PostSource['links'],
-      }),
+      }, charLimit),
     );
   }
   return contents;
