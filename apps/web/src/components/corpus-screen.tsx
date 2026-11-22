@@ -2,7 +2,6 @@
 
 import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
-import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
 import { CircleAlert, CircleCheck, Menu as MenuIcon, ScanSearch, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,9 +29,7 @@ import { resourcesFor } from "@/lib/resources";
 import { similarPosts } from "@/lib/similar";
 import type { FilterResult, FilterState, Post, Snapshot, SyncState } from "@/lib/types";
 
-import { ActiveFilters } from "./active-filters";
 import { AnswerCard } from "./answer-card";
-import { AskBar } from "./ask-bar";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { ConnectXDialog, createConnectXController } from "./connect-x-dialog";
 import { areaNode } from "./category-tree";
@@ -609,16 +606,23 @@ export function CorpusScreen({
               mode={mode}
               keyword={filter.keyword}
               askDraft={askDraft}
-              askActive={ask !== null}
-              askedQuery={ask?.query ?? null}
+              ask={ask}
+              intent={chatWanted ? "ask" : "find"}
               timeRange={applied.timeRange}
               sort={applied.sort}
               mediaOnly={applied.mediaOnly}
-              sortable={!ask}
               onKeyword={(next) => setFilter((current) => ({ ...current, keyword: next }))}
               onAskDraft={setAskDraft}
               onRun={asked ? startAsk : startFind}
               onLeaveAsk={leaveAsk}
+              onPin={pin}
+              onRetry={() => {
+                if (ask) askRunner.ask(ask.query);
+              }}
+              onShowAnswer={() => {
+                swapDeck("answer");
+                void sidebarPanel.open();
+              }}
               onTimeRange={(timeRange) => setFilter((current) => ({ ...current, timeRange }))}
               onSort={(sort) => setFilter((current) => ({ ...current, sort }))}
               onMediaOnly={(mediaOnly) => setFilter((current) => ({ ...current, mediaOnly }))}
@@ -629,58 +633,25 @@ export function CorpusScreen({
               }}
               view={view}
               onView={setView}
-              count={result.posts.length}
+              posts={result.posts}
               bookmarked={result.posts.filter((post) => post.bookmarked).length}
               liked={result.posts.filter((post) => post.liked).length}
               resourceCount={view === "resources" ? groups.length : null}
+              kinds={view === "resources" && kinds.length > 1 ? kinds : []}
+              resourceKind={resourceKind}
+              onResourceKind={setResourceKind}
+              filter={applied}
+              topicsById={topicsById}
+              areasById={areasById}
+              authorName={authorName}
+              onRemoveTopic={sidebar.onToggleTopic}
+              onRemoveArea={sidebar.onToggleArea}
+              onRemoveUnfiled={sidebar.onToggleUnfiled}
+              onRemoveAuthor={() => setFilter((current) => ({ ...current, author: null }))}
+              onClearPills={clearPills}
+              onSelectTopic={(topicId) => selectTopic(topicId)}
             />
             <div ref={contentColumn} className="flex flex-col gap-5 px-4 pt-3 sm:px-8">
-
-              {ask ? (
-                <AskBar
-                  ask={ask}
-                  intent={chatWanted ? "ask" : "find"}
-                  onPin={pin}
-                  onRetry={() => askRunner.ask(ask.query)}
-                  onClear={leaveAsk}
-                  onShowAnswer={() => {
-                    swapDeck("answer");
-                    void sidebarPanel.open();
-                  }}
-                />
-              ) : null}
-
-              {view === "resources" && kinds.length > 1 ? (
-                <SegmentedControl
-                  aria-label="Resource kind"
-                  value={resourceKind}
-                  onValueChange={(next) => next && setResourceKind(next)}
-                  className="-mt-2 self-start border-0 bg-sunken p-[3px]"
-                >
-                  <SegmentedControlIndicator />
-                  <SegmentedControlItem value="all" className="focus-ring h-7 px-3 text-[12px] font-semibold">
-                    All kinds
-                  </SegmentedControlItem>
-                  {kinds.map((kind) => (
-                    <SegmentedControlItem key={kind.value} value={kind.value} className="focus-ring h-7 px-3 text-[12px] font-semibold">
-                      {kind.label}
-                    </SegmentedControlItem>
-                  ))}
-                </SegmentedControl>
-              ) : null}
-
-              <ActiveFilters
-                filter={applied}
-                topicsById={topicsById}
-                areasById={areasById}
-                authorName={authorName}
-                onRemoveTopic={sidebar.onToggleTopic}
-                onRemoveArea={sidebar.onToggleArea}
-                onRemoveUnfiled={sidebar.onToggleUnfiled}
-                onRemoveAuthor={() => setFilter((current) => ({ ...current, author: null }))}
-                onRemoveKeyword={() => setFilter((current) => ({ ...current, keyword: "" }))}
-                onClear={clearPills}
-              />
 
               {ask && result.posts.length === 0 ? (
                 emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)

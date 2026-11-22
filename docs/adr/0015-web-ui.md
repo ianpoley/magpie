@@ -129,7 +129,7 @@ Each deck remembers for itself whether its front card has changed since it mount
 
 #### 0015.119 `AnswerCard`
 
-The answer never shares the main column with the results: it was tried above the list, woven into it and beside it, and each was turned down (see `DESIGN.md`). Everything that ends an Ask or a Find topic ends the conversation too, through one path: the panel's clear, a category, a topic chip, an author, Pin as topic and Back. New chat ends it and keeps the card in front. Filters in the card's header only swaps the cards.
+The answer never shares the main column with the results: it was tried above the list, woven into it and beside it, and each was turned down (see `DESIGN.md`). Everything that ends an Ask or a Find topic ends the conversation too, through one path: Clear in the line under the search field, the field's ✕, a category, a topic chip, an author, Pin as topic and Back. New chat ends it and keeps the card in front. Filters in the card's header only swaps the cards.
 
 A follow-up scrolls inside the conversation only. `scrollIntoView` would also scroll the card, which clips its contents.
 
