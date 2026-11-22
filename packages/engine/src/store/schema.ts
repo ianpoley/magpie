@@ -249,6 +249,7 @@ const MIGRATIONS: string[] = [
   WHERE stage = 'x_auth' AND outcome = 'failed' AND message LIKE 'The X session could not be read%';
   `,
   REREAD_HOST_TITLED_VIDEOS,
+  `ALTER TABLE overrides ADD COLUMN merged_from INTEGER;`,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

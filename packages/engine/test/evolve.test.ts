@@ -573,6 +573,35 @@ test('undoing a topic\'s creation brings back a topic the user merged into it, w
   assert.deepEqual(renameTopic(db, mine, 'Tools I use'), { topicId: mine, name: 'Tools I use' });
 });
 
+test('undoing a topic\'s creation gives each restored topic only the fixes it brought, and those of topics still merged into it', async (t) => {
+  const { db } = tempStore(t);
+  const zeta = seedPosts(db, 'zeta', 9, 'zeta tool');
+  const misc = seedPosts(db, 'misc', 16, 'misc');
+  const tools = seedTopic(db, 'My tools');
+  const notes = seedTopic(db, 'My notes');
+  const older = seedTopic(db, 'Old tools');
+  for (const id of [...zeta, ...misc]) for (const topic of [tools, notes, older]) seedScore(db, id, topic, 0.05);
+  for (const id of ['tool-1', 'note-1', 'old-1', 'old-2']) seedPost(db, id, { text: `${id} text` });
+  seedOverride(db, 'tool-1', tools, 'add');
+  seedOverride(db, 'note-1', notes, 'add');
+  seedOverride(db, 'old-1', older, 'add');
+  seedOverride(db, 'old-2', older, 'add');
+  seedOverride(db, 'old-2', tools, 'remove');
+  mergeTopics(db, older, tools);
+  await evolve(db, { claude: fakeClaude(() => newTopic('Zeta')), jev: jevBy({ Zeta: has('zeta') }) });
+  const created = topicId(db, 'Zeta');
+  mergeTopics(db, tools, created);
+  mergeTopics(db, notes, created);
+  addPostTopic(db, 'misc-001', created);
+
+  undoChange(db, Number(changes(db)[0].id));
+
+  assert.deepEqual(members(db, tools, 'confident'), ['misc-001', 'old-1', 'tool-1']);
+  assert.deepEqual(members(db, notes, 'confident'), ['misc-001', 'note-1']);
+  assert.equal(topicNamed(db, 'Old tools')?.state, 'merged');
+  assert.equal(strandedMerges(db), 0);
+});
+
 test('undoing a split brings back a topic the user merged into one of its subtopics', async (t) => {
   const { db } = tempStore(t);
   const { parent, posts } = seedBroadTopic(db);
