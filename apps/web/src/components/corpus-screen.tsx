@@ -517,6 +517,17 @@ export function CorpusScreen({
     pendingCite.current = postId;
     sidebarPanel.close();
   };
+  const writing = ask?.status === "running" || (chat?.turns.some((turn) => turn.status === "writing") ?? false);
+  const finishedTurns = chat?.turns.filter((turn) => turn.status !== "writing").length ?? 0;
+  const [seenTurns, setSeenTurns] = useState(0);
+  if ((deck.front === "answer" || finishedTurns < seenTurns) && seenTurns !== finishedTurns) setSeenTurns(finishedTurns);
+  const answerNews = writing
+    ? "The answer is on its way"
+    : finishedTurns > seenTurns
+      ? chat?.turns.at(-1)?.status === "done"
+        ? "The answer is ready"
+        : "No answer was written"
+      : null;
   const deckButton = (
     <button
       type="button"
@@ -526,8 +537,17 @@ export function CorpusScreen({
       }}
       className={SIDE_BUTTON}
     >
-      <Sparkles className="size-3.5" aria-hidden="true" />
-      {ask ? "Answer" : "Ask"}
+      <span className="relative flex">
+        <Sparkles className="size-3.5" aria-hidden="true" />
+        {answerNews ? (
+          <span
+            aria-hidden="true"
+            className={`absolute -top-1 -right-1 size-2 rounded-full bg-primary-fill shadow-[0_0_0_2px_var(--color-side-0)] ${writing ? "animate-pulse motion-reduce:animate-none" : ""}`}
+          />
+        ) : null}
+      </span>
+      <span className="@max-[17rem]:sr-only">{ask ? "Answer" : "Ask"}</span>
+      {answerNews ? <span className="sr-only">. {answerNews}</span> : null}
     </button>
   );
   const answerCard = {
