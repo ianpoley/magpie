@@ -290,7 +290,9 @@ function Composer({ card }: { card: AnswerCardProps }) {
       ? "Claude is answering…"
       : closed || !talking
         ? "A follow-up needs a written answer to build on."
-        : `Follow-ups are answered from the same ${Math.min(chat?.turns[0]?.answer?.read ?? READ_LIMIT, READ_LIMIT)} posts, with no new search.`;
+        : !ready
+          ? "Try the answer again before asking a follow-up."
+          : `Follow-ups are answered from the same ${Math.min(chat?.turns[0]?.answer?.read ?? READ_LIMIT, READ_LIMIT)} posts, with no new search.`;
   return (
     <form
       className="flex flex-col gap-2 px-4 pt-2 pb-4"
