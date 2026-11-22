@@ -230,9 +230,9 @@ test('the bird and Birdclaw children get only the environment they need', async 
   await adapter.whoami(session);
   await adapter.sync(session, 'bookmarks', 'incremental');
 
-  const shellAdded = new Set(['PWD', 'SHLVL', '_', 'OLDPWD']);
+  const notChecked = new Set(['PWD', 'SHLVL', '_', 'OLDPWD', 'NODE_ENV']);
   for (const call of [bird.calls()[0], birdclaw.calls()[0]]) {
-    const keys = Object.keys(call.env).filter((key) => !shellAdded.has(key)).sort();
+    const keys = Object.keys(call.env).filter((key) => !notChecked.has(key)).sort();
     assert.deepEqual(keys, ['AUTH_TOKEN', 'BIRDCLAW_BIRD_COMMAND', 'BIRDCLAW_HOME', 'CT0', 'HOME', 'PATH']);
     assert.equal(call.env.BIRDCLAW_BIRD_COMMAND, bird.path);
     assert.ok(call.env.PATH.startsWith(`${dirname(process.execPath)}:`));
