@@ -192,3 +192,20 @@ The cookies travel only in this environment, built from nothing so no other secr
 The single place bird and Birdclaw are spawned, and only with both cookies.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/x/birdclaw.ts#L120)
+
+### Threat model
+
+#### 0008.30 Who can read the stored secrets
+
+Decided 2026-11-21.
+
+On macOS the X cookies and the Jev key are generic passwords in the login keychain under the service `magpie`. `securityBackend` creates them through `/usr/bin/security`, so the items trust that tool. Any process running as the owner can run `security find-generic-password -s magpie -a x-session -w` and read the cookies with no prompt while the keychain is unlocked. The `secrets.env` fallback (0600) and the Linux Secret Service have the same limit. Encryption at rest protects a copied disk, not a running session. The cookies are the owner's X login until X ends that session, so they are the most sensitive thing Magpie keeps.
+
+Deferred, and why:
+
+- **A prompt on every read** (`-T ""`), or a passphrase typed at login: the worker could no longer sync unattended.
+- **Trusting only `node`:** the keychain checks the program that asks, which is `/usr/bin/security`. A native read from Node would have to trust `node`, which is every Node script.
+- **Running the services as a separate macOS user** (`_magpie`, its own keychain, LaunchDaemons, the owner reading the store through a group): this is the change that isolates the secrets from the owner's other processes. Adopt it if the machine is shared, or if the owner starts running untrusted code as themselves.
+- **A code-signed helper that holds the cookies and runs `bird` itself:** this needs an Apple Developer ID, a build per platform and a narrow command interface, and gives less protection than a separate user.
+
+What Magpie does instead is make a leak cheap to recover from. Disconnect only deletes the local copy and leaves the session signed in on X, and the Disconnect confirmation in `connect-x-dialog.tsx` says so and names where to end it on x.com. Agents the owner runs are denied `security find-generic-password` in their Claude Code settings. That stops a casual read, not a determined one: an agent can still write a script that calls the tool.
