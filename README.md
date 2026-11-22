@@ -66,7 +66,7 @@ The skill reads the files on your machine and changes nothing. It leaves out the
 |---|---|---|
 | An X account, signed in on a browser | Required | Magpie reads your bookmarks and likes with its session cookies (`auth_token`, `ct0`). Read the caution below. |
 | A [Jev (TypeSafe)](https://docs.typesafe.ai) API key | Required | Jev scores each post against each topic and answers **Ask** questions. The web app shows nothing until you save the key. |
-| [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Claude proposes and updates the categories. Without it, sync and search still work, but Magpie creates no categories. |
+| [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Claude proposes and updates the categories, always with Claude Opus 5.5 at medium effort. The calls count against your Claude plan's usage. Without it, sync and search still work, but Magpie creates no categories. |
 | macOS or Linux | Required | The background services run as LaunchAgents or `systemd --user` units. |
 | git, [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. The installer adds Bun if you don't have it. Setup finds Node 26, or tells you how to install it. |
 

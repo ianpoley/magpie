@@ -57,6 +57,8 @@ export const TAGGING = {
 
 export const CLAUDE = {
   timeoutMs: 10 * 60 * 1000,
+  model: 'claude-opus-5-5',
+  effort: 'medium',
 } as const;
 
 export const SECRETS = {

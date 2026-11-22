@@ -23,6 +23,8 @@ Sends `request` and returns the answer only when it matches `request.schema`. `T
 
 The prompt carries untrusted post text, so the session must be unable to act: no built-in tools, no MCP servers, no skills, no slash commands, and no CLAUDE.md. Installed plugins are still listed as loaded under --safe-mode, but with those surfaces off they contribute nothing callable; the only tool present is the StructuredOutput helper that --json-schema adds. The prompt goes on stdin so nothing in it can be read as an argument.
 
+The model and effort are pinned in `CLAUDE` (`claude-opus-5-5`, `medium`) instead of following the user's CLI default, so the category tree is built the same way on every machine and does not drift when an alias moves to a newer model. The calls are few per sync and shape every topic, which is why it is Opus; naming and grouping short posts needs no deep reasoning, which is why it is `medium`.
+
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/claude/cli.ts#L54-L59)
 
 #### 0006.3 `createClaudeCli`

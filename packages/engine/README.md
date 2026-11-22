@@ -32,14 +32,14 @@ After the export, the sync runs the categorize stages. They never fail the sync:
 | ingest | Merges the bookmark and like exports into one row per post in `state/corpus.sqlite`. |
 | links | Follows each link to its final URL once, caches title and description, and groups links into resources. Failures retry on later runs. |
 | tag | Asks Jev (TypeSafe) one yes/no question per post and topic, and stores the probability. Only missing pairs are scored. |
-| discovery / evolve | Claude proposes categories on the first run. Later runs create a topic when enough Unfiled posts collect, or split a topic that grew too broad; Jev's counts decide whether a proposal applies. Every change is logged and can be undone from the screen. |
+| discovery / evolve | Claude proposes categories on the first run. Later runs create a topic when enough Unfiled posts collect, or split a topic that grew too broad; Jev's counts decide whether a proposal applies. Every change is logged. |
 
 Thresholds and limits live in `src/config.ts`. All Jev question wording lives in `src/jev/questions.ts`.
 
 **Credentials**
 
 - X cookies and the Jev key are in the OS secret store (macOS Keychain, Linux Secret Service), service `magpie`. Both are required, and the web app's setup screen asks for them; `bun run secrets:set-jev` stores the Jev key from a terminal instead. When no secret store is available they fall back to an owner-only `~/.config/magpie/secrets.env`, and the app warns.
-- Claude: the Claude Code CLI, using your existing login. The services' PATH includes `~/.local/bin`. It runs with no built-in tools, no MCP servers, and no slash commands, and its output is accepted only when it matches a JSON schema. If the CLI is missing or fails, category upkeep is skipped for that run and tagging still completes.
+- Claude: the Claude Code CLI, using your existing login. The services' PATH includes `~/.local/bin`. Every call uses `claude-opus-5-5` at effort `medium`, whatever your CLI's own default is. These calls are few per sync but shape every topic, and naming and grouping short posts needs no deep reasoning. Both values are `CLAUDE.model` and `CLAUDE.effort` in `src/config.ts`. The calls count against your Claude plan's usage, not an API bill. It runs with no built-in tools, no MCP servers, and no slash commands, and its output is accepted only when it matches a JSON schema. If the CLI is missing or fails, category upkeep is skipped for that run and tagging still completes.
 
 **Run by hand**
 

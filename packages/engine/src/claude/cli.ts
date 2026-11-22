@@ -40,6 +40,10 @@ export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest)
 function cliArgs(schema: JsonSchema): string[] {
   return [
     '--print',
+    '--model',
+    CLAUDE.model,
+    '--effort',
+    CLAUDE.effort,
     '--output-format',
     'stream-json',
     '--verbose',
