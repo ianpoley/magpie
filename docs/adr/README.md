@@ -14,12 +14,12 @@ Each entry has a heading with its number and the symbol it applies to, then the 
 | [0006](0006-engine-claude.md) | Headless Claude calls | 8 |
 | [0007](0007-engine-evolve.md) | Growing the category list | 22 |
 | [0008](0008-engine-secrets.md) | Secrets | 28 |
-| [0009](0009-engine-service.md) | Background services | 17 |
+| [0009](0009-engine-service.md) | Background services | 20 |
 | [0010](0010-engine-setup.md) | Setup | 9 |
 | [0011](0011-engine-cli.md) | Command-line entry points | 5 |
 | [0012](0012-skill.md) | The Claude Code skill | 8 |
 | [0013](0013-web-data.md) | Web app: reading and changing data | 52 |
 | [0014](0014-web-ask.md) | Web app: Ask | 10 |
-| [0015](0015-web-ui.md) | Web app: interface behavior | 109 |
+| [0015](0015-web-ui.md) | Web app: interface behavior | 110 |
 | [0016](0016-styles.md) | Design tokens and styles | 19 |
 | [0017](0017-tests.md) | Tests and fixtures | 15 |

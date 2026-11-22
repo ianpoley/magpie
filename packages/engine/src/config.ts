@@ -87,6 +87,12 @@ export const SERVICE = {
   probeKeychainService: 'magpie-setup-probe',
 } as const;
 
+export const RELEASES = {
+  repo: 'ianpoley/magpie',
+  checkEveryMs: 6 * 60 * 60_000,
+  timeoutMs: 10_000,
+} as const;
+
 export const INGEST = {
   shrinkGuard: 0.05,
 } as const;

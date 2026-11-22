@@ -801,3 +801,14 @@ The text from a little before the first match, when that match sits more than `a
 Settings is its own route, `/settings`, opened from a row in the sidebar footer, so the corpus screen's query-param state stays out of it. A back link returns to `/`. It holds the category focus setting, the X connection, the Jev key, and read-only status for background sync and the Claude skill link.
 
 Changing the focus saves it first, then asks whether to re-sort existing areas, showing a preview of what would change. Apply writes only the previewed changes, and only to areas still unflagged and active. Choosing not to re-sort keeps the saved setting for new areas. The page is in `apps/web/src/components/settings-screen.tsx`; the preview dialog is `apps/web/src/components/resort-dialog.tsx`.
+
+### `apps/web/src/components/update-notice.tsx`
+
+#### 0015.110 `UpdateNotice`
+
+The update notice is one sidebar footer row, "Update to vX.Y.Z", above the sync status. It has the same height and type as the rows below it and a small primary-colored dot. Pressing it opens a popover to the right with the version you have, the full command (wrapped, never cut off), "Copy command", which shows "Copied" for 1.5 seconds, a "What's new" link to the release, and "Later". "Later" hides the row until a newer version comes out. The popover scales in from its trigger over 150ms, the same as the post topics editor.
+
+Picked on 2026-11-21 from a live prototype in the real sidebar, against two other versions:
+
+- An inline card that showed the command with small copy and hide buttons. Rejected: it was the biggest thing in the footer, the long command got cut off so you couldn't read what you would run, and its 28px buttons were under the 40px desktop minimum.
+- An orange callout with one large "Copy update command" button and the command hidden. Rejected: it was the loudest thing in the sidebar, it competed with the orange used for selections, and it hid what runs in the user's terminal.
