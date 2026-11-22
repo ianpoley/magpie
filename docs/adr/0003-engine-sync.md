@@ -11,6 +11,12 @@ When the code changes, update or remove the entry here in the same commit.
 
 ## Decisions
 
+### `packages/engine/bin/build-markdown.mjs`
+
+#### 0003.1 `exportedPost`
+
+The export is read by the shape of the pinned Birdclaw (0.9.5): a JSON array of posts, each with `id` and `text`, `author.handle` and `author.displayName`, and `createdAt`. Anything else stops the build with exit 1 and names the post and its keys. A changed shape then shows up as a failed markdown stage instead of being half-read. The post's URL is built from the handle and id, since the export carries none.
+
 ### `packages/engine/bin/worker.mjs`
 
 #### 0003.4 `worker.mjs shutdown`
