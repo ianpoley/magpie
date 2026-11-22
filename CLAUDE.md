@@ -17,3 +17,13 @@ How to measure:
 ## No code comments
 
 Code carries no comments. `bun run lint:comments` (part of `bun run lint`) fails on any new one, and `eslint-suppressions.json` lists the few still waiting to be moved. Name things so the code says what it does. Put a decision the code cannot state in `docs/adr/`, in the file for its subsystem. Tool directives (`eslint-disable`, `@ts-expect-error`, `turbopackIgnore`) are allowed. To clear what is left, run `/delete-comment`.
+
+## Pull requests: rebase onto main, never merge it in
+
+GitHub merges PRs here by rebase only. Merge commits and squash are turned off. A rebase merge replays each commit of the branch onto main, one at a time. So a branch that merged main in still shows "This branch cannot be rebased due to conflicts": the merge commit fixes only the combined result, not each replayed commit.
+
+- Before you push a PR branch or open a PR, run `git fetch origin && git rebase origin/main`. Resolve conflicts commit by commit, run the checks, then `git push --force-with-lease`.
+- Never `git merge origin/main` into a PR branch. If it already happened, rebase onto `origin/main` and the merge commit drops out.
+- `.claude/hooks/rebase-guard.sh` blocks `git push` and `gh pr create` from Claude Code while the branch is behind `origin/main` or holds a merge commit. Pushes to `main` itself pass.
+- Parallel worktree sessions often add a design-round entry at the same place in `apps/web/DESIGN.md`. When two entries conflict, keep both. They are separate records.
+- Leave uncommitted work from another session alone. If the working tree is dirty, rebase in a throwaway worktree (`git worktree add --detach <scratch> <branch>`) and push from there.
