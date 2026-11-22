@@ -25,7 +25,7 @@ No dependencies and no TypeScript: it has to run before both are in place.
 
 #### 0010.2 `migrate (module)`
 
-Moves an install that syncs through the old nightly LaunchAgent, with its cookies in ~/.birdclaw/bird.env and its Jev key in ~/.config/magpie/secrets.env, onto the OS secret store and the two background services. The new setup has to finish one good sync before anything of the old one is deleted, and any failure puts the old one back.
+Moves an install that syncs through the old nightly LaunchAgent, with its cookies in ~/.birdclaw/bird.env and its Jev key in ~/.config/magpie/secrets.env, onto the OS secret store and the two background services. The new setup has to finish one good sync before anything of the old one is deleted, and any failure puts the old one back. The old job's script, `packages/engine/bin/birdclaw-nightly.sh`, and its plist template were deleted from the tree once the owner's install had moved. Putting the old job back now reloads the installed plist, which runs that script from the clone it was installed from, so the put-back gives a working job only in a clone that predates the deletion.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L21-L27)
 

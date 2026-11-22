@@ -19,14 +19,6 @@ Where secrets are kept; "file" is the owner-only fallback file. Null before any 
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/types.ts#L167)
 
-### `packages/engine/bin/birdclaw-nightly.sh`
-
-#### 0008.2 `BIRD_ENV`
-
-Live X credentials for the bird transport (AUTH_TOKEN / CT0). Kept outside the repo so tokens are never committed. birdclaw shells out to `bird`, which reads these env vars — no browser cookies / Keychain needed, so this works headless.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/birdclaw-nightly.sh#L25-L27)
-
 ### `packages/engine/src/config.ts`
 
 #### 0008.3 `SECRETS.timeoutMs`
