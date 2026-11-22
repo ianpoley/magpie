@@ -36,6 +36,7 @@ export type SidebarProps = {
   sync: SyncController;
   connectX: ConnectXController;
   settings: SettingsController;
+  settingsAttention: boolean;
   filter: FilterState;
   viewed: (post: Post) => boolean;
   totals: { everything: number; bookmarks: number; likes: number };
@@ -59,6 +60,7 @@ export function Sidebar({
   sync,
   connectX,
   settings,
+  settingsAttention,
   filter,
   viewed,
   totals,
@@ -235,6 +237,12 @@ export function Sidebar({
         <DialogTrigger controller={settings} className={SIDE_FOOTER_ROW}>
           <Settings className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
           Settings
+          {settingsAttention ? (
+            <>
+              <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-like" />
+              <span className="sr-only">, something needs attention</span>
+            </>
+          ) : null}
         </DialogTrigger>
       </div>
     </div>

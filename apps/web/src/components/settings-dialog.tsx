@@ -71,6 +71,8 @@ function needsAttention(id: SectionId, settings: SettingsState, sync: SyncState)
   return false;
 }
 
+export const settingsNeedAttention = (settings: SettingsState, sync: SyncState): boolean => SECTIONS.some(({ id }) => needsAttention(id, settings, sync));
+
 function StatusRow({ ok, title, hint }: { ok: boolean; title: string; hint: string | null }) {
   const Icon = ok ? CircleCheck : TriangleAlert;
   return (
@@ -321,11 +323,13 @@ export function SettingsDialog({
   settings: initialSettings,
   sync,
   connectX,
+  onLoad,
 }: {
   controller: SettingsController;
   settings: SettingsState;
   sync: SyncController;
   connectX: ConnectXController;
+  onLoad: (settings: SettingsState) => void;
 }) {
   const [{ settings, version }, setLoaded] = useState({ settings: initialSettings, version: 0 });
   const [tab, setTab] = useState<SectionId>("categories");
@@ -333,9 +337,10 @@ export function SettingsDialog({
 
   const reload = () => {
     void loadSettings()
-      .then((fresh) =>
-        setLoaded((current) => (JSON.stringify(fresh) === JSON.stringify(current.settings) ? current : { settings: fresh, version: current.version + 1 })),
-      )
+      .then((fresh) => {
+        onLoad(fresh);
+        setLoaded((current) => (JSON.stringify(fresh) === JSON.stringify(current.settings) ? current : { settings: fresh, version: current.version + 1 }));
+      })
       .catch(() => undefined);
   };
 
