@@ -24,7 +24,7 @@ You save good posts on X and then never find them again. Magpie keeps a copy of 
 
 - A background worker syncs your bookmarks and likes every 3 hours. After the machine sleeps, it catches up.
 - Claude proposes areas and topics, and Jev (TypeSafe) scores each post against each topic. New topics appear as you save more. Magpie logs every change.
-- A web app lets you filter by category, collection, author, keyword, time range and media. You can ask a question in plain words, browse the repos and pages your posts link to, and fix categories by hand.
+- A web app lets you filter by category, collection, author, keyword, time range and media. You can ask a question in plain words and get a written answer that cites your posts, browse the repos and pages your posts link to, and fix categories by hand.
 - A Claude skill lets your agents search the posts you saved ("what have I saved about scroll animations?") and cite them.
 - The corpus, the store and the web app stay on your machine. The app listens on `127.0.0.1` only.
 
@@ -66,11 +66,11 @@ The skill reads the files on your machine and changes nothing. It leaves out the
 |---|---|---|
 | An X account, signed in on a browser | Required | Magpie reads your bookmarks and likes with its session cookies (`auth_token`, `ct0`). Read the caution below. |
 | A [Jev (TypeSafe)](https://docs.typesafe.ai) API key | Required | Jev scores each post against each topic and answers **Ask** questions. The web app shows nothing until you save the key. |
-| [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Claude proposes and updates the categories, always with Claude Opus 5.5 at medium effort. The calls count against your Claude plan's usage. Without it, sync and search still work, but Magpie creates no categories. |
+| [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Claude proposes and updates the categories, and writes the answer to each **Ask**, always with Claude Opus 5.5 at medium effort. The calls count against your Claude plan's usage. Without it, sync and search still work, but Magpie creates no categories and an Ask lists its matches with no written answer. |
 | macOS or Linux | Required | The background services run as LaunchAgents or `systemd --user` units. |
 | git, [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. The installer adds Bun if you don't have it. Setup finds Node 26, or tells you how to install it. |
 
-Some data leaves your machine. Magpie sends post text to Jev for tagging and Ask, and to Claude through your CLI login for categories. It requests each page your posts link to once, to read its title. Browsing sends nothing.
+Some data leaves your machine. Magpie sends post text to Jev for tagging and Ask, and to Claude through your CLI login for categories and for Ask answers. It requests each page your posts link to once, to read its title. Browsing sends nothing.
 
 > [!CAUTION]
 > Birdclaw syncs with your X browser session cookies (`auth_token` and `ct0`). X's terms do not allow this, and X could limit or suspend your account. The cookies give full access to your account, so treat them like a password. When you connect X, you accept that risk.

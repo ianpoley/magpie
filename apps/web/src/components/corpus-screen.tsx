@@ -4,12 +4,13 @@ import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
-import { CircleAlert, CircleCheck, Menu as MenuIcon, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Menu as MenuIcon, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { pinQuery, purgeRemoved, removePost, restorePost } from "@/app/actions";
-import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
+import { createChatRunner, type AnswerRequest } from "@/lib/answer";
+import { cleanQuery, createAskRunner, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
   DEFAULT_FILTER,
@@ -30,6 +31,7 @@ import { similarPosts } from "@/lib/similar";
 import type { FilterResult, FilterState, Post, Snapshot, SyncState } from "@/lib/types";
 
 import { ActiveFilters } from "./active-filters";
+import { AnswerCard } from "./answer-card";
 import { AskBar } from "./ask-bar";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { ConnectXDialog, createConnectXController } from "./connect-x-dialog";
@@ -47,6 +49,7 @@ import { ConfirmRemove, createConfirmRemoveController, createRemovedPostsControl
 import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
+import { SidebarDeck, type DeckFront, type DeckState } from "./sidebar-deck";
 import { SidebarResizer } from "./sidebar-resizer";
 import { useSyncStatus } from "./sync-status";
 import { iconButton } from "./styles";
@@ -66,6 +69,13 @@ const REFRESH_GAP_MS = 2000;
 
 const postAsk = (query: string, signal: AbortSignal): Promise<Response> =>
   fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), signal });
+
+const postAnswer = (request: AnswerRequest, signal: AbortSignal): Promise<Response> =>
+  fetch("/api/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal });
+
+const SIDE_BUTTON =
+  "focus-ring-side pressable flex h-8 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-side-hover px-3 text-[13px] font-semibold text-side-ink hover:bg-side-wash";
+const SIDE_CLOSE = "focus-ring-side pressable flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-ink hover:bg-side-hover";
 
 const randomItem = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
@@ -229,6 +239,19 @@ export function CorpusScreen({
   const [edited, setEdited] = useState<{ view: string; ids: string[] }>({ view: "", ids: [] });
   const [askRunner] = useState(() => createAskRunner(postAsk));
   const ask = useSyncExternalStore(askRunner.subscribe, askRunner.getState, () => null);
+  const [chatRunner] = useState(() => createChatRunner(postAnswer));
+  const chat = useSyncExternalStore(chatRunner.subscribe, chatRunner.getState, () => null);
+  const [deck, setDeck] = useState<DeckState>({ front: "filters" });
+  const [cited, setCited] = useState<string[]>([]);
+  const swapDeck = (front: DeckFront) => setDeck({ front });
+  const endAsk = (front: DeckFront) => {
+    askRunner.clear();
+    chatRunner.clear();
+    setAskDraft("");
+    setMode("search");
+    setCited([]);
+    setDeck((current) => (current.front === front ? current : { front }));
+  };
 
   useEffect(() => {
     let last = Date.now();
@@ -299,14 +322,17 @@ export function CorpusScreen({
     const follow = () => {
       if (askRunner.getState() !== null) {
         askRunner.clear();
+        chatRunner.clear();
         setAskDraft("");
         setMode("search");
+        setCited([]);
+        setDeck((current) => (current.front === "filters" ? current : { front: "filters" }));
       }
       setFilter((current) => ({ ...current, ...selectionInAddress() }));
     };
     window.addEventListener("popstate", follow);
     return () => window.removeEventListener("popstate", follow);
-  }, [askRunner]);
+  }, [askRunner, chatRunner]);
 
   const disconnected = sync.state.connection === "not_connected";
   useEffect(() => {
@@ -337,10 +363,10 @@ export function CorpusScreen({
 
   const shownSelection = (current: FilterState): FilterState => ({ ...current, topicIds: applied.topicIds, areaIds: applied.areaIds });
 
-  const leaveAsk = () => {
-    askRunner.clear();
-    setAskDraft("");
-    setMode("search");
+  const leaveAsk = () => endAsk("filters");
+  const newChat = () => {
+    endAsk("answer");
+    window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>("[data-card=answer]:not([inert]) [data-answer-field]")?.focus());
   };
   const selectTopic = (topicId: number, areaId: number | null | undefined = topicsById.get(topicId)?.areaId) => {
     if (ask) leaveAsk();
@@ -362,6 +388,9 @@ export function CorpusScreen({
   const clearAll = () => setFilter((current) => ({ ...DEFAULT_FILTER, sort: current.sort, revealHidden: current.revealHidden }));
   const startAsk = (query: string) => {
     emitMagpie("ask");
+    if (chatRunner.getState()?.root !== cleanQuery(query)) chatRunner.clear();
+    setCited([]);
+    swapDeck("answer");
     setFilter((current) => ({ ...current, keyword: "" }));
     setAskDraft(query);
     setMode("ask");
@@ -439,6 +468,44 @@ export function CorpusScreen({
   };
 
   const contentColumn = useRef<HTMLDivElement>(null);
+
+  const confidentKey = ask ? result.posts.slice(0, result.unsureStart ?? result.posts.length).map((post) => post.id).join(",") : "";
+  const judged = ask?.status === "done" ? ask.query : null;
+  useEffect(() => {
+    if (judged !== null) chatRunner.start(judged, confidentKey === "" ? [] : confidentKey.split(","));
+  }, [judged, confidentKey, chatRunner]);
+
+  const cite = (postId: string) => {
+    setCited([postId]);
+    const card = document.querySelector<HTMLElement>(postCardOpen(postId));
+    if (!card) {
+      if (postsById.has(postId)) void postDialog.open({ payload: postId });
+      return;
+    }
+    card.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    card.focus({ preventScroll: true });
+  };
+  const deckButton = (
+    <button type="button" onClick={() => swapDeck("answer")} className={SIDE_BUTTON}>
+      <Sparkles className="size-3.5" aria-hidden="true" />
+      {ask ? "Answer" : "Ask"}
+    </button>
+  );
+  const answerCard = {
+    ask,
+    chat,
+    snapshot,
+    postsById,
+    listed: new Set(result.posts.map((post) => post.id)),
+    cited,
+    onAsk: startAsk,
+    onFollowUp: chatRunner.followUp,
+    onRetryAnswer: chatRunner.retry,
+    onRetryAsk: () => ask && askRunner.ask(ask.query),
+    onCite: cite,
+    onNew: newChat,
+    onFilters: () => swapDeck("filters"),
+  };
   const { eyebrow, title, detail } = heading(snapshot, applied, authorName);
   const allGroups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];
   const groups = resourceKind === "all" ? allGroups : allGroups.filter((group) => group.resource.kind === resourceKind);
@@ -450,7 +517,7 @@ export function CorpusScreen({
     <TipProvider>
       <div className="flex min-h-dvh">
         <aside id="sidebar" className="w-sidebar sticky top-0 z-10 hidden h-dvh shrink-0 lg:block">
-          <Sidebar {...sidebar} />
+          <SidebarDeck deck={deck} onSwap={swapDeck} filters={<Sidebar {...sidebar} headerAction={deckButton} />} answer={<AnswerCard {...answerCard} />} />
           <SidebarResizer controls="sidebar" />
         </aside>
 
@@ -498,7 +565,18 @@ export function CorpusScreen({
             />
             <div ref={contentColumn} className="flex flex-col gap-5 px-4 pt-3 sm:px-8">
 
-              {ask ? <AskBar ask={ask} onPin={pin} onRetry={() => askRunner.ask(ask.query)} onClear={leaveAsk} /> : null}
+              {ask ? (
+                <AskBar
+                  ask={ask}
+                  onPin={pin}
+                  onRetry={() => askRunner.ask(ask.query)}
+                  onClear={leaveAsk}
+                  onShowAnswer={() => {
+                    swapDeck("answer");
+                    void sidebarPanel.open();
+                  }}
+                />
+              ) : null}
 
               {view === "resources" && kinds.length > 1 ? (
                 <SegmentedControl
@@ -544,6 +622,7 @@ export function CorpusScreen({
                     unsureStart={result.unsureStart}
                     filter={applied}
                     layout={layout}
+                    cited={cited}
                     ranked={ask !== null}
                     arriving={ask?.status === "running"}
                     topicsById={topicsById}
@@ -586,15 +665,34 @@ export function CorpusScreen({
         <DialogBackdrop />
         <DialogContent
           initialFocus="content"
-          className="inset-y-0 right-auto left-0 m-0 h-dvh max-h-none w-[min(19rem,calc(100%-3rem))] gap-0 overflow-hidden rounded-none border-0 p-0 data-ending-style:-translate-x-6 data-starting-style:-translate-x-6"
+          className="inset-y-0 right-auto left-0 m-0 h-dvh max-h-none w-[min(19rem,calc(100%-3rem))] gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none data-ending-style:-translate-x-6 data-starting-style:-translate-x-6"
         >
-          <DialogTitle className="sr-only">Filters</DialogTitle>
-          <Sidebar
-            {...sidebar}
-            headerAction={
-              <DialogClose aria-label="Close filters" className="focus-ring-side pressable flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-ink hover:bg-side-hover">
-                <X className="size-4" aria-hidden="true" />
-              </DialogClose>
+          <DialogTitle className="sr-only">Filters and answer</DialogTitle>
+          <SidebarDeck
+            deck={deck}
+            onSwap={swapDeck}
+            filters={
+              <Sidebar
+                {...sidebar}
+                headerAction={
+                  <div className="flex items-center gap-1">
+                    {deckButton}
+                    <DialogClose aria-label="Close filters" className={SIDE_CLOSE}>
+                      <X className="size-4" aria-hidden="true" />
+                    </DialogClose>
+                  </div>
+                }
+              />
+            }
+            answer={
+              <AnswerCard
+                {...answerCard}
+                headerAction={
+                  <DialogClose aria-label="Close answer" className={SIDE_CLOSE}>
+                    <X className="size-4" aria-hidden="true" />
+                  </DialogClose>
+                }
+              />
             }
           />
         </DialogContent>

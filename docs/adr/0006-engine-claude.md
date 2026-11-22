@@ -65,6 +65,10 @@ Makes model-written text safe to store and show as a plain label: no HTML tags, 
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/claude/sanitize.ts#L5-L9)
 
+#### 0006.9 `createClaudeCli send options`
+
+`onPartial` asks the CLI for partial messages and hands over each piece of the structured answer's JSON as it is written, in schema order. The pieces are for showing progress only: the answer that counts is still the final structured output, checked against the schema. `signal` kills the CLI, so a caller that stops listening stops spending the user's Claude plan. Measured on 2026-11-22 with 40 posts in the prompt: the first piece arrived after about 5.6 seconds and the answer finished after about 12.7.
+
 ### `packages/engine/src/claude/schemas.ts`
 
 #### 0006.8 `JsonSchema / schemaErrors`

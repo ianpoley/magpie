@@ -115,6 +115,24 @@ Back to the control that opened it, or, when connecting replaced it, to the pane
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/connect-x-dialog.tsx#L191)
 
+### `apps/web/src/components/sidebar-deck.tsx`
+
+#### 0015.118 `SidebarDeck`
+
+The back card is `inert`, so nothing on it can be reached while it is behind. When a swap would leave focus on the card that just went back, focus moves to the card that came forward; focus anywhere else, such as the search field an Ask was started from, is left alone. Which card held focus is tracked from `focusin`, because by the time the swap has rendered the browser has already dropped focus to the body.
+
+The peeking edge is a button of its own, outside both cards, so it stays pressable whichever card is in front.
+
+Each deck remembers for itself whether its front card has changed since it mounted, and plays the shuffle only then. The sidebar and the filters sheet each hold a deck, and the sheet's must not replay the last swap every time it opens.
+
+### `apps/web/src/components/answer-card.tsx`
+
+#### 0015.119 `AnswerCard`
+
+The answer never shares the main column with the results: it was tried above the list, woven into it and beside it, and each was turned down (see `DESIGN.md`). Everything that ends an Ask ends the conversation too, through one path: the Ask panel's clear, a category, a topic chip, an author, Pin as topic and Back. New chat ends it and keeps the card in front. Filters in the card's header only swaps the cards.
+
+A follow-up scrolls inside the conversation only. `scrollIntoView` would also scroll the card, which clips its contents.
+
 ### `apps/web/src/components/corpus-screen.tsx`
 
 #### 0015.16 `selectionInAddress`

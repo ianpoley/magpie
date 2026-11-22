@@ -55,7 +55,7 @@ export function PostListRow(props: PostCardProps) {
   const textId = `post-text-${post.id}`;
   const lead = leadMedia(post);
   return (
-    <article className="relative transition-colors duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--color-sunken)_55%,var(--color-surface))]">
+    <article data-cited={props.cited ? "" : undefined} className="relative transition-colors duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--color-sunken)_55%,var(--color-surface))] data-cited:bg-primary-soft data-cited:shadow-[inset_3px_0_0_var(--color-primary)]">
       <DialogTrigger
         controller={dialog}
         payload={post.id}

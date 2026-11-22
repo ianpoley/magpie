@@ -2,7 +2,7 @@
 
 The corpus screen: every post you bookmarked or liked on X, in one list you can filter by category, collection, author, keyword, time range, and media.
 
-It reads the local store the sync worker writes (`state/corpus.sqlite`, or the file `MAGPIE_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance.
+It reads the local store the sync worker writes (`state/corpus.sqlite`, or the file `MAGPIE_STORE` points at). The server only listens on `127.0.0.1` and answers only loopback host names. Browsing sends nothing off this Mac; Ask is the exception: it sends post text to TypeSafe's Jev model to judge relevance, and the text of the strongest matches to Claude, through your Claude Code login, to write the answer.
 
 ## Run it
 
@@ -28,6 +28,7 @@ The page reads the store on every request and again whenever you return to the w
   - Pinned searches and Unfiled sit above the areas. Hidden areas and topics are listed under a collapsed Hidden group, and Show hidden brings their posts back into every view.
   - Each count is the number of posts that row lists when it is the only one selected.
   - Removed lists the posts you took out of the corpus, each with Restore.
+  - The sidebar is two stacked cards. The filters card is on top, and the edge of the answer card shows behind it on the right. Press that edge, or Ask in the sidebar's header, to bring the answer card forward; Filters in its header sends it back. On a narrow screen both cards are in the filters sheet.
   - Drag the sidebar's right edge to resize it, or focus the edge and use the arrow keys. Double-click resets it. The width is remembered in the browser.
   - The sync panel shows whether X is connected, when the last full sync finished, and when the next one runs. **Connect X** takes the `auth_token` and `ct0` cookies (browser dev tools, Application, Cookies, x.com); **Sync now** asks the worker to run one. If a stage failed or the X export is stale, it names the problem. Birdclaw syncs with your X session cookies, which X's terms do not allow; treat the cookies like a password.
 - **Main column:** the title with a count line (posts, and how many of them are bookmarked and liked) and the Posts / Resources toggle; under it a tool row with search, time range, sort, the media switch, and Surprise (a random post from the list). The tool row stays pinned to the top as you scroll, and changing a filter from it jumps back to the top of the results.
@@ -36,6 +37,9 @@ The page reads the store on every request and again whenever you return to the w
   - Press `/` to jump to search.
   - Sort by Newest (when the post was written), Recently added (when a sync first found it), Oldest, or Most liked. X's export has no save time, so Recently added groups posts by sync.
   - Ask sends what you typed in the search field to the model as a question: press the Ask button on the field or ⌘↵ (Ctrl ↵). Plain Enter never starts an ask, because each one costs money. The model judges every saved post against it. Confident matches come first, then possible ones. Pin keeps the question as a pinned search in the sidebar, and later syncs score new posts against it.
+  - An ask brings the answer card forward. Once every post is judged, Claude reads the 40 strongest confident matches and writes a short answer there: one lead sentence, then up to six points, each with the posts it came from. The answer appears as it is written. Pressing a source scrolls the list to that post and marks it, or opens the post when the list does not show it. The card also lists the repos and pages those posts link to, and Copy as markdown copies the answer with its sources.
+  - The field at the foot of the answer card asks a follow-up. Claude answers it from the same posts and the conversation so far, with no new search, so a follow-up on another subject can come back thin. New chat, in the card's header, clears the conversation. Before any ask, the same field starts one.
+  - With fewer than three confident matches there is no answer, and the card says so. Without the Claude Code CLI the card says there is no written answer, and the matches are listed as before.
   - Resources shows the repos, packages, videos, and pages that the listed posts link to, most saved first. A second switch narrows it to one kind.
   - Each card shows its topics as chips. Pressing a chip filters to that topic. Pressing the author's name filters to that author.
   - Links read as where they lead (`github.com/owner/repo`), not as `t.co` addresses, and a card shows the title of the first page a post links to. Links to the post's own picture or video, or to the post it quotes, are left out, as on X.
