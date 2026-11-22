@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { LEGACY_NAMES, codeRoot } from '../config.ts';
 import type { SkillState } from './walkthrough.ts';
 
+const skillsDir = () => join(homedir(), '.claude', 'skills');
+
 function linkState(link: string): SkillState {
   try {
     lstatSync(link);
@@ -19,8 +21,11 @@ function linkState(link: string): SkillState {
 
 export function skillLinkState(): SkillState {
   if (!existsSync(join(homedir(), '.claude'))) return 'none';
-  const skills = join(homedir(), '.claude', 'skills');
-  const current = linkState(join(skills, 'magpie'));
+  return linkState(join(skillsDir(), 'magpie'));
+}
+
+export function skillLinkStateAnyName(): SkillState {
+  const current = skillLinkState();
   if (current !== 'missing') return current;
-  return linkState(join(skills, LEGACY_NAMES.skill));
+  return linkState(join(skillsDir(), LEGACY_NAMES.skill));
 }

@@ -8,6 +8,6 @@ export async function loadFocus(): Promise<FocusState> {
 }
 
 export async function readSettings(): Promise<SettingsState> {
-  const [focus, { skillLinkState }, jevKeyStored] = await Promise.all([loadFocus(), engineSkillLink(), readJevKeyStored()]);
-  return { focus, skillLink: skillLinkState(), jevKeyStored };
+  const [focus, { skillLinkStateAnyName }, jevKeyStored] = await Promise.all([loadFocus(), engineSkillLink(), readJevKeyStored()]);
+  return { focus, skillLink: skillLinkStateAnyName(), jevKeyStored };
 }
