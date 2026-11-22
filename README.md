@@ -11,6 +11,7 @@
 
 [What it does](#what-it-does) •
 [Screenshots](#screenshots) •
+[Use it from Claude Code](#use-it-from-claude-code) •
 [What you need](#what-you-need) •
 [Install](#install) •
 [More docs](#more-docs)
@@ -46,6 +47,18 @@ Your saved posts, with categories in the sidebar and filters above the list:
 The repos, videos and pages your posts link to, most saved first:
 
 ![The Magpie resources list](docs/assets/screenshots/resources.png)
+
+## Use it from Claude Code
+
+The magpie skill gives Claude Code your saved posts as a source. Ask in plain words, from any project:
+
+- "What have I saved about scroll animations?"
+- "Use my bookmarks to suggest three ideas for this onboarding flow."
+- "Which libraries do my saved posts keep linking to for auth?"
+
+Claude searches your corpus by topic or keyword and answers with the posts it used. Each idea cites the `@handle` and the post URL, so you can open the source. Claude also uses the skill without being asked when a task matches a topic you saved.
+
+The skill reads the files on your machine and changes nothing. It leaves out the areas you hid and the posts you removed in the web app. Setup links the skill in step 4. Read [docs/usage.md](docs/usage.md#claude-skill) for more.
 
 ## What you need
 
