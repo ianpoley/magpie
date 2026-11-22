@@ -40,7 +40,7 @@ const CHANGED = "bg-primary-soft text-primary-text shadow-none [&>svg]:text-prim
 
 export type PageHeaderProps = {
   menuButton: ReactNode;
-  eyebrow: string;
+  eyebrow: string | null;
   title: string;
   detail: string | null;
   onSurprise: () => void;
@@ -255,7 +255,6 @@ function usePinnedPadding() {
 }
 
 export function PageHeader(h: PageHeaderProps) {
-  const context = h.eyebrow === "Your saved posts" ? null : h.eyebrow;
   const { ref, stuck } = useStuck();
   const pinnedRef = usePinnedPadding();
   const stuckRef = useRef(stuck);
@@ -277,7 +276,7 @@ export function PageHeader(h: PageHeaderProps) {
           <div className="flex min-w-0 flex-1 items-center gap-3 @max-2xl:basis-full">
             {h.menuButton}
             <div className="min-w-0 flex-1">
-              {context ? <p className="text-eyebrow mb-1 text-ink-muted">{context}</p> : null}
+              {h.eyebrow ? <p className="text-eyebrow mb-1 text-ink-muted">{h.eyebrow}</p> : null}
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h1 className="text-display text-[26px] leading-[1.1] text-ink sm:text-[30px]">{h.title}</h1>
                 <CountLine h={h} />
