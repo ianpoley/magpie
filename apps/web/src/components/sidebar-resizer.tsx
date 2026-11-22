@@ -116,7 +116,7 @@ export function SidebarResizer({ controls }: { controls: string }) {
     >
       <span
         aria-hidden="true"
-        className="h-full w-0.5 rounded-full bg-transparent transition-colors duration-150 ease-out group-hover/resizer:bg-primary group-focus-visible/resizer:bg-primary group-focus-visible/resizer:outline-2 group-focus-visible/resizer:outline-offset-1 group-focus-visible/resizer:outline-primary group-active/resizer:bg-primary"
+        className="h-full w-0.5 rounded-full bg-transparent transition-colors duration-150 ease-out group-hover/resizer:bg-primary group-focus-visible/resizer:bg-primary group-active/resizer:bg-primary"
       />
     </div>
   );
