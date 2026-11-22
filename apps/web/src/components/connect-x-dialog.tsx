@@ -14,7 +14,7 @@ import { CircleCheck } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 
 import { connectX, disconnectX } from "@/app/actions";
-import type { ActionErrorCode } from "@/lib/types";
+import type { ActionErrorCode, FormField } from "@/lib/types";
 
 import { SecretField } from "./secret-field";
 import type { SyncController } from "./sync-status";
@@ -27,7 +27,7 @@ const CONNECTED_PAUSE_MS = 1_200;
 
 export const KEPT = { keychain: "in your keychain on this machine", file: "in an owner-only file on this machine", unknown: "on this machine" };
 
-type Failure = { code: ActionErrorCode; message: string };
+type Failure = { code: ActionErrorCode; message: string; field?: FormField };
 
 function failureText({ code, message }: Failure): string {
   switch (code) {
@@ -41,12 +41,8 @@ function failureText({ code, message }: Failure): string {
   }
 }
 
-const fieldOf = (failure: Failure | null): "auth_token" | "ct0" | null => {
-  if (failure?.code !== "invalid_input") return null;
-  if (failure.message.startsWith("auth_token")) return "auth_token";
-  if (failure.message.startsWith("ct0")) return "ct0";
-  return null;
-};
+const fieldOf = (failure: Failure | null): "auth_token" | "ct0" | null =>
+  failure?.field === "auth_token" || failure?.field === "ct0" ? failure.field : null;
 
 function ConnectForm({ sync, onDone }: { sync: SyncController; onDone: () => void }) {
   const [authToken, setAuthToken] = useState("");
@@ -72,7 +68,7 @@ function ConnectForm({ sync, onDone }: { sync: SyncController; onDone: () => voi
       try {
         const result = await connectX(authToken, ct0);
         if (!result.ok) {
-          setFailure({ code: result.code, message: result.message });
+          setFailure({ code: result.code, message: result.message, field: result.field });
           return;
         }
         sync.update(result.sync);

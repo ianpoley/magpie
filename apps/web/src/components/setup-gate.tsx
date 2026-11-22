@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition, type FormEvent, type RefObject } from "react";
 
 import { connectX, saveJevKey } from "@/app/actions";
-import type { ActionErrorCode, SyncState } from "@/lib/types";
+import type { ActionErrorCode, FormField, SyncState } from "@/lib/types";
 
 import { KEPT } from "./connect-x-dialog";
 import { CHROME_MAC, devToolsFor, type DevTools } from "./dev-tools";
@@ -14,7 +14,7 @@ import { SecretField } from "./secret-field";
 import { primaryAnswer, quietAnswer } from "./styles";
 
 type Step = "x" | "jev";
-type Failure = { code: ActionErrorCode | "failed"; message: string };
+type Failure = { code: ActionErrorCode | "failed"; message: string; field?: FormField };
 
 const FAILED: Failure = { code: "failed", message: "That did not work. Try again." };
 const STEP_IN = "animate-[post-rise-in_200ms_cubic-bezier(0.22,1,0.36,1)] motion-reduce:animate-none";
@@ -28,12 +28,9 @@ const Keys = ({ children }: { children: string }) => (
   <kbd className="rounded-[6px] bg-sunken px-1.5 py-0.5 font-sans text-[13px] font-semibold text-ink">{children}</kbd>
 );
 
-function fieldOf(failure: Failure | null): "auth_token" | "ct0" | "jev" | null {
+function fieldOf(failure: Failure | null): FormField | null {
   if (failure?.code === "jev_rejected") return "jev";
-  if (failure?.code !== "invalid_input") return null;
-  if (failure.message.startsWith("auth_token")) return "auth_token";
-  if (failure.message.startsWith("ct0")) return "ct0";
-  return failure.message.startsWith("The key") ? "jev" : null;
+  return failure?.field ?? null;
 }
 
 const errorFor = (failure: Failure | null, field: string) => (fieldOf(failure) === field ? failure!.message : null);

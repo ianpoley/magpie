@@ -220,7 +220,9 @@ export type ActionErrorCode =
   | "secret_store_locked"
   | "failed";
 
-export type ActionResult<T> = ({ ok: true } & T) | { ok: false; code: ActionErrorCode; message: string };
+export type FormField = "auth_token" | "ct0" | "jev";
+
+export type ActionResult<T> = ({ ok: true } & T) | { ok: false; code: ActionErrorCode; message: string; field?: FormField };
 
 export type UndoStep = {
   id: number;
