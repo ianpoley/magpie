@@ -230,12 +230,14 @@ export function CorpusScreen({
   now,
   linked,
   layout: initialLayout,
+  closedSections,
 }: {
   snapshot: Snapshot;
   sync: SyncState;
   now: number;
   linked: LinkedFilter;
   layout: PostLayout;
+  closedSections: string[];
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
@@ -472,6 +474,7 @@ export function CorpusScreen({
     expanded,
     removedPosts,
     categoryEdits,
+    closedSections,
     onCollection: (collection) => setFilter((current) => ({ ...current, collection })),
     onExpandedChange: setExpanded,
     onToggleTopic: (topicId) => {
