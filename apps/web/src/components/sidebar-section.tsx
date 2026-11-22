@@ -2,7 +2,9 @@
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@ui-sdk/react/collapsible";
 import { ChevronDown } from "lucide-react";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+
+import { readClosedSections, saveClosedSections } from "./sidebar-sections";
 
 const CLOSED_KEY = "magpie:sidebar-closed:";
 const listeners = new Set<() => void>();
@@ -32,8 +34,29 @@ function writeOpen(id: string, open: boolean) {
   listeners.forEach((listener) => listener());
 }
 
-export function SidebarSection({ id, title, label, action, children }: { id: string; title: string; label: string; action?: ReactNode; children: ReactNode }) {
-  const open = useSyncExternalStore(subscribe, () => readOpen(id), () => true);
+export function SidebarSection({
+  id,
+  title,
+  label,
+  closedOnServer,
+  action,
+  children,
+}: {
+  id: string;
+  title: string;
+  label: string;
+  closedOnServer: boolean;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  const open = useSyncExternalStore(subscribe, () => readOpen(id), () => !closedOnServer);
+  useEffect(() => {
+    const closed = new Set(readClosedSections());
+    if (open !== closed.has(id)) return;
+    if (open) closed.delete(id);
+    else closed.add(id);
+    saveClosedSections([...closed]);
+  }, [id, open]);
   const [toggled, setToggled] = useState(false);
   return (
     <section aria-label={label}>

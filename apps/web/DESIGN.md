@@ -81,7 +81,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - UI: 150ms ease-out on color and shadow. Presses scale to 0.96. Hover effects only apply behind `(hover: hover) and (pointer: fine)`.
   - Sprite animations: stepped frames (`steps(1)`), never tweened.
   - Post list: a removed post fades out over 150ms ease-in. Its gap then closes over 200ms `cubic-bezier(0.77, 0, 0.175, 1)`. Undo plays it in reverse: the gap opens, then the post fades in over 200ms `cubic-bezier(0.22, 1, 0.36, 1)`. A match an Ask finds while it runs rises 4px and fades in over 200ms. Pictures fade in over 200ms when they finish loading, and cached ones show at once. With reduced motion on, posts only fade and gaps change at once.
-  - Sidebar sections fold open or shut over 200ms ease-out when you press their heading. On load they start as you left them, without folding.
+  - Sidebar sections fold open or shut over 200ms ease-out when you press their heading. On load they start as you left them, without folding: the closed ones are also kept in the `magpie-sidebar-closed` cookie, so the server renders them closed.
   - Never animated: list swaps from typing, filtering or sorting, j/k movement, and the Cards/Rows switch.
 
 ## Known gaps

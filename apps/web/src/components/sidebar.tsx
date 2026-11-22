@@ -42,6 +42,7 @@ export type SidebarProps = {
   expanded: string[];
   removedPosts: RemovedPostsController;
   categoryEdits: CategoryEdits;
+  closedSections: string[];
   headerAction?: ReactNode;
   onCollection: (collection: Collection) => void;
   onExpandedChange: (expanded: string[]) => void;
@@ -63,6 +64,7 @@ export function Sidebar({
   expanded,
   removedPosts,
   categoryEdits,
+  closedSections,
   headerAction,
   onCollection,
   onExpandedChange,
@@ -116,6 +118,7 @@ export function Sidebar({
               id="categories"
               title="Categories"
               label="Categories"
+              closedOnServer={closedSections.includes("categories")}
               action={
                 hasHidden ? (
                   <Toggle
@@ -195,7 +198,7 @@ export function Sidebar({
             </SidebarSection>
 
             {authors.length > 0 ? (
-              <SidebarSection id="most-saved" title="Most saved" label="Most saved authors">
+              <SidebarSection id="most-saved" title="Most saved" label="Most saved authors" closedOnServer={closedSections.includes("most-saved")}>
                 <ul className="flex flex-col gap-0.5">
                   {authors.map((author) => {
                     const active = filter.author?.toLowerCase() === author.handle.toLowerCase();
