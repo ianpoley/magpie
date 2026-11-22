@@ -262,6 +262,8 @@ export async function installService(options: ServiceOptions = {}): Promise<void
   }
   await manager.start(SERVICE_NAMES);
   log(`both services are running; the web app is at http://127.0.0.1:${port}`);
+  const bootHint = await manager.bootHint?.();
+  if (bootHint) log(bootHint);
 }
 
 export async function uninstallService(options: ServiceOptions & { purgeSecrets?: boolean } = {}): Promise<void> {
@@ -296,6 +298,7 @@ export type ServiceStatus = {
   here: string;
   appUrl: string;
   buildBehindCode: boolean;
+  bootHint: string | null;
 };
 
 async function buildBehindCode(run: Runner, root: string): Promise<boolean> {
@@ -359,5 +362,6 @@ export async function serviceStatus(options: ServiceOptions = {}): Promise<Servi
     here: files.repoRoot,
     appUrl: `http://127.0.0.1:${webPort(env)}`,
     buildBehindCode: installed !== undefined && (await buildBehindCode(run, mainCheckout(options.codeRoot ?? CODE_ROOT))),
+    bootHint: installed === undefined ? null : ((await manager.bootHint?.()) ?? null),
   };
 }

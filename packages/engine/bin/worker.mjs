@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { categorizeDeps } from './run-cli.mjs';
 
-const deps = await categorizeDeps();
 const { paths } = await import('../src/config.ts');
 const { releaseLock } = await import('../src/lock.ts');
 const { createSecretStore } = await import('../src/secrets/store.ts');
@@ -16,7 +15,7 @@ const log = (line) => console.log(`${new Date().toISOString()} [worker] ${line}`
 
 const worker = startWorker({
   files,
-  runSync: () => runSync(files, { ...deps, x, secrets }),
+  runSync: async () => runSync(files, { ...(await categorizeDeps()), x, secrets }),
   secretBackend: () => secrets.backend(),
   log,
 });

@@ -384,7 +384,7 @@ if (!usable.length) {
 } else {
   scored = records.map(r => ({ r, s: score(r) })).filter(x => x.s > 0);
 }
-scored.sort((a, b) => b.s - a.s || Date.parse(b.r.created) - Date.parse(a.r.created));
+scored.sort((a, b) => b.s - a.s || (Date.parse(b.r.created) || 0) - (Date.parse(a.r.created) || 0));
 const top = scored.slice(0, opts.limit).map(x => ({ ...x.r, score: x.s }));
 
 if (opts.json) {

@@ -10,9 +10,21 @@ export async function syncCommand(args) {
   const { runSync } = await import('../src/sync/run.ts');
   const { createBirdclaw } = await import('../src/x/birdclaw.ts');
   const { errorText } = await import('../src/util.ts');
+  const { releaseLock } = await import('../src/lock.ts');
+
+  const files = paths();
+  const x = createBirdclaw();
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(signal, () => {
+      console.error(`[sync] ${signal}: stopping`);
+      x.killActive();
+      releaseLock(files.lock);
+      process.exit(1);
+    });
+  }
 
   try {
-    const result = await runSync(paths(), { ...deps, x: createBirdclaw(), secrets: createSecretStore() }, options);
+    const result = await runSync(files, { ...deps, x, secrets: createSecretStore() }, options);
     if (result.status === 'locked') {
       console.error(`[sync] a run is already in progress (pid ${result.pid}); nothing was done`);
       process.exit(1);

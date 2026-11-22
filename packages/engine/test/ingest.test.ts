@@ -153,6 +153,23 @@ test('a likes export 10% smaller than the stored likes clears no flags and repor
   assert.equal(result.posts.visible, 20);
 });
 
+test('a shrunken export held once is held again when the same file is read, and cleared when a new export confirms it', (t) => {
+  const { db, dir } = setup(t);
+  const ids = Array.from({ length: 20 }, (_, i) => String(i + 1));
+  ingest(db, writeExports(dir, { bookmarks: posts(['1']), likes: posts(ids) }));
+  const shrunken = () => writeExports(dir, { bookmarks: posts(['1']), likes: posts(ids.slice(2)) });
+
+  const files = shrunken();
+  assert.equal(ingest(db, files).likes.skippedShrink, true);
+  assert.equal(ingest(db, files).likes.skippedShrink, true);
+  const result = ingest(db, shrunken());
+
+  assert.equal(result.likes.skippedShrink, false);
+  assert.equal(result.likes.cleared, 2);
+  assert.equal(flags(db)['1'], 'B-');
+  assert.equal(flags(db)['3'], '-L');
+});
+
 test('a shrunken export still adds the new posts it carries', (t) => {
   const { db, dir } = setup(t);
   const ids = Array.from({ length: 20 }, (_, i) => String(i + 1));

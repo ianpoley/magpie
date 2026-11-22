@@ -459,6 +459,23 @@ test('per-post fixes on a split topic carry to its subtopics', async (t) => {
   assert.ok(!members(db, animations, 'confident').includes(added));
 });
 
+test('a post the user removes from a topic while its split is being scored stays removed from every subtopic', async (t) => {
+  const { db } = tempStore(t);
+  const { parent } = seedBroadTopic(db);
+  let removedOnce = false;
+  const jev = jevBy(splitRules, () => {
+    if (removedOnce) return;
+    removedOnce = true;
+    removePostTopic(db, 'other-001', parent);
+  });
+
+  const result = await evolve(db, { focus: SHOW_ALL, claude: fakeClaude(() => subtopics('Animations', 'CSS')), jev });
+
+  assert.equal(result.splits, 1);
+  assert.equal(count(db, 'overrides', `post_id = 'other-001' AND action = 'remove' AND topic_id <> ${parent}`), 2);
+  assert.equal(count(db, 'overrides', `post_id = 'other-001' AND action <> 'remove'`), 0);
+});
+
 test('a split whose subtopics do not hold enough of the parent is rejected and not proposed again until the parent grows', async (t) => {
   const { db } = tempStore(t);
   const { parent } = seedBroadTopic(db);

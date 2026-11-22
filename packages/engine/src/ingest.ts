@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 
 import { INGEST } from './config.ts';
 import { transaction } from './store/db.ts';
@@ -29,6 +29,8 @@ type PostRow = {
 type ParsedPost = Omit<PostRow, 'bookmarked' | 'liked'> & {
   links: { url: string; expandedUrl: string | null }[];
 };
+
+type ExportRecord = { count: number; stamp: string; against: number };
 
 export type CollectionResult = {
   inExport: number;
@@ -172,19 +174,31 @@ export function ingest(db: Store, files: { bookmarksPath: string; likesPath: str
       stored.set(String(row.id), row as unknown as PostRow);
     }
 
-    const shrankPastGuard = (flag: 'bookmarked' | 'liked', exported: number): boolean => {
-      let before = 0;
-      for (const row of stored.values()) before += row[flag];
-      return before > 0 && (before - exported) / before > INGEST.shrinkGuard;
+    const readExportCount = db.prepare(`SELECT value FROM meta WHERE key = ?`);
+    const writeExportCount = db.prepare(
+      `INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+    );
+    const shrankPastGuard = (flag: 'bookmarked' | 'liked', path: string, exported: number): boolean => {
+      const key = `ingest_${flag}_export`;
+      const kept = readExportCount.get(key)?.value;
+      const previous = kept === undefined ? null : (JSON.parse(String(kept)) as ExportRecord);
+      const file = statSync(path);
+      const stamp = `${file.mtimeMs}:${file.size}`;
+      let against = 0;
+      if (previous === null) for (const row of stored.values()) against += row[flag];
+      else against = previous.stamp === stamp ? previous.against : previous.count;
+      const record = JSON.stringify({ count: exported, stamp, against } satisfies ExportRecord);
+      if (record !== kept) writeExportCount.run(key, record);
+      return against > 0 && (against - exported) / against > INGEST.shrinkGuard;
     };
     const result: IngestResult = {
       posts: { total: 0, visible: 0, inserted: 0, updated: 0 },
       bookmarks: {
         inExport: bookmarkIds.size,
         cleared: 0,
-        skippedShrink: shrankPastGuard('bookmarked', bookmarkIds.size),
+        skippedShrink: shrankPastGuard('bookmarked', files.bookmarksPath, bookmarkIds.size),
       },
-      likes: { inExport: likeIds.size, cleared: 0, skippedShrink: shrankPastGuard('liked', likeIds.size) },
+      likes: { inExport: likeIds.size, cleared: 0, skippedShrink: shrankPastGuard('liked', files.likesPath, likeIds.size) },
       links: { added: 0 },
       withoutId: bookmarks.withoutId + likes.withoutId,
     };

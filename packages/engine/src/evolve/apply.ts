@@ -268,18 +268,19 @@ export async function splitRound(
         `INSERT OR REPLACE INTO overrides (post_id, topic_id, action, created_at) VALUES (?, ?, ?, ?)`,
       );
       const fixes = db.prepare(`SELECT post_id, action FROM overrides WHERE topic_id = ?`).all(parent.id);
-      const added = new Set<string>();
+      const fixed = new Set<string>();
       for (const fix of fixes) {
         const postId = String(fix.post_id);
         if (fix.action === 'remove') {
           for (const subtopic of subtopics) carry.run(postId, subtopic.id, 'remove', now);
+          fixed.add(postId);
         } else if (fix.action === 'add') {
           carry.run(postId, best(postId), 'add', now);
-          added.add(postId);
+          fixed.add(postId);
         }
       }
       for (const { postId } of members) {
-        if (added.has(postId)) continue;
+        if (fixed.has(postId)) continue;
         if (subtopics.every((subtopic) => score(subtopic.id, postId) < bands.unsure)) {
           carry.run(postId, best(postId), 'unsure', now);
         }

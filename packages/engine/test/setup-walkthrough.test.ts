@@ -76,6 +76,7 @@ function machine(state: {
     linkSkill: async () => {
       did.push('skill');
       skill = 'linked';
+      return true;
     },
   };
   return { deps, asked, did, lines };
@@ -208,4 +209,12 @@ test('a failed install is reported and does not offer to connect X', async () =>
   assert.ok(result.todo.some((line) => line.includes('the web app build failed')));
   assert.ok(result.todo.some((line) => line.includes('Connect X once the web app runs')));
   assert.ok(!m.asked.some((question) => question.includes('Open the web app')));
+});
+
+test('a skill link that fails is listed to do, not reported as linked', async () => {
+  const m = machine({ connected: true, jev: true, services: { installed: true, running: true } });
+  m.deps.linkSkill = async () => false;
+  const result = await walkthrough(m.deps);
+  assert.ok(!result.done.some((line) => line.includes('skill is linked')));
+  assert.ok(result.todo.some((line) => line.includes('bash packages/skill/install.sh')));
 });

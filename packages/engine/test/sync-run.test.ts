@@ -238,6 +238,21 @@ test('a live process on this boot keeps the lock, and the same pid from another 
   assert.ok(x.calls.includes('whoami'));
 });
 
+test('a live process whose start time does not match the lock is a reused pid, and the lock is taken over', async (t) => {
+  const { files } = setup(t);
+  writeExports(files.dataDir, { bookmarks: [], likes: [] });
+  await holdLock(t, files.lock);
+  const lock = JSON.parse(readFileSync(files.lock, 'utf8'));
+  assert.equal(typeof lock.started, 'string');
+  writeFileSync(files.lock, JSON.stringify({ ...lock, started: 'a-process-that-has-since-exited' }));
+  const x = fakeX();
+
+  const result = await runSync(files, { ...fakes(), x, secrets: secretsWith(SESSION) });
+
+  assert.equal(result.status, 'complete');
+  assert.equal(existsSync(files.lock), false);
+});
+
 test('a lock whose owner died without releasing it is taken over', async (t) => {
   const { files } = setup(t);
   writeExports(files.dataDir, { bookmarks: [], likes: [] });

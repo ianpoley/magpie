@@ -69,8 +69,10 @@ function setup(t: TestContext, posts: SeedPost[], routes: Record<string, Route> 
   const table = new Map<string, Route>();
   const addresses = new Map<string, string[] | Error>();
   const calls: string[] = [];
+  const pinned = new Map<string, string[] | undefined>();
   const web = {
     calls,
+    pinned,
     set(url: string, route: Route) {
       table.set(href(url), route);
     },
@@ -81,6 +83,7 @@ function setup(t: TestContext, posts: SeedPost[], routes: Record<string, Route> 
   for (const [url, route] of Object.entries(routes)) web.set(url, route);
   const http: HttpFetch = async (request) => {
     calls.push(request.url);
+    pinned.set(request.url, request.addresses);
     const route = table.get(href(request.url));
     if (route === undefined) throw new Error(`test has no route for ${request.url}`);
     if (route instanceof Error) throw route;
@@ -179,6 +182,19 @@ test('a short link that redirects twice stores the last URL with that page title
   assert.equal(row.resolved_at, '2026-06-01T00:00:00.000Z');
   assert.equal(counts.resolved, 1);
   assert.deepEqual(groups(db), { 'blog.example/posts/hello': ['1'] });
+});
+
+test('each hop connects only to the addresses its lookup returned and passed the check', async (t) => {
+  const { web, run } = setup(t, [{ id: '1', urls: ['https://t.co/a'] }], {
+    'https://t.co/a': redirect('https://blog.example/posts/hello'),
+    'https://blog.example/posts/hello': page('Hello world', 'A first post'),
+  });
+  web.resolveTo('blog.example', ['93.184.216.35', '2606:2800:220:1::248']);
+
+  await run();
+
+  assert.deepEqual(web.pinned.get('https://t.co/a'), ['93.184.216.34']);
+  assert.deepEqual(web.pinned.get('https://blog.example/posts/hello'), ['93.184.216.35', '2606:2800:220:1::248']);
 });
 
 test('a relative redirect is followed from the page that sent it', async (t) => {

@@ -17,6 +17,10 @@ When the code changes, update or remove the entry here in the same commit.
 
 The export is read by the shape of the pinned Birdclaw (0.9.5): a JSON array of posts, each with `id` and `text`, `author.handle` and `author.displayName`, and `createdAt`. Anything else stops the build with exit 1 and names the post and its keys. A changed shape then shows up as a failed markdown stage instead of being half-read. The post's URL is built from the handle and id, since the export carries none.
 
+#### 0003.57 `build-markdown.mjs writes`
+
+Every file it writes (each post's file, `index.md` and the JSONL) is written whole under a draft name and renamed into place, so a reader such as the skill's `query.mjs` never sees half a file. After every write succeeds, the post files in the output directory that this build did not write are deleted: they belong to posts that left the collection. Only top-level `.md` files other than `index.md` are touched.
+
 ### `packages/engine/bin/worker.mjs`
 
 #### 0003.4 `worker.mjs shutdown`
@@ -63,7 +67,7 @@ X escapes only these three characters in post text. `&amp;` goes last so `&amp;l
 
 Loads the bookmarks and likes exports into the store as one row per post.
 
-A post's flags follow which export files it appears in. A post in neither file keeps its row with the flags cleared, unless that collection's export shrank past the guard, in which case its flag is left as stored.
+A post's flags follow which export files it appears in. A post in neither file keeps its row with the flags cleared, unless that collection's export shrank past the guard since the last export (see 0002.1), in which case its flag is left as stored until a later export confirms the drop.
 
 Both files are read and checked before the store is touched, and every write happens in one transaction: an unreadable or malformed file throws and leaves the store as it was.
 
@@ -87,11 +91,15 @@ EPERM: the process exists but belongs to someone else.
 
 The pid of the process running a sync, read from the lock file at `path`, or null when no run is in progress. A lock counts only while its owner is alive, was started in this boot, and is not this process: after a reboot, or in a process that reused a dead owner's pid, the old lock is stale.
 
+The lock also records when its owner process started (`ps -o lstart=` on macOS, field 22 of `/proc/<pid>/stat` on Linux). A live pid whose start time differs is an unrelated process that reused the pid, so the lock is stale. Without this, a reused pid owned by another user (EPERM counts as alive) would block syncs until the next reboot. `ps` runs with `LC_ALL=C` and `TZ=UTC`: the worker and a terminal have different environments, and a locale or zone difference would make a live lock look stale. When either start time is unknown, the alive check decides alone.
+
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/lock.ts#L54-L59)
 
 #### 0003.14 `acquireLock`
 
 Takes the lock file at `path` for this process, so two runs never overlap. A stale lock (see `lockHolder`) is taken over; a live one is left alone and reported with its owner's pid.
+
+A takeover renames the lock to a name private to this process and compares it with the stale record it judged. Deleting the lock instead would let two processes that both saw it stale each delete it and each link their own, with the later delete removing a live lock. When the renamed file is not the stale record, another process took the lock first; it is linked back into place, never renamed, so a newer lock is not overwritten.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/lock.ts#L68-L72)
 

@@ -122,7 +122,7 @@ async function setup(args) {
     },
     skill: skillLinkState,
     async linkSkill() {
-      spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' });
+      return spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' }).status === 0;
     },
   });
   if (!result.ok) process.exit(1);
@@ -175,6 +175,7 @@ async function status() {
   if (report.buildBehindCode) {
     console.log('[status] build             the services run an earlier commit than this checkout (a git pull?): run bun run service:install to rebuild and restart them');
   }
+  if (report.bootHint) console.log(`[status] boot              ${report.bootHint}`);
   const healthy =
     report.units.every((unit) => unit.running) &&
     worker !== null &&

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
@@ -43,4 +43,19 @@ test('an export that is not an array of Birdclaw posts fails loudly and writes n
     assert.equal(existsSync(jsonl), false);
     assert.equal(existsSync(join(dir, 'md')), false);
   }
+});
+
+test('a rebuild removes the files of posts that left the export and leaves no draft behind', (t) => {
+  const { dir } = build(t, [exportPost('1', { handle: 'ada' }), exportPost('2', { handle: 'bob' })]);
+  const input = join(dir, 'bookmarks.json');
+  writeFileSync(input, JSON.stringify([exportPost('2', { handle: 'bob' })]));
+
+  const again = spawnSync(process.execPath, [SCRIPT, input, join(dir, 'md'), 'bookmark', join(dir, 'bookmarks.normalized.jsonl')], { encoding: 'utf8' });
+
+  assert.equal(again.status, 0, again.stderr);
+  const files = readdirSync(join(dir, 'md'));
+  assert.equal(files.length, 2);
+  assert.ok(files.includes('index.md'));
+  assert.ok(files.some((name) => name.includes('_bob_2')));
+  assert.ok(!readdirSync(dir).some((name) => name.endsWith('.tmp')));
 });

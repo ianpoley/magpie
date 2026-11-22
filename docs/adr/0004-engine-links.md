@@ -39,6 +39,8 @@ The host a declared homepage puts forward, and whether it may stand for the repo
 
 One HTTP request. It never follows a redirect: a 3xx comes back with its `location` header so the caller decides whether to follow. Header names are lowercase. `body` is at most `maxBytes` of a successful text response and empty for anything else. A timeout or network failure rejects.
 
+Given `addresses`, the request connects only to those, never to what the name resolves to at connect time; the name still goes in the `Host` header and TLS server name. `fetchHttp` uses `node:http` and `node:https` for this, since the built-in `fetch` takes no lookup without the `undici` package. It asks for `accept-encoding: identity`, since nothing decompresses the body, and the byte cap counts what is read.
+
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/links/http.ts#L3-L8)
 
 ### `packages/engine/src/links/resolve.ts`
@@ -111,7 +113,7 @@ An address that answers, or that a redirect pointed at, is where the link ends e
 
 #### 0004.16 `follow`
 
-A public-looking name can resolve to this machine or the local network.
+A public-looking name can resolve to this machine or the local network. The request is pinned to the addresses that passed the check: resolving the name again at connect time would let a DNS answer that changed in between (DNS rebinding) reach a private address. Each redirect hop is looked up and checked again.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/links/resolve.ts#L291)
 

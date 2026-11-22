@@ -69,7 +69,7 @@ The topic is scored while inactive. The swap is one transaction: it checks again
 
 Validates proposed subtopics against the parent's posts and, when at least two hold up and together cover enough of the parent, replaces the parent with them.
 
-No post loses its place: a post no subtopic claims stays on the subtopic it scored highest on, as an unsure match. A post the user removed from the parent is removed from every subtopic, and one the user added is added to the subtopic it scored highest on.
+No post loses its place: a post no subtopic claims stays on the subtopic it scored highest on, as an unsure match. A post the user removed from the parent is removed from every subtopic, even when the removal came while the split was being scored, and one the user added is added to the subtopic it scored highest on.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/evolve/apply.ts#L198-L207)
 
