@@ -97,7 +97,11 @@
 }
 
 @utility w-sidebar {
-  width: clamp(220px, var(--sidebar-width, 272px), max(220px, min(440px, 100vw - 600px)));
+  width: clamp(
+    var(--sidebar-min),
+    var(--sidebar-width, var(--sidebar-fallback)),
+    max(var(--sidebar-min), min(var(--sidebar-max), 100vw - var(--main-min)))
+  );
 }
 
 @utility text-display {
