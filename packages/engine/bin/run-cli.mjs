@@ -1,5 +1,3 @@
-import { homedir } from 'node:os';
-import { delimiter, join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 export const RUN_OPTIONS_USAGE = `  --limit-posts N  score at most N posts in this run
@@ -39,7 +37,6 @@ export function readRunOptions(usage, args = process.argv.slice(2)) {
 }
 
 export async function categorizeDeps() {
-  process.env.PATH = [join(homedir(), '.local', 'bin'), process.env.PATH].filter(Boolean).join(delimiter);
   const { createClaudeCli } = await import('../src/claude/cli.ts');
   const { createJevClient } = await import('../src/jev/client.ts');
   const { fetchHttp } = await import('../src/links/http.ts');

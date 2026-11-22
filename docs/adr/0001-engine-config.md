@@ -70,3 +70,7 @@ The category focus setting is a file in the config dir, next to `x-connection.js
 It is a file, not a store row, because setup can run before any sync has created the store, and store access refuses with `no_store` until then.
 
 Reading it: the file wins. With no file, a store that is an upgrade reads as focus on software: either it carries the legacy marker in `meta`, or it is below the marker's schema version and has categories. Anything else reads as not chosen, and setup asks. Checking only whether categories exist would misread a new install whose first discovery ran before the choice.
+
+#### 0001.10 `Paths.claudeCli`
+
+The Claude CLI is spawned by this absolute path, so nothing has to put it on PATH. It defaults to ~/.local/bin/claude, where the CLI's installer puts it; MAGPIE_CLAUDE_BIN names another executable.

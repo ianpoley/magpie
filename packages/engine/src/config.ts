@@ -203,7 +203,7 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     secretBackend: join(configDir, 'secret-backend.json'),
     xConnection: join(configDir, 'x-connection.json'),
     categoryFocus: join(configDir, 'category-focus.json'),
-    claudeCli: join(homedir(), '.local', 'bin', 'claude'),
+    claudeCli: resolve(setting(env, 'CLAUDE_BIN') || join(homedir(), '.local', 'bin', 'claude')),
     birdclawHome: resolve(env.BIRDCLAW_HOME || join(homedir(), '.birdclaw')),
   };
 }
