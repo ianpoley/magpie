@@ -27,7 +27,7 @@ const deps = (jev: JevClient, overrides: Partial<AskDeps> = {}): AskDeps => ({
   buildRequest: askRequest,
   questionId: askQuestionId,
   hasSomethingToJudge,
-  chunkSize: ASK.chunkSize,
+  requestTokenBudget: ASK.requestTokenBudget,
   concurrency: ASK.concurrency,
   bands: BANDS,
   ...overrides,
@@ -49,10 +49,10 @@ const scoresIn = (records: AskRecord[]): AskScore[] => records.flatMap((record) 
 const postOf = (request: JevRequest, postId: string) =>
   (request.questions[askQuestionId(postId)].instructions as { post: Record<string, unknown> }).post;
 
-test("a query over 100 posts judges every post once, in requests of the configured size", async (t) => {
+test("a query over 100 posts judges every post once, in requests that fit the token budget", async (t) => {
   const db = seeded(t, 100);
   const jev = fakeJev(() => 0.8);
-  const records = await collect(askPosts(deps(jev, { chunkSize: 40 }), "animations", readAskPosts(db, readPostContent)));
+  const records = await collect(askPosts(deps(jev, { requestTokenBudget: 40, tokensOf: () => 1 }), "animations", readAskPosts(db, readPostContent)));
 
   assert.deepEqual(records[0], { type: "start", total: 100, bands: BANDS });
   assert.deepEqual(records.at(-1), { type: "done" });
@@ -84,7 +84,7 @@ test("one failed request is reported and the others still return", async (t) => 
   });
   const failures: unknown[] = [];
   const records = await collect(
-    askPosts(deps(jev, { chunkSize: 40, onChunkError: (error) => failures.push(error) }), "animations", readAskPosts(db, readPostContent)),
+    askPosts(deps(jev, { requestTokenBudget: 40, tokensOf: () => 1, onChunkError: (error) => failures.push(error) }), "animations", readAskPosts(db, readPostContent)),
   );
   assert.deepEqual(
     records.filter((record) => record.type === "error"),
@@ -194,7 +194,7 @@ test("aborting stops new requests, cancels the ones in flight, and reports no er
       return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("aborted"))));
     },
   };
-  const run = collect(askPosts(deps(jev, { chunkSize: 10, concurrency: 2 }), "animations", readAskPosts(db, readPostContent), abort.signal));
+  const run = collect(askPosts(deps(jev, { requestTokenBudget: 10, tokensOf: () => 1, concurrency: 2 }), "animations", readAskPosts(db, readPostContent), abort.signal));
   await new Promise((resolve) => setImmediate(resolve));
   abort.abort();
   const records = await run;

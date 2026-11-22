@@ -45,9 +45,10 @@ export const LINKS = {
 } as const;
 
 export const ASK = {
-  chunkSize: 40,
+  requestTokenBudget: 40_000,
   concurrency: 6,
   contentCharLimit: 1_500,
+  answerCharLimit: 8_000,
 } as const;
 
 export const TAGGING = {
@@ -57,8 +58,8 @@ export const TAGGING = {
 
 export const CLAUDE = {
   timeoutMs: 10 * 60 * 1000,
-  model: 'claude-opus-5-5',
-  effort: 'medium',
+  model: 'claude-opus-5-5' as const,
+  effort: 'medium' as const,
 } as const;
 
 export const SECRETS = {
@@ -127,6 +128,7 @@ export type Paths = {
   secretBackend: string;
   xConnection: string;
   categoryFocus: string;
+  answerModel: string;
   claudeCli: string;
   birdclawHome: string;
 };
@@ -195,6 +197,7 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     secretBackend: join(configDir, 'secret-backend.json'),
     xConnection: join(configDir, 'x-connection.json'),
     categoryFocus: join(configDir, 'category-focus.json'),
+    answerModel: join(configDir, 'answer-model.json'),
     claudeCli: resolve(setting(env, 'CLAUDE_BIN') || join(homedir(), '.local', 'bin', 'claude')),
     birdclawHome: resolve(env.BIRDCLAW_HOME || join(homedir(), '.birdclaw')),
   };

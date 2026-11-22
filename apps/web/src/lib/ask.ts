@@ -63,11 +63,35 @@ export type AskDeps = {
   buildRequest: (query: string, posts: AskPost[]) => JevRequest;
   questionId: (postId: string) => string;
   hasSomethingToJudge: (content: PostContent) => boolean;
-  chunkSize: number;
+  requestTokenBudget: number;
+  tokensOf?: (content: PostContent) => number;
   concurrency: number;
   bands: Bands;
   onChunkError?: (error: unknown) => void;
 };
+
+const CHARS_PER_TOKEN = 3.2;
+const QUESTION_OVERHEAD_TOKENS = 60;
+
+export const estimatedTokens = (content: PostContent): number => JSON.stringify(content).length / CHARS_PER_TOKEN + QUESTION_OVERHEAD_TOKENS;
+
+function packByTokens(posts: AskPost[], budget: number, tokensOf: (content: PostContent) => number): AskPost[][] {
+  const chunks: AskPost[][] = [];
+  let current: AskPost[] = [];
+  let used = 0;
+  for (const post of posts) {
+    const tokens = tokensOf(post.content);
+    if (current.length > 0 && used + tokens > budget) {
+      chunks.push(current);
+      current = [];
+      used = 0;
+    }
+    current.push(post);
+    used += tokens;
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
 
 export async function* askPosts(deps: AskDeps, rawQuery: string, posts: AskPost[], signal?: AbortSignal): AsyncGenerator<AskRecord> {
   const query = cleanQuery(rawQuery);
@@ -82,9 +106,7 @@ export async function* askPosts(deps: AskDeps, rawQuery: string, posts: AskPost[
   }
   if (empty.length > 0) yield { type: "scores", scores: empty };
 
-  const chunks: AskPost[][] = [];
-  const size = Math.max(1, deps.chunkSize);
-  for (let start = 0; start < judgeable.length; start += size) chunks.push(judgeable.slice(start, start + size));
+  const chunks = packByTokens(judgeable, deps.requestTokenBudget, deps.tokensOf ?? estimatedTokens);
 
   const ready: AskRecord[] = [];
   let wake = (): void => {};
