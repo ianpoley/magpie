@@ -6,7 +6,7 @@ import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } fro
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
 import { CircleAlert, CircleCheck, Menu as MenuIcon, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useState, useSyncExternalStore } from "react";
+import { useDeferredValue, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { pinQuery, purgeRemoved, removePost, restorePost } from "@/app/actions";
 import { createAskRunner, rankAsk, type AskState } from "@/lib/ask";
@@ -427,6 +427,7 @@ export function CorpusScreen({
     onRevealHidden: (revealHidden) => setFilter((current) => ({ ...current, revealHidden })),
   };
 
+  const contentColumn = useRef<HTMLDivElement>(null);
   const { eyebrow, title, detail } = heading(snapshot, applied, authorName);
   const allGroups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];
   const groups = resourceKind === "all" ? allGroups : allGroups.filter((group) => group.resource.kind === resourceKind);
@@ -443,8 +444,8 @@ export function CorpusScreen({
         </aside>
 
         <main className="bg-wash relative min-w-0 flex-1">
-          <Flock count={result.posts.length} collection={totals.everything} asking={ask?.status === "running"} />
-          <div className="relative z-[1] mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
+          <Flock count={result.posts.length} collection={totals.everything} asking={ask?.status === "running"} column={contentColumn} />
+          <div ref={contentColumn} className="relative z-[1] mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
             <PageHeader
               menuButton={
                 <DialogTrigger controller={sidebarPanel} aria-label="Open filters" className={`${iconButton} size-10 bg-surface text-ink shadow-card lg:hidden`}>

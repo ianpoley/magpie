@@ -221,7 +221,7 @@ One bird per post saturated at MAX_BIRDS (320), so in a collection of 2,000 post
 
 #### 0015.31 `Flock`
 
-Fixed over <main>, behind its content column. <main> must be `relative` and the content column must be its last child and sit above the sky (z-index 1): the sky measures that column to keep birds out from behind text.
+Fixed over <main>, behind its content column. <main> must be `relative` and the content column must sit above the sky (z-index 1). The column is handed to `Flock` as a ref, which the sky measures to keep birds out from behind text.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/flock.tsx#L175-L178)
 
