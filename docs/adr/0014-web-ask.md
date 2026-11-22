@@ -35,7 +35,7 @@ Ask is an action on the search field (the Ask button or ⌘↵), not a mode: pla
 
 #### 0014.4 `SearchField`
 
-Plain Enter re-runs an open ask; in search, results are already live.
+Plain Enter re-runs an open ask only once its question has been edited; in search, results are already live. Enter on the question that is already asked does nothing, whether it is still running or done, since each ask costs money. ⌘↵ and Try again still re-run it on purpose.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/page-header.tsx#L105)
 

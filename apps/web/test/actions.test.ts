@@ -71,8 +71,6 @@ test("an id that is not a positive whole number is refused before the store is l
     await actions.deleteArea(wrongType("1")),
     await actions.setTopicHidden(wrongType({}), true),
     await actions.addPostTopic("p1", 2 ** 60),
-    await actions.listUndo(wrongType("1")),
-    await actions.undoChange(0),
   ];
 
   assert.deepEqual(refused.map(code), refused.map(() => "invalid_input"));
@@ -122,7 +120,6 @@ test("an edit the store refuses comes back with the reason's code and refreshes 
   assert.equal(code(await actions.renameArea(pinnedAreaId, "Mine")), "system_area");
   assert.equal(code(await actions.deleteTopic(topicId + 100)), "unknown_topic");
   assert.equal(code(await actions.addPostTopic("nobody", topicId)), "unknown_post");
-  assert.equal(code(await actions.listUndo(999)), "unknown_change");
 
   assert.equal(read(path, (db) => db.prepare(`SELECT name FROM areas WHERE id = ?`).get(pinnedAreaId)?.name), "Pinned");
   assert.equal(refreshes.count, before);

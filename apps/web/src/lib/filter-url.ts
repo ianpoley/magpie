@@ -43,8 +43,10 @@ const LINKED_COLLECTIONS: readonly Collection[] = ["bookmarks", "likes"];
 const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
 const MAX_KEYWORD_LENGTH = 200;
 
+const linkedKeyword = (keyword: string): string => [...keyword.trim()].slice(0, MAX_KEYWORD_LENGTH).join("").trimEnd();
+
 export function linkedQuery(filter: LinkedFilter): string {
-  const keyword = filter.keyword.trim();
+  const keyword = linkedKeyword(filter.keyword);
   return [
     filter.collection === "everything" ? "" : `collection=${filter.collection}`,
     selectionQuery(filter),
@@ -62,6 +64,6 @@ export function parseLinked(query: QueryValues): LinkedFilter {
     collection,
     ...parseSelection(query),
     author: HANDLE.test(author) ? author : null,
-    keyword: first(query.q).trim().slice(0, MAX_KEYWORD_LENGTH),
+    keyword: linkedKeyword(first(query.q)),
   };
 }

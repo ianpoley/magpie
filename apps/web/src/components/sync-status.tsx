@@ -16,6 +16,7 @@ import { Tip } from "./tip";
 const ICONS: Record<PanelIcon, LucideIcon> = { ok: CircleCheck, warning: TriangleAlert, syncing: RefreshCw, offline: CloudOff };
 
 const POLL_MS = 5_000;
+const CLOCK_MS = 60_000;
 const AFTER_NEXT_RUN_MS = 32_000;
 
 export type SyncController = { state: SyncState; update: (next: SyncState) => void };
@@ -84,20 +85,37 @@ const SIDE_TEXT_BUTTON =
 export const SIDE_FOOTER_ROW =
   "focus-ring-side pressable flex h-8 w-full cursor-pointer items-center justify-start gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] font-medium text-side-ink hover:bg-side-hover pointer-coarse:h-10";
 
+function useMinuteClock(): number | null {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const timer = setInterval(tick, CLOCK_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, []);
+  return now;
+}
+
 export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX: ConnectXController }) {
-  const panel = describeSync(sync.state, sync.state.readAt);
-  const [refusal, setRefusal] = useState<string | null>(null);
+  const clock = useMinuteClock();
+  const { readAt } = sync.state;
+  const panel = describeSync(sync.state, clock === null ? readAt : Math.max(clock, readAt));
+  const [refused, setRefused] = useState<{ message: string; readAt: number } | null>(null);
+  const refusal = refused !== null && refused.readAt === readAt ? refused.message : null;
   const Icon = ICONS[panel.icon];
   const compact = !panel.warning && panel.action.label === "Sync now";
 
   const syncNow = async () => {
-    setRefusal(null);
+    setRefused(null);
     try {
       const result = await requestSync();
       if (result.ok) sync.update(result.sync);
-      else setRefusal(result.message);
+      else setRefused({ message: result.message, readAt });
     } catch {
-      setRefusal("Sync now did not go through. Try again.");
+      setRefused({ message: "Sync now did not go through. Try again.", readAt });
     }
   };
 

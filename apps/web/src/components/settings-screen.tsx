@@ -4,7 +4,7 @@ import { DialogTrigger } from "@ui-sdk/react/dialog";
 import { ArrowLeft, AtSign, CircleCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
 
 import { saveFocus, saveJevKey } from "@/app/actions";
 import type { ActionErrorCode, FocusMode, SettingsState, SkillLink, SyncState } from "@/lib/types";
@@ -66,6 +66,14 @@ function FocusSection({ saved: initial }: { saved: { mode: FocusMode; focus: str
   const [note, setNote] = useState<string | null>(null);
   const [resorting, setResorting] = useState(false);
   const [saving, startSaving] = useTransition();
+
+  useLayoutEffect(
+    () => () => {
+      setFailure(null);
+      setNote(null);
+    },
+    [],
+  );
 
   const changed = mode !== saved.mode || (mode === "focus" && focus !== saved.focus);
 
@@ -130,6 +138,14 @@ function JevSection({ stored, kept }: { stored: boolean; kept: string }) {
   const [failure, setFailure] = useState<{ code: ActionErrorCode | "failed"; message: string } | null>(null);
   const [replaced, setReplaced] = useState(false);
   const [checking, startChecking] = useTransition();
+
+  useLayoutEffect(
+    () => () => {
+      setFailure(null);
+      setReplaced(false);
+    },
+    [],
+  );
 
   const submit = (event: FormEvent) => {
     event.preventDefault();

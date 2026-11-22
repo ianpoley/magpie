@@ -23,7 +23,7 @@
 You save good posts on X and then never find them again. Magpie keeps a copy of every bookmark and like on your machine and sorts them so you can use them.
 
 - A background worker syncs your bookmarks and likes every 3 hours. After the machine sleeps, it catches up.
-- Claude proposes areas and topics, and Jev (TypeSafe) scores each post against each topic. New topics appear as you save more. Magpie logs every change, and you can undo it.
+- Claude proposes areas and topics, and Jev (TypeSafe) scores each post against each topic. New topics appear as you save more. Magpie logs every change.
 - A web app lets you filter by category, collection, author, keyword, time range and media. You can ask a question in plain words, browse the repos and pages your posts link to, and fix categories by hand.
 - A Claude skill lets your agents search the posts you saved ("what have I saved about scroll animations?") and cite them.
 - The corpus, the store and the web app stay on your machine. The app listens on `127.0.0.1` only.

@@ -30,7 +30,6 @@ test("an empty store gives an empty snapshot", (t) => {
     areas: [],
     topics: [],
     resources: [],
-    changes: [],
     lastRun: null,
     lastCompleteRunAt: null,
   });
@@ -198,33 +197,6 @@ test("quoted post and media are projected to the fields the screen shows", (t) =
   assert.deepEqual(post.media, [{ type: "image", url: "https://example.com/own.png" }]);
   assert.equal(post.createdAtMs, Date.parse("2026-02-03T04:05:06.000Z"));
   assert.equal(post.likeCount, 7);
-});
-
-test("the change log is newest first and marks what can still be undone", (t) => {
-  const { db } = tempStore(t);
-  const add = db.prepare(
-    `INSERT INTO changes (kind, source, summary, post_count, snapshot_json, undoable, undone_at, created_at)
-     VALUES (?, ?, ?, ?, '{"topicId":1}', ?, ?, ?)`,
-  );
-  add.run("initial", "auto", "Initial categories", 40, 0, null, AT);
-  add.run("new_topic", "auto", "New topic: Evals", 12, 1, null, AT);
-  add.run("split", "auto", "Split Agents", 30, 1, "2026-01-02T00:00:00.000Z", AT);
-  add.run("undo", "user", "Undid: Split Agents", 30, 0, null, "2026-01-02T00:00:00.000Z");
-
-  const { changes } = readSnapshot(db);
-  assert.deepEqual(
-    changes.map((c) => [c.kind, c.undoable, c.undoneAt]),
-    [
-      ["undo", false, null],
-      ["split", false, "2026-01-02T00:00:00.000Z"],
-      ["new_topic", true, null],
-      ["initial", false, null],
-    ],
-  );
-  assert.deepEqual(Object.keys(changes[2]).sort(), [
-    "createdAt", "id", "kind", "postCount", "source", "summary", "undoable", "undoneAt",
-  ]);
-  assert.equal(changes[2].postCount, 12);
 });
 
 test("the last run carries its stages, and the last complete run is remembered", (t) => {

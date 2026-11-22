@@ -49,6 +49,7 @@ export type PageHeaderProps = {
   keyword: string;
   askDraft: string;
   askActive: boolean;
+  askedQuery: string | null;
   timeRange: TimeRange;
   sort: Sort;
   mediaOnly: boolean;
@@ -82,8 +83,8 @@ function SearchField({ h }: { h: PageHeaderProps }) {
   const asking = h.mode === "ask";
   const value = asking ? h.askDraft : h.keyword;
   const mac = useIsMac();
+  const query = value.trim().slice(0, MAX_QUERY_CHARS);
   const ask = () => {
-    const query = value.trim().slice(0, MAX_QUERY_CHARS);
     if (query) h.onAsk(query);
   };
   const Lead = asking ? Sparkles : Search;
@@ -93,7 +94,7 @@ function SearchField({ h }: { h: PageHeaderProps }) {
       className="min-w-[min(20rem,100%)] flex-1"
       onSubmit={(event) => {
         event.preventDefault();
-        if (asking) ask();
+        if (asking && query !== h.askedQuery) ask();
       }}
     >
       <InputGroup className="group h-10 items-center gap-2 rounded-full bg-surface pr-1.5 pl-3.5 shadow-card transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-primary)]">

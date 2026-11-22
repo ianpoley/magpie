@@ -1,9 +1,22 @@
 export const URL_PATTERN = /https?:\/\/[^\s]+/g;
 
-const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/;
+const TRAILING_PUNCTUATION = /[.,;:!?]+$/;
+const OPENERS: Record<string, string> = { ")": "(", "]": "[" };
 const DISPLAY_CHARS = 36;
 
-export const trimUrl = (url: string): string => url.replace(TRAILING_PUNCTUATION, "");
+const occurrences = (text: string, char: string): number => text.split(char).length - 1;
+
+function endsInUnmatchedBracket(url: string): boolean {
+  const last = url.at(-1) ?? "";
+  const opener = OPENERS[last];
+  return opener !== undefined && occurrences(url, last) > occurrences(url, opener);
+}
+
+export function trimUrl(url: string): string {
+  let trimmed = url.replace(TRAILING_PUNCTUATION, "");
+  while (endsInUnmatchedBracket(trimmed)) trimmed = trimmed.slice(0, -1).replace(TRAILING_PUNCTUATION, "");
+  return trimmed;
+}
 
 export const X_URL = /https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/\S*/gi;
 
@@ -35,6 +48,9 @@ export function displayUrl(url: string): string {
 
 export const usableTarget = (target: string | null): target is string =>
   target !== null && /^https?:\/\/\S+$/i.test(target);
+
+export const postAddress = (url: string, handle: string, postId: string): string =>
+  usableTarget(url) ? url : `https://x.com/${encodeURIComponent(handle)}/status/${encodeURIComponent(postId)}`;
 
 export const shortenUrls = (text: string): string => text.replace(URL_PATTERN, (found) => {
   const url = trimUrl(found);

@@ -121,3 +121,13 @@ test("Bookmarks or Likes round-trips first, and anything else means Everything",
     assert.equal(parseLinked({ collection }).collection, "everything", String(collection));
   }
 });
+
+test("long search words are cut to the same 200 characters when written as when read, without splitting an emoji", () => {
+  const linked = { topicIds: [], areaIds: [], unfiled: false, collection: "everything" as const, author: null };
+  const long = `${"x".repeat(199)}🐦 tail`;
+  const query = linkedQuery({ ...linked, keyword: long });
+  const read = parseLinked(Object.fromEntries(new URLSearchParams(query))).keyword;
+  assert.equal(read, `${"x".repeat(199)}🐦`);
+  assert.equal(linkedQuery({ ...linked, keyword: read }), query);
+  assert.equal(parseLinked({ q: `${"y".repeat(199)} z` }).keyword, "y".repeat(199));
+});

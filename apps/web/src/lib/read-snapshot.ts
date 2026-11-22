@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
-import { expandLinks, usableTarget, withoutTracking } from "./post-links.ts";
-import type { Area, AreaKind, Band, Change, ChangeKind, ChangeSource, Media, Post, QuotedPost, RemovedPost, Resource, ResourceKind, Run, RunStage, RunStatus, Snapshot, Topic, TopicKind, UpstreamSync } from "./types.ts";
+import { expandLinks, postAddress, usableTarget, withoutTracking } from "./post-links.ts";
+import type { Area, AreaKind, Band, Media, Post, QuotedPost, RemovedPost, Resource, ResourceKind, Run, RunStage, RunStatus, Snapshot, Topic, TopicKind, UpstreamSync } from "./types.ts";
 
 export function emptySnapshot(storeExists: boolean): Snapshot {
   return {
@@ -11,7 +11,6 @@ export function emptySnapshot(storeExists: boolean): Snapshot {
     areas: [],
     topics: [],
     resources: [],
-    changes: [],
     lastRun: null,
     lastCompleteRunAt: null,
   };
@@ -150,7 +149,7 @@ function read(db: DatabaseSync): Snapshot {
       createdAt,
       createdAtMs: epochMs(createdAt),
       addedAtMs: epochMs(text(row.first_seen_at)),
-      url: String(row.url),
+      url: postAddress(String(row.url), String(row.author_handle), String(row.id)),
       authorHandle: String(row.author_handle),
       authorName: String(row.author_name),
       authorAvatarUrl: text(row.author_avatar_url),
@@ -187,7 +186,7 @@ function read(db: DatabaseSync): Snapshot {
       id: String(row.id),
       text: readable(String(row.id), row.text),
       createdAt: text(row.created_at),
-      url: String(row.url),
+      url: postAddress(String(row.url), String(row.author_handle), String(row.id)),
       authorHandle: String(row.author_handle),
       authorName: String(row.author_name),
       authorAvatarUrl: text(row.author_avatar_url),
@@ -301,20 +300,6 @@ function read(db: DatabaseSync): Snapshot {
       return [{ id: Number(row.id), kind: String(row.kind) as ResourceKind, url: String(row.url), host: text(row.host), title: text(row.title), description: text(row.description), postIds }];
     });
 
-  const changes: Change[] = db
-    .prepare(`SELECT id, kind, source, summary, post_count, undoable, undone_at, created_at FROM changes ORDER BY id DESC`)
-    .all()
-    .map((row) => ({
-      id: Number(row.id),
-      kind: String(row.kind) as ChangeKind,
-      source: String(row.source) as ChangeSource,
-      summary: String(row.summary),
-      postCount: Number(row.post_count),
-      createdAt: String(row.created_at),
-      undoable: row.source === "auto" && row.undoable === 1 && row.undone_at === null,
-      undoneAt: text(row.undone_at),
-    }));
-
   const { lastRun, lastCompleteRunAt } = readRuns(db);
 
   return {
@@ -324,7 +309,6 @@ function read(db: DatabaseSync): Snapshot {
     areas,
     topics,
     resources,
-    changes,
     lastRun,
     lastCompleteRunAt,
   };

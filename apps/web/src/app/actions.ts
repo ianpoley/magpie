@@ -20,7 +20,7 @@ import {
 import { errorName } from "@/lib/error-name";
 import { MAX_FOCUS_CHARS, RESORT_FAILED_MESSAGE } from "@/lib/focus";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
-import type { ActionErrorCode, ActionResult, FocusMode, FormField, PlayableMedia, ResortChoice, ResortPreview, SyncState, UndoStep } from "@/lib/types";
+import type { ActionErrorCode, ActionResult, FocusMode, FormField, PlayableMedia, ResortChoice, ResortPreview, SyncState } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
@@ -192,17 +192,6 @@ export async function pinQuery(query: string, scores: { postId: string; probabil
   );
 }
 
-export async function listUndo(changeId: number) {
-  return withStore(
-    { write: false },
-    () => id(changeId, "The change"),
-    (db, edits, change): { changes: UndoStep[] } => ({ changes: edits.listUndo(db, change) }),
-  );
-}
-
-export async function undoChange(changeId: number) {
-  return withStore(WRITE, () => id(changeId, "The change"), (db, edits, change) => edits.undoChange(db, change));
-}
 
 const COOKIE = /^[A-Za-z0-9%._-]{1,512}$/;
 
