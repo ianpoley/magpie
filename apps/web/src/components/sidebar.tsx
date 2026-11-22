@@ -234,7 +234,7 @@ export function Sidebar({
       <div className="flex flex-col gap-0.5 border-t border-[color-mix(in_oklch,var(--color-side-ink)_12%,transparent)] px-3 pt-2 pb-3">
         <UpdateNotice />
         <SyncStatus sync={sync} connectX={connectX} />
-        <DialogTrigger controller={settings} className={SIDE_FOOTER_ROW}>
+        <DialogTrigger controller={settings} aria-keyshortcuts="Meta+, Control+," className={SIDE_FOOTER_ROW}>
           <Settings className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
           Settings
           {settingsAttention ? (

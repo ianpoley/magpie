@@ -295,6 +295,17 @@ export function CorpusScreen({
   }, [router]);
 
   useEffect(() => {
+    const openSettings = (event: KeyboardEvent) => {
+      if (event.key !== "," || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.defaultPrevented) return;
+      if (document.querySelector("[role=dialog], [role=alertdialog]")) return;
+      event.preventDefault();
+      void settingsDialog.open();
+    };
+    window.addEventListener("keydown", openSettings);
+    return () => window.removeEventListener("keydown", openSettings);
+  }, [settingsDialog]);
+
+  useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
       const target = event.target as HTMLElement | null;
