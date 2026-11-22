@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { type RefObject, useEffect, useRef, useSyncExternalStore } from "react";
 
 import { useMagpieEvents } from "@/lib/magpie-events";
 import { createMurmuration, MAX_BIRDS, type Murmuration } from "@/lib/murmuration";
@@ -32,7 +32,7 @@ function sprite(rows: string[], pal: Record<string, string>, flip: boolean): HTM
   return c;
 }
 
-function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
+function createSky(canvas: HTMLCanvasElement, column: RefObject<HTMLElement | null>, reduced: boolean): Sky {
   const main = canvas.parentElement;
   const ctx = canvas.getContext("2d");
   if (!main || !ctx) return NOOP;
@@ -68,7 +68,7 @@ function createSky(canvas: HTMLCanvasElement, reduced: boolean): Sky {
       canvas.height = ah;
       ctx!.imageSmoothingEnabled = false;
     }
-    const col = main.lastElementChild as HTMLElement | null;
+    const col = column.current;
     let columnLeft = aw * 0.2;
     let columnRight = aw * 0.8;
     if (col) {
@@ -193,20 +193,30 @@ function birdsFor(count: number, collection: number) {
   return Math.min(count, Math.round(ONE_BIRD_EACH + (MAX_BIRDS - ONE_BIRD_EACH) * Math.min(1, share)));
 }
 
-export function Flock({ count, collection, asking }: { count: number; collection: number; asking: boolean }) {
+export function Flock({
+  count,
+  collection,
+  asking,
+  column,
+}: {
+  count: number;
+  collection: number;
+  asking: boolean;
+  column: RefObject<HTMLElement | null>;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const sky = useRef<Sky>(NOOP);
   const reduced = useSyncExternalStore(subscribeReducedMotion, prefersReducedMotion, () => false);
 
   useEffect(() => {
     if (!ref.current) return;
-    const s = createSky(ref.current, reduced);
+    const s = createSky(ref.current, column, reduced);
     sky.current = s;
     return () => {
       s.destroy();
       sky.current = NOOP;
     };
-  }, [reduced]);
+  }, [column, reduced]);
   const birds = birdsFor(count, collection);
   useEffect(() => sky.current.setTarget(birds), [birds, reduced]);
   useEffect(() => sky.current.setAsking(asking), [asking, reduced]);
