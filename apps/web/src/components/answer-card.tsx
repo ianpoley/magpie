@@ -340,12 +340,14 @@ function Composer({ card }: { card: AnswerCardProps }) {
 
 export function AnswerCard(card: AnswerCardProps) {
   return (
-    <div className="side-scope bg-answer flex h-full min-h-0 flex-col">
+    <div className="side-scope bg-answer @container flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 px-5 pt-5 pb-3">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-[9px] bg-side-wash text-side-ink">
           <Sparkles className="size-3.5" aria-hidden="true" />
         </span>
-        <h2 className="mr-auto pl-0.5 text-eyebrow text-side-muted">Answer</h2>
+        <h2 className="mr-auto pl-0.5 text-eyebrow text-side-muted">
+          <span className="@max-2xs:sr-only">Answer</span>
+        </h2>
         {card.ask !== null ? (
           <Tip label="New chat">
             <button type="button" aria-label="New chat" onClick={card.onNew} className={ICON_BUTTON}>
