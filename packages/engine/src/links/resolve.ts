@@ -509,32 +509,6 @@ async function lookupHomepages(db: DatabaseSync, deps: LinkDeps, counts: LinkCou
   return learned;
 }
 
-async function rereadVideos(db: DatabaseSync, deps: LinkDeps, counts: LinkCounts): Promise<void> {
-  const stale = db
-    .prepare(`SELECT url, final_url FROM links WHERE status = 'resolved' AND title = host AND attempts = 1 ORDER BY url`)
-    .all()
-    .flatMap((row) => {
-      const watch = youtubeVideo(String(row.final_url));
-      return watch === null ? [] : [{ url: String(row.url), page: new URL(String(row.final_url)), watch }];
-    });
-  const read = db.prepare(
-    `UPDATE links SET title = ?, description = ?, attempts = attempts + 1, last_attempt_at = ?, last_error = NULL WHERE url = ?`,
-  );
-  const missed = db.prepare(`UPDATE links SET attempts = attempts + 1, last_attempt_at = ?, last_error = ? WHERE url = ?`);
-  for (const { url, page, watch } of stale) {
-    counts.attempted++;
-    const at = deps.now().toISOString();
-    try {
-      const outcome = await readVideo(page, watch, deps.http);
-      if (outcome.status !== 'resolved') continue;
-      read.run(outcome.title, outcome.description, at, url);
-      counts.resolved++;
-    } catch (error) {
-      missed.run(at, errorText(error).slice(0, ERROR_MAX), url);
-    }
-  }
-}
-
 export async function resolveLinks(db: DatabaseSync, deps: LinkDeps): Promise<LinkCounts> {
   const counts: LinkCounts = {
     attempted: 0,
@@ -548,7 +522,6 @@ export async function resolveLinks(db: DatabaseSync, deps: LinkDeps): Promise<Li
     aliases: 0,
   };
   await resolveDue(db, deps, counts);
-  await rereadVideos(db, deps, counts);
   assignResources(db, deps.now());
   if (await lookupHomepages(db, deps, counts)) assignResources(db, deps.now());
 
