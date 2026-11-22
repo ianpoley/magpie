@@ -4,7 +4,7 @@ export type Space = { width: number; height: number; columnLeft: number; columnR
 export type Vortex = { x: number; y: number; rx: number; ry: number };
 export type Point = { x: number; y: number };
 
-export type BirdState = 0 | 1 | 2 | 3 | 4;
+export type BirdState = "flying" | "leaving" | "arriving" | "diving" | "falling";
 
 export type Bird = {
   x: number;
@@ -80,7 +80,7 @@ export function createMurmuration(random: () => number = Math.random) {
   };
   const sideOf = (b: Bird): 0 | 1 => (narrow ? 0 : b.x < (space.columnLeft + space.columnRight) / 2 ? 0 : 1);
   const overColumn = (b: Bird) => !narrow && b.x > space.columnLeft && b.x < space.columnRight;
-  const flying = (b: Bird) => !b.dead && (b.state === 0 || b.state === 2);
+  const flying = (b: Bird) => !b.dead && (b.state === "flying" || b.state === "arriving");
   const flyers = () => birds.filter(flying);
 
   function goal(home: 0 | 1): Point {
@@ -113,11 +113,11 @@ export function createMurmuration(random: () => number = Math.random) {
     const fromTop = random() < 0.3;
     const x = fromTop ? rand(b.x0, b.x1) : narrow ? (random() < 0.5 ? -4 : space.width + 4) : home === 0 ? -4 : space.width + 4;
     const y = fromTop ? -4 : rand(space.height * 0.1, space.height * 0.9);
-    birds.push(makeBird(x, y, home, 2));
+    birds.push(makeBird(x, y, home, "arriving"));
   }
 
   function sendHome(b: Bird) {
-    b.state = 1;
+    b.state = "leaving";
     b.t = 0;
     b.sx = narrow ? (b.x < space.width / 2 ? -1 : 1) : sideOf(b) === 0 ? -1 : 1;
     b.sy = -0.5;
@@ -212,7 +212,7 @@ export function createMurmuration(random: () => number = Math.random) {
       let maxV = CRUISE * 3;
       let minV = 0;
 
-      if (b.state === 0 || b.state === 2) {
+      if (b.state === "flying" || b.state === "arriving") {
         let found = 0;
         const gx = Math.floor((b.x + 20) / CELL);
         const gy = Math.floor((b.y + 20) / CELL);
@@ -295,12 +295,12 @@ export function createMurmuration(random: () => number = Math.random) {
             hx += (gdx / gd) * 4;
             hy += (gdy / gd) * 4;
           } else {
-            const reach = b.state === 2 ? 2.5 : W_GOAL * Math.min(1.6, gd / 40);
+            const reach = b.state === "arriving" ? 2.5 : W_GOAL * Math.min(1.6, gd / 40);
             hx += (gdx / gd) * reach;
             hy += (gdy / gd) * reach;
           }
 
-          if (b.state === 0 || b.t > 1.2) {
+          if (b.state === "flying" || b.t > 1.2) {
             const bx = roam(b.home);
             const edge = (gap: number) => (gap >= MARGIN ? 0 : ((MARGIN - Math.max(gap, -MARGIN)) / MARGIN) ** 2);
             const left = edge(b.x - bx.x0);
@@ -329,7 +329,7 @@ export function createMurmuration(random: () => number = Math.random) {
           }
 
           const h = Math.hypot(hx, hy);
-          const want = b.state === 2 ? speed * 1.8 : dispersing ? speed * 2 : b.gold > 0.6 ? speed * 2.4 : speed;
+          const want = b.state === "arriving" ? speed * 1.8 : dispersing ? speed * 2 : b.gold > 0.6 ? speed * 2.4 : speed;
           if (h > 0) {
             ax += ((hx / h) * want - b.vx) * TURN;
             ay += ((hy / h) * want - b.vy) * TURN;
@@ -341,15 +341,15 @@ export function createMurmuration(random: () => number = Math.random) {
           }
           minV = speed * 0.6;
         }
-        if (b.state === 2 && b.t > 2.5) b.state = 0;
+        if (b.state === "arriving" && b.t > 2.5) b.state = "flying";
         if (b.gold > 0) b.gold = Math.max(0, b.gold - dt);
-      } else if (b.state === 1) {
+      } else if (b.state === "leaving") {
         ax += b.sx * 60;
         ay += b.sy * 40;
         maxV = 60;
         minV = 20;
         if (b.x < -10 || b.x > width + 10 || b.y < -10) b.dead = true;
-      } else if (b.state === 3) {
+      } else if (b.state === "diving") {
         ax += (diveTo.x - b.x) * 4;
         ay += (diveTo.y - b.y) * 4;
         maxV = 110;
@@ -423,7 +423,7 @@ export function createMurmuration(random: () => number = Math.random) {
       const list = flyers();
       if (list.length) {
         const b = list[Math.floor(random() * list.length)];
-        b.state = 3;
+        b.state = "diving";
         b.t = 0;
       }
     },
@@ -439,7 +439,7 @@ export function createMurmuration(random: () => number = Math.random) {
     },
     fall() {
       const list = flyers();
-      if (list.length) list[Math.floor(random() * list.length)].state = 4;
+      if (list.length) list[Math.floor(random() * list.length)].state = "falling";
     },
     step,
     scatter() {
@@ -454,7 +454,7 @@ export function createMurmuration(random: () => number = Math.random) {
         const r = Math.sqrt(random());
         const x = Math.min(bx.x1 - 4, Math.max(bx.x0 + 4, g.x + Math.cos(a) * r * Math.min(40, (bx.x1 - bx.x0) / 2.2)));
         const y = Math.min(bx.y1 - 6, Math.max(bx.y0 + 6, g.y + Math.sin(a) * r * 70));
-        const b = makeBird(x, y, home, 0);
+        const b = makeBird(x, y, home, "flying");
         b.vx = random() < 0.5 ? -1 : 1;
         b.vy = 0;
         b.phase = 1;
