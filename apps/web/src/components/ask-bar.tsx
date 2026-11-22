@@ -35,36 +35,38 @@ export function AskBar({
   const running = ask.status === "running";
   const incomplete = !running && (ask.status === "failed" || ask.failed > 0);
   return (
-    <section aria-label="Ask results" className="flex flex-col gap-3 rounded-card bg-surface p-4 shadow-card">
-      <div className="flex items-center gap-3">
+    <section aria-label="Ask results" className="@container flex flex-col gap-3 rounded-card bg-surface p-4 shadow-card">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="bg-primary-fill flex size-9 shrink-0 items-center justify-center rounded-[12px] text-on-primary">
           <Sparkles className="size-4" aria-hidden="true" />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 @max-2xl:basis-[calc(100%-3rem)]">
           <p className="text-eyebrow text-ink-muted">Asked</p>
-          <h2 className="mt-0.5 truncate text-[16px] leading-tight font-bold text-ink">{ask.query}</h2>
+          <h2 className="mt-0.5 line-clamp-2 text-[16px] leading-tight font-bold break-words text-ink @2xl:line-clamp-1">{ask.query}</h2>
         </div>
-        {incomplete ? (
-          <Button onClick={onRetry} className={`${quietAnswer} shrink-0 gap-1.5`}>
-            <RotateCw className="size-3.5 text-ink-muted" aria-hidden="true" />
-            Try again
+        <div className="flex shrink-0 flex-wrap items-center gap-3 @max-2xl:flex-1 @max-2xl:pl-12">
+          {incomplete ? (
+            <Button onClick={onRetry} className={`${quietAnswer} shrink-0 gap-1.5`}>
+              <RotateCw className="size-3.5 text-ink-muted" aria-hidden="true" />
+              Try again
+            </Button>
+          ) : null}
+          <Button onClick={onShowAnswer} className={`${quietAnswer} shrink-0 gap-1.5 lg:hidden`}>
+            <MessageSquareText className="size-3.5 text-ink-muted" aria-hidden="true" />
+            Answer
           </Button>
-        ) : null}
-        <Button onClick={onShowAnswer} className={`${quietAnswer} shrink-0 gap-1.5 lg:hidden`}>
-          <MessageSquareText className="size-3.5 text-ink-muted" aria-hidden="true" />
-          Answer
-        </Button>
-        <Button
-          onClick={onPin}
-          disabled={running || ask.scores.length === 0}
-          pendingAnnouncement="Pinning"
-          className={`${primaryAnswer} shrink-0 gap-1.5`}
-        >
-          <Pin className="size-3.5" aria-hidden="true" />
-          Pin as topic
-        </Button>
+          <Button
+            onClick={onPin}
+            disabled={running || ask.scores.length === 0}
+            pendingAnnouncement="Pinning"
+            className={`${primaryAnswer} shrink-0 gap-1.5`}
+          >
+            <Pin className="size-3.5" aria-hidden="true" />
+            Pin as topic
+          </Button>
+        </div>
         <Tip label="Clear ask">
-          <button type="button" aria-label="Clear ask" onClick={onClear} className={iconButton}>
+          <button type="button" aria-label="Clear ask" onClick={onClear} className={`${iconButton} @max-2xl:self-start`}>
             <X aria-hidden="true" />
           </button>
         </Tip>
