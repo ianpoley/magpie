@@ -78,7 +78,7 @@ export function Sidebar({
   const [categoryQuery, setCategoryQuery] = useState("");
 
   return (
-    <div className="side-scope bg-side flex h-full min-h-0 flex-col">
+    <div className="side-scope bg-side @container flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2.5 px-5 pt-5 pb-4">
         <MagpieMark />
         {headerAction ? <div className="ml-auto">{headerAction}</div> : null}
