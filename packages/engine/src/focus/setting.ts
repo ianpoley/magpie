@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 
 import { DEV_FOCUS_WORDING, STORE_BUSY_TIMEOUT_MS, paths } from '../config.ts';
 import type { Paths } from '../config.ts';
+import { readSchemaVersion } from '../store/schema.ts';
 import { readJsonObject, updateJson } from '../sync/state.ts';
 
 export const FOCUS_MARKER_VERSION = 4;
@@ -23,15 +24,20 @@ function savedSetting(path: string): FocusSetting | null {
   return { mode: record.mode, focus: typeof record.focus === 'string' ? record.focus : '' };
 }
 
+export function hasAutoAreas(db: DatabaseSync): boolean {
+  return db.prepare(`SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active' LIMIT 1`).get() !== undefined;
+}
+
 function isLegacyStore(path: string): boolean {
   if (!existsSync(path)) return false;
   const db = new DatabaseSync(path, { readOnly: true });
   try {
     db.exec(`PRAGMA busy_timeout = ${STORE_BUSY_TIMEOUT_MS}`);
-    const meta = (key: string) => db.prepare(`SELECT value FROM meta WHERE key = ?`).get(key)?.value;
-    if (meta('category_focus_legacy') === '1') return true;
-    if (Number(meta('schema_version') ?? 0) >= FOCUS_MARKER_VERSION) return false;
-    return db.prepare(`SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active' LIMIT 1`).get() !== undefined;
+    const version = readSchemaVersion(db);
+    if (version === 0) return false;
+    if (db.prepare(`SELECT value FROM meta WHERE key = 'category_focus_legacy'`).get()?.value === '1') return true;
+    if (version >= FOCUS_MARKER_VERSION) return false;
+    return hasAutoAreas(db);
   } finally {
     db.close();
   }

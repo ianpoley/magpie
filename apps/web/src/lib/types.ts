@@ -224,7 +224,7 @@ export type ResortChoice = { toHide: Pick<ResortArea, "id">[]; toShow: Pick<Reso
 
 export type SkillLink = "linked" | "elsewhere" | "missing" | "none";
 
-export type SettingsState = { focus: FocusState; skillLink: SkillLink; workerAlive: boolean; jevKeyStored: boolean };
+export type SettingsState = { focus: FocusState; skillLink: SkillLink; jevKeyStored: boolean };
 
 export type UndoStep = {
   id: number;

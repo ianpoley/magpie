@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
 
 import { saveFocus, saveJevKey } from "@/app/actions";
-import type { FocusMode, SettingsState, SkillLink, SyncState } from "@/lib/types";
+import type { ActionErrorCode, FocusMode, SettingsState, SkillLink, SyncState } from "@/lib/types";
 
 import { ConnectXDialog, createConnectXController, KEPT } from "./connect-x-dialog";
 import { FocusChoice, focusIncomplete } from "./focus-choice";
+import { FormAlert } from "./form-alert";
 import { formatCount, plural } from "./format";
 import { ResortDialog, type ResortOutcome } from "./resort-dialog";
 import { SecretField } from "./secret-field";
@@ -105,11 +106,7 @@ function FocusSection({ saved: initial }: { saved: { mode: FocusMode; focus: str
           }}
           disabled={saving}
         />
-        {failure ? (
-          <p role="alert" className="rounded-inner bg-like-soft px-3 py-2.5 text-[13px] leading-snug text-like-text">
-            {failure}
-          </p>
-        ) : null}
+        {failure ? <FormAlert message={failure} /> : null}
         <div className="flex flex-wrap items-center justify-end gap-3">
           <p role="status" className="mr-auto min-w-0 text-[13px] leading-snug text-pretty text-ink-muted">
             {note}
@@ -130,7 +127,7 @@ function jevFieldError(code: string, message: string): string | null {
 
 function JevSection({ stored, kept }: { stored: boolean; kept: string }) {
   const [key, setKey] = useState("");
-  const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
+  const [failure, setFailure] = useState<{ code: ActionErrorCode | "failed"; message: string } | null>(null);
   const [replaced, setReplaced] = useState(false);
   const [checking, startChecking] = useTransition();
 
@@ -190,6 +187,7 @@ export function SettingsScreen({ settings, sync: initialSync }: { settings: Sett
   const [connectX] = useState(createConnectXController);
   const sync = useSyncStatus(initialSync);
   const disconnected = sync.state.connection === "not_connected";
+  const connected = sync.state.connection === "connected";
   const skill = SKILL_STATUS[settings.skillLink];
 
   useEffect(() => {
@@ -210,8 +208,8 @@ export function SettingsScreen({ settings, sync: initialSync }: { settings: Sett
         <FocusSection saved={{ mode: settings.focus.mode, focus: settings.focus.focus }} />
 
         <Section id="settings-x" title="X" description="Magpie reads your bookmarks and likes through your X session.">
-          <div className={`flex items-center gap-3 rounded-inner px-3 py-2.5 ${sync.state.connection === "connected" ? "bg-success-soft" : "bg-sunken"}`}>
-            <AtSign className={`size-4 shrink-0 ${sync.state.connection === "connected" ? "text-success" : "text-ink-muted"}`} aria-hidden="true" />
+          <div className={`flex items-center gap-3 rounded-inner px-3 py-2.5 ${connected ? "bg-success-soft" : "bg-sunken"}`}>
+            <AtSign className={`size-4 shrink-0 ${connected ? "text-success" : "text-ink-muted"}`} aria-hidden="true" />
             <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{connectionText(sync.state)}</p>
             <DialogTrigger controller={connectX} className={`${softButton} bg-surface`}>
               {sync.state.connection === "needs_reconnect" ? "Reconnect" : "Manage"}

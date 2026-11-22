@@ -10,6 +10,7 @@ import type { ActionErrorCode, FocusMode, SyncState } from "@/lib/types";
 import { KEPT } from "./connect-x-dialog";
 import { CHROME_MAC, devToolsFor, type DevTools } from "./dev-tools";
 import { FocusChoice, focusIncomplete } from "./focus-choice";
+import { FormAlert } from "./form-alert";
 import { MagpieMark } from "./magpie";
 import { SecretField } from "./secret-field";
 import { primaryAnswer, quietAnswer } from "./styles";
@@ -41,11 +42,7 @@ const errorFor = (failure: Failure | null, field: string) => (fieldOf(failure) =
 
 function FormError({ failure }: { failure: Failure | null }) {
   if (failure === null || fieldOf(failure) !== null) return null;
-  return (
-    <p role="alert" className="rounded-inner bg-like-soft px-3 py-2.5 text-[13px] leading-snug text-like-text">
-      {failure.message}
-    </p>
-  );
+  return <FormAlert message={failure.message} />;
 }
 
 function Steps({ step, handle, xDone, jevDone, focusDone }: { step: Step; handle: string | null; xDone: boolean; jevDone: boolean; focusDone: boolean }) {
@@ -359,11 +356,7 @@ function FocusStep({ heading, onSaved, opening }: { heading: RefObject<HTMLHeadi
         The first sync sorts your posts into categories. Show all of them, or only the ones that match what you save posts for. You can change this later in Settings.
       </p>
       <FocusChoice mode={mode} focus={focus} onModeChange={setMode} onFocusChange={setFocus} disabled={busy} />
-      {failure ? (
-        <p role="alert" className="rounded-inner bg-like-soft px-3 py-2.5 text-[13px] leading-snug text-like-text">
-          {failure.message}
-        </p>
-      ) : null}
+      {failure ? <FormAlert message={failure.message} /> : null}
       <button type="submit" disabled={busy || focusIncomplete(mode, focus)} className={`${primaryAnswer} h-10 self-end px-5`}>
         {saving ? "Saving…" : opening ? "Opening Magpie…" : "Open Magpie"}
       </button>
