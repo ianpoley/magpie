@@ -10,7 +10,7 @@ import { useDeferredValue, useEffect, useRef, useState, useSyncExternalStore } f
 
 import { pinQuery, purgeRemoved, removePost, restorePost } from "@/app/actions";
 import { createChatRunner, type AnswerRequest } from "@/lib/answer";
-import { cleanQuery, createAskRunner, rankAsk, type AskState } from "@/lib/ask";
+import { cleanQuery, createAskRunner, MAX_QUERY_CHARS, rankAsk, type AskState } from "@/lib/ask";
 import {
   applyFilter,
   DEFAULT_FILTER,
@@ -52,7 +52,7 @@ import { Sidebar, type SidebarProps } from "./sidebar";
 import { SidebarDeck, type DeckFront, type DeckState } from "./sidebar-deck";
 import { SidebarResizer } from "./sidebar-resizer";
 import { useSyncStatus } from "./sync-status";
-import { iconButton } from "./styles";
+import { iconButton, quietAnswer } from "./styles";
 import { TipProvider } from "./tip";
 
 const RESOURCE_KINDS = [
@@ -110,7 +110,7 @@ const solidButton = (label: string, action: () => void) => (
   </Button>
 );
 
-function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void) {
+function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void, ask: (query: string) => void) {
   const filter = result.state;
   if (!snapshot.storeExists) {
     return (
@@ -127,12 +127,31 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
     );
   }
   const selected = filter.topicIds.length + filter.areaIds.length;
+  const keyword = filter.keyword.trim();
+  if (keyword !== "") {
+    return (
+      <EmptyState
+        title="No posts match"
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button data-variant="solid" onClick={() => ask(keyword.slice(0, MAX_QUERY_CHARS))} className="pressable focus-ring h-9 gap-1.5 px-4">
+              <Sparkles className="size-3.5" aria-hidden="true" />
+              Ask instead
+            </Button>
+            <Button onClick={clear} className={quietAnswer}>
+              Clear filters
+            </Button>
+          </div>
+        }
+      >
+        Nothing you saved mentions “{keyword}” under these filters. Ask it as a question to find posts about it, or try fewer words.
+      </EmptyState>
+    );
+  }
   if (narrowing(filter)) {
     return (
       <EmptyState title="No posts match" action={solidButton("Clear filters", clear)}>
-        {filter.keyword.trim() !== ""
-          ? `Nothing you saved mentions “${filter.keyword.trim()}” under these filters. Try fewer or shorter words, or widen the filters.`
-          : "No saved post fits every filter that is on. Widen the time range or remove a filter."}
+        No saved post fits every filter that is on. Widen the time range or remove a filter.
       </EmptyState>
     );
   }
@@ -634,7 +653,7 @@ export function CorpusScreen({
                 emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)
               ) : view === "posts" ? (
                 result.posts.length === 0 ? (
-                  emptyPosts(snapshot, result, clearAll, clearCategories)
+                  emptyPosts(snapshot, result, clearAll, clearCategories, startAsk)
                 ) : (
                   <PostList
                     key={listKey}
@@ -656,7 +675,7 @@ export function CorpusScreen({
                 )
               ) : groups.length === 0 ? (
                 result.posts.length === 0 ? (
-                  emptyPosts(snapshot, result, clearAll, clearCategories)
+                  emptyPosts(snapshot, result, clearAll, clearCategories, startAsk)
                 ) : shownKind && allGroups.length > 0 ? (
                   <EmptyState title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
                     These posts link to other kinds of resources.
