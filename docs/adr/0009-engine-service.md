@@ -65,7 +65,7 @@ The web and worker services for a clone. The PATH starts with the captured node'
 
 #### 0009.11 `installService`
 
-Installs both services, or updates them: runs the setup checks, stops the web service, builds the web app, writes both unit files, then loads and (re)starts both. A failed build leaves the unit files as they were.
+Installs both services, or updates them: runs the setup checks, builds the web app beside the one that is serving (0009.30), writes both unit files, then loads and (re)starts both. The web service keeps running through the build. A failed build leaves the running app, its build and the unit files as they were, so an update that fails while nobody watches never takes the app down.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/index.ts#L271-L275)
 
@@ -141,10 +141,33 @@ The bump reads each commit on `main`, which works because the repository allows 
 
 #### 0009.27 `updateStatus`
 
-The running version is the newest release tag that the build in `apps/web/.next/magpie-commit` contains. That file exists only after `service:install`, so `next dev` in a worktree never shows the notice. The latest version is the GitHub API's latest release for `RELEASES.repo`. The call needs no token, so while the repository is private it returns 404 and the app shows nothing. Unauthenticated calls are limited to 60 an hour per IP, so the web app checks at most once every `RELEASES.checkEveryMs`. A build with no release tag counts as older than any release: a clone made before the first release, or never pulled since, has no tags. Any failure, offline included, means no notice.
+The running version is the newest release tag that the live build's `magpie-commit` contains (`apps/web/<live build>/magpie-commit`, 0009.30). That file exists only after `service:install`, so `next dev` in a worktree never shows the notice. The latest version is the GitHub API's latest release for `RELEASES.repo`. The call needs no token, so while the repository is private it returns 404 and the app shows nothing. Unauthenticated calls are limited to 60 an hour per IP, so the web app checks at most once every `RELEASES.checkEveryMs`. A build with no release tag counts as older than any release: a clone made before the first release, or never pulled since, has no tags. Any failure, offline included, means no notice.
 
 ### `apps/web/src/lib/update-status.ts`
 
 #### 0009.28 `checkForUpdate`
 
-The notice tells the user to run `git pull && bun run setup` in the clone, not the `curl` installer. That works from a clone in any folder. Setup runs `bun install` and offers to rebuild the services when the build is behind the code. The app has no update button, because the rebuild stops the web service that would run it.
+The notice tells the user to run `git pull && bun run setup` in the clone, not the `curl` installer. That works from a clone in any folder. Setup runs `bun install` and offers to rebuild the services when the build is behind the code. When the clone has the update hooks (0009.31), the notice drops `&& bun run setup`: the pull applies itself. Every hint in the app and in `service:status` names `bun run setup`, never `bun run service:install`. Setup finds a Node in the supported range itself; `service:install` uses the first `node` on PATH, which under nvm is often too old.
+
+Before the release check, the app looks at its own checkout (`localUpdateStatus`): on `RELEASES.branch` in the main checkout, with a service build older than HEAD, it shows *applying* while the update runner holds its lock, *failed* when the last run for this HEAD failed, and *pending* otherwise. These skip the release check's cache and can't be dismissed, so a pull that was never applied, or failed, stays visible. While applying, the app polls every 5 s and offers a reload once the new build serves.
+
+### `packages/engine/src/service/web-build.ts`, `apps/web/next.config.ts`
+
+#### 0009.30 Two service builds
+
+The services alternate between two build folders, `apps/web/.next-a` and `apps/web/.next-b`. `apps/web/.next-active` names the one that serves. Install builds into the other one with `MAGPIE_NEXT_DIST`, writes `magpie-commit` into it, switches `.next-active`, and only then restarts the services. `next start` reads `.next-active` through `next.config.ts`, so a restart between the switch and the unit rewrite still serves a complete build.
+
+Renaming a finished build into `.next` was tried and rejected: Next writes the build folder's name into the server's route modules, so a renamed build runs with stale paths. `next dev` and a plain `next build` keep using `.next`, so neither touches a live service build. A clone installed before this change serves from `.next` until its next install. `tsconfig.json` lists both folders' `types` paths, because otherwise `next build` rewrites the file.
+
+### `packages/engine/bin/after-pull.mjs`, `packages/engine/src/release/apply.ts`
+
+#### 0009.31 Applying an update after git pull
+
+Setup writes `post-merge` and `post-rewrite` hooks into the clone (0010.20). They fire for every pull style: fast-forward and merge pulls run `post-merge`, and `pull --rebase` runs `post-rewrite rebase` with or without local commits. The hook runs `after-pull.mjs` under the Bun that ran setup. It checks the same things `localUpdateStatus` does (main checkout, on `RELEASES.branch`, services installed from here and on an older commit), then starts a detached runner and returns, so the pull never waits or fails. It removes git's `GIT_*` variables first: hooks get `GIT_DIR`, which would point every later `git` call at the wrong place.
+
+The runner holds `state/update.lock` and runs `bun run setup --after-pull` with no terminal, logging to `logs/update.log`. `setup.mjs` runs `bun install` and finds a Node in range as usual. `--after-pull` then does only one thing: rebuild and restart services that are installed from this clone and run an older commit. It never takes the first-run steps that `--yes` takes, so a pull can't reinstall services the user removed or link a skill they declined. When there is nothing to apply it exits `RELEASES.nothingToApplyExit`, and the run is recorded as skipped. A sync in progress finishes first, up to `RELEASES.syncWaitMs`, because the restart would stop it.
+
+Success means the live build's commit equals the HEAD the run started from. Install reads HEAD before it builds, so a pull during the build leaves the build marked with the older commit, and the next round rebuilds. The runner repeats while it applied a commit and the checkout moved on, up to `RELEASES.applyRounds` times. The result goes to `state/update.json` for the app (0009.28).
+
+Only pulls with the git CLI or a git client fire hooks. A clone updated another way, or one without hooks, gets the *pending* notice instead.
+

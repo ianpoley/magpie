@@ -14,7 +14,11 @@ export type ServiceSpec = {
 };
 
 export type CommandResult = { code: number; stdout: string; stderr: string };
-export type Runner = (command: string, args: string[], options?: { cwd?: string; showOutput?: boolean }) => Promise<CommandResult>;
+export type Runner = (
+  command: string,
+  args: string[],
+  options?: { cwd?: string; showOutput?: boolean; env?: Record<string, string | undefined> },
+) => Promise<CommandResult>;
 
 export interface ServiceManager {
   unitPath(name: ServiceName): string;
@@ -42,6 +46,7 @@ export const spawnRunner: Runner = (command, args, options = {}) =>
   new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
+      env: options.env as NodeJS.ProcessEnv | undefined,
       stdio: options.showOutput ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';

@@ -72,3 +72,14 @@ The Claude skill link check moved out of `bin/magpie.mjs` into the engine, so th
 #### 0010.18 `focus step`
 
 The web setup has a third step: show everything (the default) or only show my focus, with a free-text focus box. Only the web setup asks. The CLI walkthrough does not, because X is connected only in the web app. Discovery and evolve wait until a choice is recorded, and saving the choice requests a sync so the first discovery runs right away. Tagging still runs meanwhile.
+
+#### 0010.19 Setup lock
+
+`setup.mjs` takes `state/setup.lock` before anything else, including `bun install`, and waits up to 20 minutes when another setup holds it. An update started by the git hooks (0009.31) and a `bun run setup` typed right after `git pull` then run one after the other. The second one finds the build current and does not rebuild. `setup.mjs` imports `config.ts` and `lock.ts` for this. Both use only `node:` modules, so it still runs before `node_modules` exists.
+
+### `packages/engine/src/setup/git-hooks.ts`
+
+#### 0010.20 Updates after git pull
+
+Once the services run, setup offers to write the update hooks. `--yes` writes them, because they replace nothing. A hook that Magpie wrote, marked by `MAGPIE_UPDATE_HOOK=1`, is rewritten without asking whenever its Bun or script path has changed. A hook someone else wrote is never touched. Setup lists the line to add to it instead. The hooks go where `git rev-parse --git-path hooks` points, so `core.hooksPath` is honored. They hold absolute paths, so a hook is written per machine and never committed. Each hook exits 0 when its Bun or script is missing: on an old branch without `after-pull.mjs`, a pull still works. `service uninstall` removes the hooks Magpie wrote, so a later pull doesn't try to update services that are gone.
+

@@ -60,15 +60,19 @@ The first run resolves every link, asks Claude for the starting categories, and 
 
 ```bash
 git pull
-bun run service:install          # rebuilds and restarts both services
+```
+
+On `main`, a pull applies itself. Setup installs git hooks that rebuild the web app and restart both services in the background after each pull. The app keeps serving the old build until the new one is ready, and a failed build leaves it running. The run logs to `logs/update.log`. Without the hooks (you declined them, or a hook of your own was in the way), finish the update yourself:
+
+```bash
+git pull
+bun run setup                    # installs deps, rebuilds and restarts both services
 bun run service:status
 ```
 
-When a new release is out, the web app shows a notice at the bottom of the sidebar with the command to run. Releases are tagged automatically from each push to `main` that has `feat:` or `fix:` commits; the notice needs the repository to be public.
+When a new release is out, the web app shows a notice at the bottom of the sidebar with the command to run. When a pull has not been applied, or applying it failed, the notice says so and gives the command to finish it. Releases are tagged automatically from each push to `main` that has `feat:` or `fix:` commits; the release notice needs the repository to be public.
 
-After a `git pull`, the services keep running the old build until you reinstall; `service:status` and `setup` say when that is the case.
-
-With Homebrew's Node the services run it through the keg's `opt` link, which survives `brew upgrade`. With another version manager, if the path the services captured goes away they stay stopped until you rerun `service:install`; `service:status` reports it.
+With Homebrew's Node the services run it through the keg's `opt` link, which survives `brew upgrade`. With another version manager, if the path the services captured goes away they stay stopped until you rerun `bun run setup`; `service:status` reports it.
 
 To remove the services: `bun run service:uninstall`. Add `-- --purge-secrets` to also delete the stored X cookies and Jev key and disconnect X.
 

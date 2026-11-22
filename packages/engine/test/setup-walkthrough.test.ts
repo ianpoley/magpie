@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import type { SetupCheck } from '../src/service/index.ts';
 import { walkthrough } from '../src/setup/walkthrough.ts';
+import type { UpdateHooksState } from '../src/setup/git-hooks.ts';
 import type { ServicesState, SkillState, WalkthroughDeps } from '../src/setup/walkthrough.ts';
 
 const OK_CHECKS: SetupCheck[] = [
@@ -28,6 +29,7 @@ function machine(state: {
   jev?: boolean;
   jevTyped?: string;
   skill?: SkillState;
+  hooks?: UpdateHooksState | null;
   answer?: (question: string) => boolean;
 }): Machine {
   const asked: string[] = [];
@@ -37,6 +39,7 @@ function machine(state: {
   let connected = state.connected ?? false;
   let jev = state.jev ?? false;
   let skill: SkillState = state.skill ?? 'missing';
+  let hooks: UpdateHooksState | null = state.hooks === undefined ? 'current' : state.hooks;
   const deps: WalkthroughDeps = {
     interactive: state.interactive ?? true,
     yes: state.yes ?? false,
@@ -78,6 +81,13 @@ function machine(state: {
       skill = 'linked';
       return true;
     },
+    updateHooks: () => hooks,
+    installUpdateHooks: async () => {
+      did.push('hooks');
+      hooks = 'current';
+      return true;
+    },
+    foreignHookHelp: () => ['add this line to /clone/.git/hooks/post-merge: bun after-pull.mjs post-merge'],
   };
   return { deps, asked, did, lines };
 }
@@ -102,7 +112,7 @@ test('a machine that is already set up asks nothing and does nothing', async () 
   assert.deepEqual(m.asked, []);
   assert.deepEqual(m.did, []);
   assert.deepEqual(result.todo, []);
-  assert.equal(result.done.length, 4);
+  assert.equal(result.done.length, 5);
 });
 
 test('running services pinned to a Node path Homebrew deletes are reinstalled on yes, and listed to do on no', async () => {
@@ -115,7 +125,7 @@ test('running services pinned to a Node path Homebrew deletes are reinstalled on
   const no = machine({ services: pinned, connected: true, jev: true, skill: 'linked', answer: () => false });
   const left = await walkthrough(no.deps);
   assert.deepEqual(no.did, []);
-  assert.ok(left.todo.some((line) => line.includes('bun run service:install')));
+  assert.ok(left.todo.some((line) => line.includes('bun run setup')));
 });
 
 test('running services on a build older than the code are rebuilt on yes, and listed to do on no', async () => {
@@ -126,7 +136,7 @@ test('running services on a build older than the code are rebuilt on yes, and li
 
   const no = machine({ services: behind, connected: true, jev: true, skill: 'linked', answer: () => false });
   const left = await walkthrough(no.deps);
-  assert.ok(left.todo.includes('Rebuild and restart the services on the current code: bun run service:install'));
+  assert.ok(left.todo.includes('Rebuild and restart the services on the current code: bun run setup, and answer yes'));
 });
 
 test('declined and skipped steps end up on the still-to-do list with the command for each', async () => {
@@ -134,7 +144,7 @@ test('declined and skipped steps end up on the still-to-do list with the command
   const result = await walkthrough(m.deps);
   assert.deepEqual(m.did, []);
   assert.deepEqual(m.asked, ['Install them now?', 'Jev key (typing is hidden; press Enter to skip):', 'Link it into ~/.claude/skills?']);
-  assert.ok(result.todo.some((line) => line.includes('bun run service:install')));
+  assert.ok(result.todo.some((line) => line.includes('bun run setup')));
   assert.ok(result.todo.some((line) => line.includes('Connect X once the web app runs')));
   assert.ok(result.todo.some((line) => line.includes('bun run secrets:set-jev')));
   assert.ok(result.todo.some((line) => line.includes('packages/skill/install.sh')));
@@ -217,4 +227,27 @@ test('a skill link that fails is listed to do, not reported as linked', async ()
   const result = await walkthrough(m.deps);
   assert.ok(!result.done.some((line) => line.includes('skill is linked')));
   assert.ok(result.todo.some((line) => line.includes('bash packages/skill/install.sh')));
+});
+
+test('with services running, the git hooks that apply updates are offered when missing, refreshed when outdated, and a foreign hook is left alone', async () => {
+  const running = { installed: true, running: true, dataRoot: '/clone', buildBehindCode: false };
+  const offered = machine({ yes: true, interactive: false, services: running, hooks: 'missing', connected: true, jev: true, skill: 'linked' });
+  assert.ok((await walkthrough(offered.deps)).done.includes('Updates apply on their own after a git pull.'));
+  assert.deepEqual(offered.did, ['hooks']);
+
+  const declined = machine({ services: running, hooks: 'missing', connected: true, jev: true, skill: 'linked', answer: () => false });
+  assert.ok((await walkthrough(declined.deps)).todo.some((line) => line.includes('apply updates on their own after git pull')));
+  assert.deepEqual(declined.did, []);
+
+  const outdated = machine({ services: running, hooks: 'outdated', connected: true, jev: true, skill: 'linked' });
+  await walkthrough(outdated.deps);
+  assert.deepEqual([outdated.did, outdated.asked], [['hooks'], []]);
+
+  const foreign = machine({ yes: true, interactive: false, services: running, hooks: 'foreign', connected: true, jev: true, skill: 'linked' });
+  assert.ok((await walkthrough(foreign.deps)).todo.some((line) => line.includes('/clone/.git/hooks/post-merge')));
+  assert.deepEqual(foreign.did, []);
+
+  const notRunning = machine({ interactive: false, hooks: 'missing' });
+  await walkthrough(notRunning.deps);
+  assert.ok(!notRunning.lines.includes('Updates after git pull'));
 });

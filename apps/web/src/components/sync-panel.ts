@@ -170,7 +170,7 @@ export function describeSync(state: SyncState, now: number): SyncPanel {
       icon: "warning",
       warning: true,
       title: "Background sync isn't running",
-      detail: "Start it with bun run service:install.",
+      detail: "Start it with bun run setup.",
       nextRun: null,
       action: syncNow,
     };

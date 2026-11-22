@@ -102,6 +102,7 @@ type Machine = {
   unit: (name: string) => string;
   buildExit: number;
   unitsAtBuild: Record<string, string | null>;
+  buildDirs: string[];
 };
 
 function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
@@ -124,6 +125,7 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
     unitDir,
     buildExit: 0,
     unitsAtBuild: {},
+    buildDirs: [],
     unit: (name) => readFileSync(fileOf(name), 'utf8'),
     options: {
       platform,
@@ -134,10 +136,11 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
       codeRoot: root,
       env: { MAGPIE_ROOT: root, MAGPIE_CONFIG_DIR: configDir, MAGPIE_SECRET_BACKEND: 'file' },
       log: () => {},
-      run: async (command, args): Promise<CommandResult> => {
+      run: async (command, args, runOptions): Promise<CommandResult> => {
         machine.calls.push([command, ...args].join(' '));
         const done = (code = 0, stdout = ''): CommandResult => ({ code, stdout, stderr: code === 0 ? '' : 'refused' });
         if (command === nodePath && args[1] === 'build') {
+          machine.buildDirs.push(runOptions?.env?.MAGPIE_NEXT_DIST ?? '');
           for (const name of ['magpie-web', 'magpie-worker']) {
             machine.unitsAtBuild[name] = existsSync(fileOf(name)) ? readFileSync(fileOf(name), 'utf8') : null;
           }
@@ -181,7 +184,7 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
   return machine;
 }
 
-test('install stops the web service, builds, writes both plists, then loads and starts both; installing again updates them', async (t) => {
+test('install builds while the old web service keeps serving, writes both plists, then restarts both; installing again builds into the other folder', async (t) => {
   const machine = fakeMachine(t, 'darwin');
   mkdirSync(machine.unitDir, { recursive: true });
   writeFileSync(join(machine.unitDir, 'magpie-web.plist'), 'old web plist');
@@ -191,8 +194,8 @@ test('install stops the web service, builds, writes both plists, then loads and 
 
   assert.deepEqual(machine.unitsAtBuild, { 'magpie-web': 'old web plist', 'magpie-worker': null });
   const step = (prefix: string) => machine.calls.findIndex((call) => call.startsWith(prefix));
-  assert.ok(step('launchctl bootout gui/501/magpie-web') < step(`${machine.options.nodePath} `), machine.calls.join('\n'));
-  assert.ok(step(`${machine.options.nodePath} `) < step('launchctl bootstrap'));
+  assert.ok(step(`${machine.options.nodePath} `) < step('launchctl bootout gui/501/magpie-web'), machine.calls.join('\n'));
+  assert.ok(step('launchctl bootout gui/501/magpie-web') < step('launchctl bootstrap'));
   assert.ok(step('launchctl bootstrap') < step('launchctl kickstart'));
   for (const name of ['magpie-web', 'magpie-worker']) {
     assert.ok(machine.calls.includes(`launchctl bootstrap gui/501 ${join(machine.unitDir, `${name}.plist`)}`));
@@ -202,17 +205,25 @@ test('install stops the web service, builds, writes both plists, then loads and 
   assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
   assert.ok(statSync(join(machine.root, 'logs')).isDirectory());
 
+  const web = join(machine.root, 'apps', 'web');
+  assert.equal(readFileSync(join(web, '.next-active'), 'utf8'), '.next-a\n');
+
   await installService(machine.options);
   assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
+  assert.equal(readFileSync(join(web, '.next-active'), 'utf8'), '.next-b\n');
+  assert.deepEqual(machine.buildDirs, ['.next-a', '.next-b']);
 });
 
-test('a failed build leaves the old units in place and loads nothing', async (t) => {
+test('a failed build leaves the running web service, its build and the old units as they were', async (t) => {
   const machine = fakeMachine(t, 'darwin');
   mkdirSync(machine.unitDir, { recursive: true });
   writeFileSync(join(machine.unitDir, 'magpie-web.plist'), 'old web plist');
+  machine.loaded.add('magpie-web');
   machine.buildExit = 1;
 
   await assert.rejects(installService(machine.options), /build/);
+  assert.deepEqual([...machine.loaded], ['magpie-web']);
+  assert.equal(existsSync(join(machine.root, 'apps', 'web', '.next-active')), false);
   assert.equal(machine.unit('magpie-web'), 'old web plist');
   assert.equal(existsSync(join(machine.unitDir, 'magpie-worker.plist')), false);
   assert.equal(machine.calls.some((call) => call.startsWith('launchctl bootstrap')), false);
@@ -263,7 +274,7 @@ test('on Linux install writes both units, reloads systemd, enables and restarts 
   const enable = machine.calls.lastIndexOf('systemctl --user enable magpie-web.service magpie-worker.service');
   const restart = machine.calls.lastIndexOf('systemctl --user restart magpie-web.service magpie-worker.service');
   assert.ok(reload >= 0 && reload < enable && enable < restart, machine.calls.join('\n'));
-  assert.ok(machine.calls.includes('systemctl --user stop magpie-web.service'));
+  assert.equal(machine.calls.includes('systemctl --user stop magpie-web.service'), false);
   assert.deepEqual([...machine.loaded].sort(), ['magpie-web', 'magpie-worker']);
 });
 
@@ -405,13 +416,21 @@ test('status reports when the checkout has moved past the commit the services we
   const machine = fakeMachine(t, 'darwin');
   let head = 'aaa111';
   const run = machine.options.run!;
-  machine.options.run = async (command, args, runOptions) =>
-    command === 'git' && args.includes('rev-parse') ? { code: 0, stdout: `${head}\n`, stderr: '' } : run(command, args, runOptions);
-  mkdirSync(join(machine.root, 'apps', 'web', '.next'), { recursive: true });
+  let pullDuringBuild: string | null = null;
+  machine.options.run = async (command, args, runOptions) => {
+    if (command === 'git' && args.includes('rev-parse')) return { code: 0, stdout: `${head}\n`, stderr: '' };
+    if (args[1] === 'build' && pullDuringBuild) head = pullDuringBuild;
+    return run(command, args, runOptions);
+  };
   await installService(machine.options);
-  assert.equal(readFileSync(join(machine.root, 'apps', 'web', '.next', 'magpie-commit'), 'utf8'), 'aaa111\n');
+  assert.equal(readFileSync(join(machine.root, 'apps', 'web', '.next-a', 'magpie-commit'), 'utf8'), 'aaa111\n');
 
   assert.equal((await serviceStatus(machine.options)).buildBehindCode, false);
   head = 'bbb222';
+  assert.equal((await serviceStatus(machine.options)).buildBehindCode, true);
+
+  pullDuringBuild = 'ccc333';
+  await installService(machine.options);
+  assert.equal(readFileSync(join(machine.root, 'apps', 'web', '.next-b', 'magpie-commit'), 'utf8'), 'bbb222\n');
   assert.equal((await serviceStatus(machine.options)).buildBehindCode, true);
 });

@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 const USAGE = `Usage: magpie.mjs <command>
 
 Commands:
+  setup --after-pull                   rebuild and restart services installed from this clone when they run an older
+                                       commit, after any sync in progress; nothing else (the git hooks run this)
   setup [--yes]                        check this machine, then take each first-run step not done yet: background
                                        services, Connect X, the Jev key and the Claude skill. At a terminal it asks
                                        first; --yes takes the steps that hold no secret and replace nothing; with
@@ -64,6 +66,35 @@ function waitForConnection(readConnection) {
   });
 }
 
+async function gitHooksDir(code) {
+  const { spawnSync } = await import('node:child_process');
+  const { resolve } = await import('node:path');
+  const ran = spawnSync('git', ['-C', code, 'rev-parse', '--git-path', 'hooks'], { encoding: 'utf8' });
+  return ran.status === 0 ? resolve(code, ran.stdout.trim()) : null;
+}
+
+async function afterPull() {
+  const { RELEASES } = await import('../src/config.ts');
+  const { setTimeout: sleep } = await import('node:timers/promises');
+  const log = (line) => console.log(`[update] ${line}`);
+  let status = await service.serviceStatus();
+  if (!status.units.every((unit) => unit.installed) || status.dataRoot !== status.here) {
+    log('nothing to apply: the services are not installed from this clone');
+    process.exit(RELEASES.nothingToApplyExit);
+  }
+  if (!status.buildBehindCode) {
+    log('nothing to apply: the services already run this commit');
+    process.exit(RELEASES.nothingToApplyExit);
+  }
+  const deadline = Date.now() + RELEASES.syncWaitMs;
+  if (status.worker?.state === 'running') log('a sync is running; waiting for it to finish before restarting the worker');
+  while (status.worker?.state === 'running' && Date.now() < deadline) {
+    await sleep(RELEASES.syncPollMs);
+    status = await service.serviceStatus();
+  }
+  await service.installService({ log }).catch((error) => fail('[update] install failed:', error));
+}
+
 async function setup(args) {
   const yes = args.includes('--yes');
   const { spawn, spawnSync } = await import('node:child_process');
@@ -73,6 +104,7 @@ async function setup(args) {
   const { readConnection } = await import('../src/sync/state.ts');
   const { walkthrough } = await import('../src/setup/walkthrough.ts');
   const { skillLinkState } = await import('../src/setup/skill-link.ts');
+  const hooks = await import('../src/setup/git-hooks.ts');
 
   const code = codeRoot();
   const main = mainCheckout(code);
@@ -83,6 +115,9 @@ async function setup(args) {
     return found ? { handle: found.handle } : undefined;
   };
   const skillDir = join(code, 'packages', 'skill');
+  const bun = process.env.MAGPIE_BUN || null;
+  const runner = join(code, 'packages', 'engine', 'bin', 'after-pull.mjs');
+  const hooksDir = await gitHooksDir(code);
 
   const result = await walkthrough({
     interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
@@ -124,6 +159,18 @@ async function setup(args) {
     async linkSkill() {
       return spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' }).status === 0;
     },
+    updateHooks: () => (bun && hooksDir ? hooks.updateHooksState(hooksDir, bun, runner) : null),
+    async installUpdateHooks() {
+      try {
+        hooks.installUpdateHooks(hooksDir, bun, runner);
+        return true;
+      } catch (error) {
+        log(`  ${errorText(error)}`);
+        return false;
+      }
+    },
+    foreignHookHelp: () =>
+      hooks.foreignHooks(hooksDir).map((hook) => `add this line to ${join(hooksDir, hook)}: ${hooks.hookCommand(hook, bun, runner)}`),
   });
   if (!result.ok) process.exit(1);
 }
@@ -163,17 +210,17 @@ async function status() {
   console.log(`[status] secret backend    ${backend}`);
   const { node } = report;
   if (node.path === null) console.log('[status] node              no service is installed');
-  else if (!node.exists) console.log(`[status] node              ${node.path} is gone: the services cannot start; run bun run service:install`);
+  else if (!node.exists) console.log(`[status] node              ${node.path} is gone: the services cannot start; run bun run setup`);
   else if (node.inRange === null) console.log(`[status] node              ${node.path} did not report its version`);
   else {
     const verdict = node.inRange ? `within ${node.range}` : `outside ${node.range}: run bun run service:install with a Node in range`;
     console.log(`[status] node              ${node.path} (${node.version}, ${verdict})`);
   }
   if (node.upgradeSafePath) {
-    console.log(`[status]                   Homebrew deletes this path when it upgrades Node, and the services stop: run bun run service:install to use ${node.upgradeSafePath}`);
+    console.log(`[status]                   Homebrew deletes this path when it upgrades Node, and the services stop: run bun run setup to use ${node.upgradeSafePath}`);
   }
   if (report.buildBehindCode) {
-    console.log('[status] build             the services run an earlier commit than this checkout (a git pull?): run bun run service:install to rebuild and restart them');
+    console.log('[status] build             the services run an earlier commit than this checkout (a git pull?): run bun run setup to rebuild and restart them');
   }
   if (report.bootHint) console.log(`[status] boot              ${report.bootHint}`);
   const healthy =
@@ -193,6 +240,11 @@ async function serviceCommand(sub, args) {
   } else if (sub === 'uninstall' && args.every((arg) => arg === '--purge-secrets')) {
     const purgeSecrets = args.includes('--purge-secrets');
     await service.uninstallService({ log, purgeSecrets }).catch((error) => fail('[service] uninstall failed:', error));
+    const { codeRoot } = await import('../src/config.ts');
+    const { removeUpdateHooks } = await import('../src/setup/git-hooks.ts');
+    const hooksDir = await gitHooksDir(codeRoot());
+    const removed = hooksDir ? removeUpdateHooks(hooksDir) : [];
+    if (removed.length > 0) log(`removed the git hooks that applied updates after a pull (${removed.join(', ')})`);
   } else if (sub === 'status' && args.length === 0) {
     await status();
   } else {
@@ -255,6 +307,10 @@ const [command, sub, ...rest] = process.argv.slice(2);
 switch (command) {
   case 'setup': {
     const args = [sub, ...rest].filter((arg) => arg !== undefined);
+    if (args.length === 1 && args[0] === '--after-pull') {
+      await afterPull();
+      break;
+    }
     if (args.some((arg) => arg !== '--yes')) usage(`unknown setup argument: ${args.find((arg) => arg !== '--yes')}`);
     await setup(args);
     break;

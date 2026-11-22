@@ -187,7 +187,7 @@ test("Sync now with no live worker, or with X not connected, says why and asks f
   writeHeartbeat(3 * MINUTE);
   const stale = await actions.requestSync();
   assert.equal(code(stale), "no_worker");
-  assert.match(stale.ok ? "" : stale.message, /bun run service:install/);
+  assert.match(stale.ok ? "" : stale.message, /bun run setup/);
   assert.equal(existsSync(syncRequestPath), false);
 });
 

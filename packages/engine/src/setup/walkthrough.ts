@@ -1,4 +1,5 @@
 import type { SetupCheck } from '../service/index.ts';
+import type { UpdateHooksState } from './git-hooks.ts';
 
 export type WalkthroughDeps = {
   interactive: boolean;
@@ -18,6 +19,9 @@ export type WalkthroughDeps = {
   storeJev: (key: string) => Promise<{ ok: boolean; message: string }>;
   skill: () => SkillState;
   linkSkill: () => Promise<boolean>;
+  updateHooks: () => UpdateHooksState | null;
+  installUpdateHooks: () => Promise<boolean>;
+  foreignHookHelp: () => string[];
 };
 
 export type ServicesState = {
@@ -71,6 +75,7 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   }
 
   const servicesRunning = await backgroundSync();
+  if (servicesRunning) await updatesAfterPull();
   await connectX(servicesRunning);
   await jevKey();
   await claudeSkill();
@@ -96,8 +101,8 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       if (!(await agree('  Reinstall them now?', { defaultYes: true, safe: true }))) {
         todo.push(
           services.upgradeSafeNode
-            ? 'Point the services at a Node path Homebrew keeps across upgrades: bun run service:install'
-            : 'Rebuild and restart the services on the current code: bun run service:install',
+            ? 'Point the services at a Node path Homebrew keeps across upgrades: bun run setup, and answer yes'
+            : 'Rebuild and restart the services on the current code: bun run setup, and answer yes',
         );
         return true;
       }
@@ -107,14 +112,14 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     } else if (services.installed) {
       log('  The services are installed but not running.');
       if (!(await agree('  Reinstall and start them?', { defaultYes: true, safe: true }))) {
-        todo.push('Start the services: bun run service:install');
+        todo.push('Start the services: bun run setup, and answer yes');
         return false;
       }
     } else {
       log('  Two background services: a worker that syncs every few hours, and the web app.');
       log('  Installing builds the web app first, which takes about a minute.');
       if (!(await agree('  Install them now?', { defaultYes: true, safe: true }))) {
-        todo.push('Install the background services: bun run service:install');
+        todo.push('Install the background services: bun run setup, and answer yes');
         return false;
       }
     }
@@ -126,6 +131,32 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     }
     done.push(`Background sync and the web app are running (${deps.appUrl}).`);
     return true;
+  }
+
+  async function updatesAfterPull() {
+    const state = deps.updateHooks();
+    if (state === null) return;
+    log('');
+    log('Updates after git pull');
+    if (state === 'current') {
+      done.push('Updates apply on their own after a git pull.');
+      return;
+    }
+    if (state === 'foreign') {
+      log('  Your clone already has its own git hook, so Magpie leaves it alone.');
+      todo.push(`To apply updates on their own after a git pull, ${deps.foreignHookHelp().join(' ')}`);
+      return;
+    }
+    if (state === 'missing') {
+      log('  After a git pull, Magpie can rebuild the web app and restart the services on its own, in the background.');
+      log('  It does this only on the main branch of this checkout, and the app keeps running until the new build is ready.');
+      if (!(await agree('  Apply updates on their own after git pull?', { defaultYes: true, safe: true }))) {
+        todo.push('Optional: apply updates on their own after git pull: run bun run setup again and answer yes.');
+        return;
+      }
+    }
+    if (await deps.installUpdateHooks()) done.push('Updates apply on their own after a git pull.');
+    else todo.push('The git hooks that apply updates were not written. Try again: bun run setup');
   }
 
   async function connectX(appRunning: boolean) {
