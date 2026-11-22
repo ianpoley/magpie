@@ -6,7 +6,7 @@ import { Radio, RadioGroup, RadioIndicator } from "@ui-sdk/react/radio";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@ui-sdk/react/tabs";
 import { Activity, AtSign, Check, CircleCheck, Copy, KeyRound, Sparkles, Tags, TriangleAlert, X, type LucideIcon } from "lucide-react";
-import { useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, useTransition, type FormEvent, type ReactNode } from "react";
 
 import { loadSettings, saveAnswerModel, saveFocus, saveJevKey } from "@/app/actions";
 import type { ActionErrorCode, AnswerModelState, FocusMode, SettingsState, SkillLink, SyncState } from "@/lib/types";
@@ -111,7 +111,7 @@ function outcomeNote({ changed, skipped }: ResortOutcome): string {
   return `${moved} ${formatCount(skipped)} stayed as ${plural(skipped, "it was", "they were")}, because ${plural(skipped, "it", "they")} changed after the preview.`;
 }
 
-function CategoriesSection({ saved: initial }: { saved: { mode: FocusMode; focus: string } }) {
+function CategoriesSection({ saved: initial, onDirty }: { saved: { mode: FocusMode; focus: string }; onDirty: (dirty: boolean) => void }) {
   const [saved, setSaved] = useState(initial);
   const [mode, setMode] = useState(initial.mode);
   const [focus, setFocus] = useState(initial.focus);
@@ -121,6 +121,8 @@ function CategoriesSection({ saved: initial }: { saved: { mode: FocusMode; focus
   const [saving, startSaving] = useTransition();
 
   const changed = mode !== saved.mode || (mode === "focus" && focus !== saved.focus);
+  useEffect(() => onDirty(changed), [changed, onDirty]);
+  useEffect(() => () => onDirty(false), [onDirty]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -271,11 +273,14 @@ function jevFieldError(code: string, message: string): string | null {
   return code === "jev_rejected" || code === "invalid_input" ? message : null;
 }
 
-function JevSection({ stored, kept }: { stored: boolean; kept: string }) {
+function JevSection({ stored, kept, onDirty }: { stored: boolean; kept: string; onDirty: (dirty: boolean) => void }) {
   const [key, setKey] = useState("");
   const [failure, setFailure] = useState<{ code: ActionErrorCode | "failed"; message: string } | null>(null);
   const [replaced, setReplaced] = useState(false);
   const [checking, startChecking] = useTransition();
+  const dirty = key !== "";
+  useEffect(() => onDirty(dirty), [dirty, onDirty]);
+  useEffect(() => () => onDirty(false), [onDirty]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -353,6 +358,9 @@ export function SettingsDialog({
 }) {
   const [{ settings, version }, setLoaded] = useState({ settings: initialSettings, version: 0 });
   const [tab, setTab] = useState<SectionId>("categories");
+  const [dirty, setDirty] = useState<Partial<Record<SectionId, boolean>>>({});
+  const markCategories = useCallback((value: boolean) => setDirty((current) => (current.categories === value ? current : { ...current, categories: value })), []);
+  const markJev = useCallback((value: boolean) => setDirty((current) => (current.jev === value ? current : { ...current, jev: value })), []);
   const state = sync.state;
 
   const reload = () => {
@@ -365,10 +373,10 @@ export function SettingsDialog({
   };
 
   const bodies: Record<SectionId, ReactNode> = {
-    categories: <CategoriesSection saved={{ mode: settings.focus.mode, focus: settings.focus.focus }} />,
+    categories: <CategoriesSection saved={{ mode: settings.focus.mode, focus: settings.focus.focus }} onDirty={markCategories} />,
     x: <XSection sync={state} connectX={connectX} />,
     answers: <AnswersSection saved={settings.answerModel} />,
-    jev: <JevSection stored={settings.jevKeyStored} kept={KEPT[state.secretBackend ?? "unknown"]} />,
+    jev: <JevSection stored={settings.jevKeyStored} kept={KEPT[state.secretBackend ?? "unknown"]} onDirty={markJev} />,
     status: <StatusSection settings={settings} sync={state} />,
   };
 
@@ -393,6 +401,12 @@ export function SettingsDialog({
                 >
                   <Icon className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
                   {title}
+                  {dirty[id] ? (
+                    <>
+                      <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-primary-fill" />
+                      <span className="sr-only">, unsaved changes</span>
+                    </>
+                  ) : null}
                   {needsAttention(id, settings, state) ? (
                     <>
                       <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-like" />
