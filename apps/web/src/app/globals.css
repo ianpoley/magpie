@@ -417,6 +417,7 @@ body {
   --deck-peek: 12px;
   --deck-lift: 0.96;
   --deck-travel: 42%;
+  --deck-nudge: 4px;
   --deck-ease: cubic-bezier(0.645, 0.045, 0.355, 1);
   position: relative;
   height: 100%;
@@ -450,6 +451,17 @@ body {
 }
 .deck-card[data-pos="back"]::after {
   opacity: 0.1;
+}
+.deck-card {
+  transition: translate 150ms ease-out;
+}
+.deck:not([data-swapping]):has(.deck-peek:focus-visible) .deck-card[data-pos="back"] {
+  translate: var(--deck-nudge) 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck:not([data-swapping]):has(.deck-peek:hover) .deck-card[data-pos="back"] {
+    translate: var(--deck-nudge) 0;
+  }
 }
 .deck-peek {
   position: absolute;
@@ -611,6 +623,9 @@ body {
   }
   .deck[data-moved] .deck-card {
     animation: none;
+  }
+  .deck-card {
+    transition: none;
   }
   .deck-card::after {
     transition: none;

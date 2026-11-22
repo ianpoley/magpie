@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type AnimationEvent, type ReactNode } from "react";
 
 export type DeckFront = "filters" | "answer";
 
@@ -28,13 +28,34 @@ export function SidebarDeck({ deck, filters, answer, onSwap }: { deck: DeckState
   }, []);
 
   useEffect(() => {
+    const deck = root.current;
+    if (!deck) return;
+    const cancel = (event: globalThis.AnimationEvent) => {
+      if (event.animationName.startsWith("deck-to-")) delete deck.dataset.swapping;
+    };
+    deck.addEventListener("animationcancel", cancel);
+    return () => deck.removeEventListener("animationcancel", cancel);
+  }, []);
+
+  useEffect(() => {
     if (focusedCard.current === null || focusedCard.current === front) return;
     root.current?.querySelector<HTMLElement>(`[data-card="${front}"]`)?.focus({ preventScroll: true });
   }, [front]);
 
   const cards: Record<DeckFront, ReactNode> = { filters, answer };
+  const swapping = (on: boolean) => (event: AnimationEvent) => {
+    if (!event.animationName.startsWith("deck-to-") || !root.current) return;
+    if (on) root.current.dataset.swapping = "";
+    else delete root.current.dataset.swapping;
+  };
   return (
-    <div ref={root} className="deck" data-moved={moved ? "" : undefined}>
+    <div
+      ref={root}
+      className="deck"
+      data-moved={moved ? "" : undefined}
+      onAnimationStart={swapping(true)}
+      onAnimationEnd={swapping(false)}
+    >
       <div className="deck-bed bg-side" aria-hidden="true" />
       {ORDER.map((card) => (
         <div key={card} role="group" aria-label={LABELS[card]} tabIndex={-1} data-card={card} data-pos={card === front ? "front" : "back"} inert={card !== front} className="deck-card outline-none">
