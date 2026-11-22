@@ -28,7 +28,6 @@ export type PipelineDeps = {
   lookup?: HostLookup;
   jev: JevClient;
   claude: ClaudeAdapter;
-  now?: () => Date;
 };
 
 export type PipelineOptions = {

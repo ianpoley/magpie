@@ -37,7 +37,7 @@ function setup(
 async function run(files: Files, deps: PipelineDeps, options?: PipelineOptions) {
   const db = openStore(files.store);
   try {
-    return await runPipeline(startRun(db, deps.now), { result: 'unknown', detail: null }, files, deps, options);
+    return await runPipeline(startRun(db), { result: 'unknown', detail: null }, files, deps, options);
   } finally {
     db.close();
   }

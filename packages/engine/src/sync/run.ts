@@ -30,7 +30,9 @@ export type SyncFiles = Pick<
   | 'categoryFocus'
 >;
 
-export type SyncDeps = PipelineDeps & {
+export type Clock = { now?: () => Date };
+
+export type SyncDeps = PipelineDeps & Clock & {
   x: XAdapter;
   secrets: Pick<SecretStore, 'get'>;
 };
@@ -60,13 +62,13 @@ export const xFailureDetail = (stages: StageReport[]): string | null =>
 
 const skipped = (message: string): StageBody => ({ outcome: 'skipped', counts: {}, message });
 
-async function underLock<T>(files: SyncFiles, deps: PipelineDeps, work: (run: OpenRun) => Promise<T>): Promise<Locked | T> {
+async function underLock<T>(files: SyncFiles, clock: Clock, work: (run: OpenRun) => Promise<T>): Promise<Locked | T> {
   const lock = acquireLock(files.lock);
   if (!lock.held) return { status: 'locked', pid: lock.pid };
   let db: Store | null = null;
   try {
     db = openStore(files.store);
-    return await work(startRun(db, deps.now));
+    return await work(startRun(db, clock.now));
   } finally {
     if (db?.isOpen) db.close();
     lock.release();
@@ -83,7 +85,7 @@ export function runSync(files: SyncFiles, deps: SyncDeps, options: PipelineOptio
 
 export function runCategorize(
   files: SyncFiles,
-  deps: PipelineDeps,
+  deps: PipelineDeps & Clock,
   options: PipelineOptions = {},
 ): Promise<CategorizeResult> {
   return underLock(files, deps, async (run) => ({
