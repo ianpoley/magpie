@@ -191,7 +191,7 @@ Removes every cookie value from child output, then caps it. Cleaning first means
 
 #### 0008.27 `childEnv`
 
-The cookies travel only in this environment, built from nothing so no other secret in the parent's environment reaches the child. bird reads AUTH_TOKEN and CT0 itself and never falls back to browser cookies while both are set; PATH starts with this node, so the tools' `#!/usr/bin/env node` lines run on the same pinned runtime.
+The cookies travel only in this environment, built from nothing so no other secret in the parent's environment reaches the child. bird reads AUTH_TOKEN and CT0 itself and never falls back to browser cookies while both are set; PATH starts with this node, so the tools' `#!/usr/bin/env node` lines run on the same pinned runtime. NODE_ENV is passed on as the parent has it: it is no secret, and Next declares it a required `process.env` key, so carrying it lets the environment type-check as `ProcessEnv` under the web app's tsconfig without a cast.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/x/birdclaw.ts#L104-L108)
 
