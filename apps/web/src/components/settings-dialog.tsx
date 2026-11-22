@@ -26,7 +26,7 @@ export type SettingsController = ReturnType<typeof createSettingsController>;
 
 type SectionId = "categories" | "x" | "answers" | "jev" | "status";
 
-const SECTIONS: { id: SectionId; title: string; description: string | null; icon: LucideIcon }[] = [
+const SECTIONS: { id: SectionId; title: string; description: string; icon: LucideIcon }[] = [
   { id: "categories", title: "Categories", description: "Choose which categories the sidebar shows when Magpie sorts your posts.", icon: Tags },
   { id: "x", title: "X", description: "Magpie reads your bookmarks and likes through your X session.", icon: AtSign },
   {
@@ -36,7 +36,7 @@ const SECTIONS: { id: SectionId; title: string; description: string | null; icon
     icon: Sparkles,
   },
   { id: "jev", title: "Jev key", description: "Jev sorts each post into topics. For Ask, it checks every saved post against your question.", icon: KeyRound },
-  { id: "status", title: "Status", description: null, icon: Activity },
+  { id: "status", title: "Status", description: "Magpie checks these again each time you open Settings.", icon: Activity },
 ];
 
 const SETUP_COMMAND = "bun run setup";
@@ -444,7 +444,7 @@ export function SettingsDialog({
               <div className="flex items-start gap-3 px-5 pt-6 pb-2 sm:px-8">
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <h2 className="text-display text-[22px] text-ink">{title}</h2>
-                  {description ? <p className="max-w-[60ch] text-[13px] leading-[1.5] text-pretty text-ink-muted">{description}</p> : null}
+                  <p className="max-w-[60ch] text-[13px] leading-[1.5] text-pretty text-ink-muted">{description}</p>
                 </div>
                 <DialogClose aria-label="Close settings" className={`${iconButton} -mt-1 -mr-3 max-sm:hidden`}>
                   <X aria-hidden="true" />
