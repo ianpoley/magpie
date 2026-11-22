@@ -2,7 +2,7 @@
 
 import { Button } from "@ui-sdk/react/button";
 import { Progress, ProgressIndicator, ProgressTrack } from "@ui-sdk/react/progress";
-import { Pin, RotateCw, Sparkles, X } from "lucide-react";
+import { MessageSquareText, Pin, RotateCw, Sparkles, X } from "lucide-react";
 
 import type { AskState } from "@/lib/ask";
 
@@ -24,11 +24,13 @@ export function AskBar({
   onPin,
   onRetry,
   onClear,
+  onShowAnswer,
 }: {
   ask: AskState;
   onPin: () => Promise<void>;
   onRetry: () => void;
   onClear: () => void;
+  onShowAnswer: () => void;
 }) {
   const running = ask.status === "running";
   const incomplete = !running && (ask.status === "failed" || ask.failed > 0);
@@ -48,6 +50,10 @@ export function AskBar({
             Try again
           </Button>
         ) : null}
+        <Button onClick={onShowAnswer} className={`${quietAnswer} shrink-0 gap-1.5 lg:hidden`}>
+          <MessageSquareText className="size-3.5 text-ink-muted" aria-hidden="true" />
+          Answer
+        </Button>
         <Button
           onClick={onPin}
           disabled={running || ask.scores.length === 0}

@@ -32,6 +32,7 @@ export function PostList({
   unsureStart,
   filter,
   layout,
+  cited,
   ranked,
   arriving,
   topicsById,
@@ -46,6 +47,7 @@ export function PostList({
   unsureStart: number | null;
   filter: FilterState;
   layout: PostLayout;
+  cited: string[];
   ranked: boolean;
   arriving: boolean;
   topicsById: Map<number, Topic>;
@@ -118,6 +120,7 @@ export function PostList({
   const unsureCount = unsureStart === null ? 0 : posts.length - unsureStart;
   const propsFor = (post: Post): PostCardProps => ({
     post,
+    cited: cited.includes(post.id),
     chips: postChips(post, filter),
     topicsById,
     activeTopicIds: filter.topicIds,

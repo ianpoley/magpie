@@ -85,6 +85,7 @@ export function PostActions({
 
 export type PostCardProps = {
   post: Post;
+  cited: boolean;
   chips: Chip[];
   topicsById: Map<number, Topic>;
   activeTopicIds: number[];
@@ -168,7 +169,7 @@ export function PostCard(props: PostCardProps) {
   const minis = lead ? lead.media.slice(1, 4) : [];
   const more = lead ? lead.media.length - 1 - minis.length : 0;
   return (
-    <article className="relative rounded-card bg-surface shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover">
+    <article data-cited={props.cited ? "" : undefined} className="relative rounded-card bg-surface shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover data-cited:shadow-cited">
       <DialogTrigger
         controller={dialog}
         payload={post.id}

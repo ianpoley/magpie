@@ -21,8 +21,13 @@ export type ClaudeSendResult =
     }
   | ClaudeFailure;
 
+export type ClaudeSendOptions = {
+  onPartial?: (json: string) => void;
+  signal?: AbortSignal;
+};
+
 export interface ClaudeAdapter {
-  send(request: ClaudeRequest): Promise<ClaudeSendResult>;
+  send(request: ClaudeRequest, options?: ClaudeSendOptions): Promise<ClaudeSendResult>;
 }
 
 export type ClaudeAnswer<T> = { ok: true; value: T } | ClaudeFailure;
@@ -37,7 +42,19 @@ export async function askJson<T>(adapter: ClaudeAdapter, request: ClaudeRequest)
   return { ok: true, value: sent.value as T };
 }
 
-function cliArgs(schema: JsonSchema): string[] {
+function partialJson(line: string): string {
+  let event: unknown;
+  try {
+    event = JSON.parse(line);
+  } catch {
+    return '';
+  }
+  if (!isRecord(event) || event.type !== 'stream_event' || !isRecord(event.event)) return '';
+  const delta = event.event.delta;
+  return isRecord(delta) && delta.type === 'input_json_delta' && typeof delta.partial_json === 'string' ? delta.partial_json : '';
+}
+
+function cliArgs(schema: JsonSchema, partial: boolean): string[] {
   return [
     '--print',
     '--model',
@@ -47,6 +64,7 @@ function cliArgs(schema: JsonSchema): string[] {
     '--output-format',
     'stream-json',
     '--verbose',
+    ...(partial ? ['--include-partial-messages'] : []),
     '--tools',
     '',
     '--strict-mcp-config',
@@ -100,24 +118,42 @@ export function createClaudeCli(options: { cliPath?: string; timeoutMs?: number 
   const timeoutMs = options.timeoutMs ?? CLAUDE.timeoutMs;
 
   return {
-    send: (request) =>
+    send: (request, options = {}) =>
       new Promise((resolve) => {
-        const child = spawn(cliPath, cliArgs(request.schema), { stdio: ['pipe', 'pipe', 'pipe'] });
+        const { onPartial, signal } = options;
+        if (signal?.aborted) return resolve({ ok: false, reason: 'exit', message: 'The call was cancelled.' });
+        const child = spawn(cliPath, cliArgs(request.schema, onPartial !== undefined), { stdio: ['pipe', 'pipe', 'pipe'] });
         let stdout = '';
         let stderr = '';
         let settled = false;
+        const cancel = () => {
+          child.kill('SIGKILL');
+          settle({ ok: false, reason: 'exit', message: 'The call was cancelled.' });
+        };
         const settle = (result: ClaudeSendResult) => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
+          signal?.removeEventListener('abort', cancel);
           resolve(result);
         };
+        signal?.addEventListener('abort', cancel, { once: true });
         const timer = setTimeout(() => {
           child.kill('SIGKILL');
           settle({ ok: false, reason: 'timeout', message: `The CLI did not finish within ${timeoutMs} ms.` });
         }, timeoutMs);
 
-        child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk));
+        let unread = '';
+        child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+          stdout += chunk;
+          if (!onPartial || settled) return;
+          const lines = (unread + chunk).split('\n');
+          unread = lines.pop() ?? '';
+          for (const line of lines) {
+            const json = partialJson(line);
+            if (json !== '') onPartial(json);
+          }
+        });
         child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
         child.on('error', (error: NodeJS.ErrnoException) => {
           settle({

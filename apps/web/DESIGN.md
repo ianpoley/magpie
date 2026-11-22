@@ -57,6 +57,17 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - Each value is checked before it's stored. X is checked with whoami. The Jev key is checked by listing the account's models, which costs nothing. A refusal shows under its field, and an unreachable service or a locked keychain shows under the form.
   - The first sync is asked for once both are saved. A locked keychain counts as a stored key, so it shows the app and its warning, never the setup screen.
   - Copy says what happens and stops. There's no slogan.
+- **Ask answer** (`components/answer-card.tsx`, `components/sidebar-deck.tsx`), decided 2026-11-22 in `/proto/ask-brief`. An Ask ends in a written answer, and the answer is a conversation.
+  - The sidebar is a deck of two cards. The filters card is the sidebar as it was. The answer card sits behind it, 12px to the right and at 0.96 scale, so its edge shows. Both have 18px right corners. A bed in the sidebar's own color lies under them, so no page color shows through while a card is smaller than full size.
+  - The answer card has its own surface, `bg-answer`: dusk plum running to rose, with the same sunrise glow as the sidebar. Its text and controls use the sidebar's inks. The two colors are what make the peeking edge read.
+  - **The swap is a shuffle.** The back card slides out to the right by 42% of its width, passes over the top and settles in front, while the front card drops back. 350ms, `cubic-bezier(0.645, 0.045, 0.355, 1)` on each half. The prototype started at 460ms; the user asked for 350ms. The front card stays full size until the other has passed over it. With reduced motion on, the cards trade places at once. The values live in `globals.css` as `--deck-*`.
+  - Starting an Ask brings the answer card forward. Clearing the Ask sends it back. The peeking edge, Ask in the filters header and Filters in the answer header swap by hand without ending the Ask.
+  - Before any Ask the answer card is a place to start one: a heading, two lines on what happens, and a question field.
+  - The answer streams in: the lead sentence, then each point with its title, text and source chips. Placeholder lines hold the space until the first words arrive. A source chip scrolls the list to that post and marks it, or opens the post when the list does not show it.
+  - A follow-up field sits at the foot of the card. New chat, in the header, clears the conversation and leaves the card in front.
+  - Under 1,024px the sidebar is a sheet, and the same deck is inside it. The Ask panel gets an Answer button that opens the sheet.
+  - A post a source chip points at is marked: a 2px primary ring on a card (`shadow-cited`), a primary bar and soft fill on a row.
+  - The answer never shares the main column with the results.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces use `rounded-inner` (10px), and avatars use `rounded-avatar` (12px).
 - **Type:**
   - Text is Hanken Grotesk.
@@ -106,5 +117,17 @@ Header round (2026-11-20, on Murmur):
 - **Sticky:** the pinned tool row under the big 40px title.
 - **Command:** no title, just one bar. Too little brand.
 - **Compact + sticky** ✅: the list starts about 145px down.
+
+Ask answer round (2026-11-22, `/proto/ask-brief`, on the real screen with real asks): **the answer as a second sidebar card, swapped with Shuffle** ✅. The user's reasons are quoted; the other costs were seen in the prototype.
+- **Current:** the Ask panel ends at "Judged all N posts" and a ranked list. The question is never answered.
+- **Brief:** the answer inside the Ask panel, above the list. The first card started about 900px lower.
+- **Threaded:** each point as a heading over the posts it cites, then "Also matched". The list reshuffled when the answer landed.
+- **Margin:** the answer in a rail to the right of the list, tried as Jump, Glide, Tuck (the sidebar slides away for room) and Anchored (the column always sits left). Liked first, then turned down: "it can't share space with the result column in the middle. It either needs to take it over or it needs to take over the left sidebar." It also needed about 1,100px of main area, or a narrower post column.
+- **Column** and **Woven:** the conversation takes over the result column, with matches behind an Answer / Matches switch. Woven put the cited cards under each point. Passed over for the sidebar.
+- **Sidebar, plain swap:** the answer replaces the sidebar's contents in the same indigo. It became the deck: "tucked under but to the right a little bit of the main sidebar", so the swap reads as "a card being swapped".
+- **Deal:** the front card exits left and returns behind. The second half read as a pause.
+- **Lift:** both cards meet halfway and trade depth, with no sideways travel. The least card-like.
+- A light edge showed round a card mid-swap, because nothing lay under the cards. The bed fixed it.
+- The answer card in the sidebar's indigo: the peeking edge did not read, so it got its own surface.
 
 Grove (2026-11-19) beat Citrus, Lagoon, Riso, Spectrum, Ultraviolet, Tidepool and Sunset in two `/proto/style` rounds, then gave way to Murmur when the app was renamed Magpie.

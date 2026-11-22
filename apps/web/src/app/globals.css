@@ -53,7 +53,13 @@
   --color-dawn: oklch(0.95 0.035 60);
   --color-morning: oklch(0.962 0.022 200);
 
+  --color-answer-0: oklch(0.27 0.07 305);
+  --color-answer-1: oklch(0.31 0.07 318);
+  --color-answer-2: oklch(0.36 0.065 335);
+  --color-deck-shade: oklch(0.14 0.03 262);
+
   --radius-card: 16px;
+  --radius-deck: 18px;
   --radius-inner: 10px;
   --radius-avatar: 12px;
 
@@ -69,6 +75,8 @@
     0 1px 2px color-mix(in oklch, var(--color-primary) 40%, transparent),
     0 4px 12px -4px color-mix(in oklch, var(--color-primary) 50%, transparent),
     inset 0 1px 0 oklch(1 0 0 / 0.2);
+  --shadow-cited: 0 0 0 2px var(--color-primary), var(--shadow-card);
+  --shadow-deck: 10px 0 28px -12px color-mix(in oklch, var(--color-deck-shade) 60%, transparent);
   --shadow-pinned:
     0 1px 0 color-mix(in oklch, var(--color-ink) 8%, transparent),
     0 8px 18px -14px color-mix(in oklch, var(--color-ink) 30%, transparent);
@@ -81,6 +89,14 @@
   background:
     radial-gradient(120% 40% at 0% 100%, color-mix(in oklch, var(--color-sunrise) 22%, transparent), transparent 70%),
     linear-gradient(in oklab 172deg, var(--color-side-0), var(--color-side-1) 60%, var(--color-side-2));
+}
+@utility bg-answer {
+  background:
+    radial-gradient(120% 40% at 0% 100%, color-mix(in oklch, var(--color-sunrise) 26%, transparent), transparent 70%),
+    linear-gradient(in oklab 172deg, var(--color-answer-0), var(--color-answer-1) 60%, var(--color-answer-2));
+}
+@utility bg-answer-field {
+  background-color: color-mix(in oklch, var(--color-answer-0) 55%, transparent);
 }
 @utility bg-primary-fill {
   background-image: linear-gradient(in oklch 180deg, var(--color-primary-top), var(--color-primary));
@@ -396,6 +412,84 @@ body {
   box-shadow: var(--shadow-pinned);
 }
 
+.deck {
+  --deck-ms: 350ms;
+  --deck-peek: 12px;
+  --deck-lift: 0.96;
+  --deck-travel: 42%;
+  --deck-ease: cubic-bezier(0.645, 0.045, 0.355, 1);
+  position: relative;
+  height: 100%;
+}
+.deck-bed,
+.deck-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 0 var(--radius-deck) var(--radius-deck) 0;
+}
+.deck-card {
+  overflow: clip;
+  transform-origin: 100% 50%;
+}
+.deck-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--color-deck-shade);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--deck-ms) ease;
+}
+.deck-card[data-pos="front"] {
+  z-index: 2;
+  box-shadow: var(--shadow-deck);
+}
+.deck-card[data-pos="back"] {
+  z-index: 1;
+  transform: translateX(var(--deck-peek)) scale(var(--deck-lift));
+}
+.deck-card[data-pos="back"]::after {
+  opacity: 0.1;
+}
+.deck-peek {
+  position: absolute;
+  top: 3%;
+  bottom: 3%;
+  left: 100%;
+  z-index: 4;
+  width: calc(var(--deck-peek) + 4px);
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--radius-deck) var(--radius-deck) 0;
+  background: transparent;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  &:focus-visible {
+    outline-color: var(--color-ink);
+  }
+}
+.deck[data-moved] .deck-card[data-pos="front"] {
+  animation: deck-to-front var(--deck-ms) var(--deck-ease) both;
+}
+.deck[data-moved] .deck-card[data-pos="back"] {
+  animation: deck-to-back var(--deck-ms) var(--deck-ease) both;
+}
+@keyframes deck-to-front {
+  0% { transform: translateX(var(--deck-peek)) scale(var(--deck-lift)); z-index: 1; }
+  48% { transform: translateX(var(--deck-travel)) scale(calc((1 + var(--deck-lift)) / 2)); z-index: 1; }
+  49% { z-index: 3; }
+  100% { transform: none; z-index: 3; }
+}
+@keyframes deck-to-back {
+  0% { transform: none; z-index: 2; }
+  48% { transform: none; z-index: 2; }
+  100% { transform: translateX(var(--deck-peek)) scale(var(--deck-lift)); z-index: 1; }
+}
+.answer-rise {
+  animation: post-rise-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .post-li:is([data-motion="leave"], [data-motion="return"]) {
   display: grid;
   > * {
@@ -514,6 +608,15 @@ body {
   }
   .post-li:is([data-motion="leave"], [data-motion="return"]) {
     animation: none;
+  }
+  .deck[data-moved] .deck-card {
+    animation: none;
+  }
+  .deck-card::after {
+    transition: none;
+  }
+  .answer-rise {
+    animation: post-fade-in-still 150ms ease-out both;
   }
   .post-li[data-motion="leave"] > * {
     animation: post-fade-out-still 150ms ease-in both;

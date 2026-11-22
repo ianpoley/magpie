@@ -143,3 +143,13 @@ Popups mounted inside the sidebar read the page's colors, not the ink that sits 
 Author hue family: 8 hues at equal lightness, each at the same fraction of its own sRGB chroma ceiling (bg 80%, fg/ring 90%), so they read as equally vivid. fg on bg ≥ 4.5:1. Use: tint an author's avatar background (bg), their name (fg), and the avatar ring (ring).
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/author-hues.ts#L1-L3)
+
+### `apps/web/src/app/globals.css`
+
+#### 0016.20 `--color-answer-*`, `bg-answer`, `bg-answer-field`
+
+The answer card's surface: dusk plum to rose, with the sidebar's sunrise glow. It differs from the sidebar's indigo so the edge of the card behind reads as another card. Contrast of the sidebar inks on it, computed 2026-11-22: `side-ink` is 14.1:1 on the darkest stop and 10.3:1 on the lightest; `side-muted` is 10.0:1 and 7.3:1. In the glow's brightest corner they are 7.8:1 and 5.5:1. The question field sits in that corner, so it is filled darker (`bg-answer-field`) and not with `bg-side-hover`, on which muted placeholder text fell to 3.9:1.
+
+#### 0016.21 `.deck`
+
+The shuffle's values are the `--deck-*` properties: 350ms, a 12px peek, a 0.96 back card and 42% travel. The duration is the user's: the prototype ran at 460ms and they asked for 350ms. The other three are the prototype's starting values, which the user saw and did not change in writing. `z-index` is stepped inside the keyframes, at the moment the travelling card is clear of the other. The front card holds full size until then: when both cards were smaller at once, the page showed round them as a light edge. `--shadow-cited` is the ring on a post a source chip points at.

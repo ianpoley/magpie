@@ -167,3 +167,36 @@ test('an adapter failure passes through unchanged', async () => {
 
   assert.deepEqual(await askJson(adapter, { prompt: 'p', schema }), failure);
 });
+
+test('with onPartial, the answer arrives in pieces before the result, and the CLI is asked for them', async (t) => {
+  const piece = (json: string) => ({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: json } } });
+  const stub = stubCli(t, {
+    stdout: streamOf(
+      initEvent,
+      { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 'hm' } } },
+      piece('{"names": ["a"'),
+      piece(', "b"]}'),
+      resultEvent({ names: ['a', 'b'] }),
+    ),
+  });
+  const pieces: string[] = [];
+
+  const sent = await createClaudeCli({ cliPath: stub.cliPath }).send({ prompt: 'p', schema }, { onPartial: (json) => pieces.push(json) });
+
+  assert.deepEqual(pieces, ['{"names": ["a"', ', "b"]}']);
+  assert.equal(sent.ok, true);
+  assert.ok(stub.argv().includes('--include-partial-messages'));
+});
+
+test('an aborted call stops the CLI and comes back as a failure', async (t) => {
+  const stub = stubCli(t, { sleepSeconds: 30 });
+  const abort = new AbortController();
+  const started = Date.now();
+
+  const pending = createClaudeCli({ cliPath: stub.cliPath }).send({ prompt: 'p', schema }, { signal: abort.signal });
+  setTimeout(() => abort.abort(), 50);
+  const sent = await pending;
+
+  assert.equal(sent.ok, false);
+  assert.ok(Date.now() - started < 5_000);
+});

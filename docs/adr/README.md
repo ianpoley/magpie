@@ -11,7 +11,7 @@ Each entry has a heading with its number and the symbol it applies to, then the 
 | [0003](0003-engine-sync.md) | Sync: X, the run, the worker and the scheduler | 54 |
 | [0004](0004-engine-links.md) | Link resolution and resources | 22 |
 | [0005](0005-engine-jev.md) | Scoring posts with Jev | 16 |
-| [0006](0006-engine-claude.md) | Headless Claude calls | 8 |
+| [0006](0006-engine-claude.md) | Headless Claude calls | 9 |
 | [0007](0007-engine-evolve.md) | Growing the category list | 22 |
 | [0008](0008-engine-secrets.md) | Secrets | 28 |
 | [0009](0009-engine-service.md) | Background services | 20 |
@@ -19,7 +19,7 @@ Each entry has a heading with its number and the symbol it applies to, then the 
 | [0011](0011-engine-cli.md) | Command-line entry points | 5 |
 | [0012](0012-skill.md) | The Claude Code skill | 8 |
 | [0013](0013-web-data.md) | Web app: reading and changing data | 52 |
-| [0014](0014-web-ask.md) | Web app: Ask | 10 |
-| [0015](0015-web-ui.md) | Web app: interface behavior | 110 |
-| [0016](0016-styles.md) | Design tokens and styles | 19 |
+| [0014](0014-web-ask.md) | Web app: Ask | 15 |
+| [0015](0015-web-ui.md) | Web app: interface behavior | 124 |
+| [0016](0016-styles.md) | Design tokens and styles | 21 |
 | [0017](0017-tests.md) | Tests and fixtures | 15 |
