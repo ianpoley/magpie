@@ -245,7 +245,7 @@ function Transcript({ card }: { card: AnswerCardProps }) {
   }, [count]);
 
   return (
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-2 pb-5">
+    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-2 pb-5 [container-type:size]">
       {ask === null ? (
         <div className="flex h-full flex-col justify-end gap-2 pb-2">
           <p className="text-display text-[20px] text-side-ink">Ask your saved posts</p>
@@ -259,7 +259,11 @@ function Transcript({ card }: { card: AnswerCardProps }) {
       ) : (
         <ol className="flex flex-col gap-7">
           {turns.map((turn, index) => (
-            <li key={index} ref={index === count - 1 ? latest : undefined} className="flex flex-col gap-4">
+            <li
+              key={index}
+              ref={index === count - 1 ? latest : undefined}
+              className={`flex flex-col gap-4 ${index > 0 && index === count - 1 ? "min-h-[100cqh]" : ""}`}
+            >
               <Question>{turn.question}</Question>
               <AnswerBody turn={turn} first={index === 0} last={index === count - 1} card={card} confident={chat?.confident ?? 0} />
             </li>
