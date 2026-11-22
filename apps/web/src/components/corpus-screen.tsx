@@ -6,7 +6,7 @@ import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } fro
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
 import { CircleAlert, CircleCheck, Menu as MenuIcon, ScanSearch, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { pinQuery, purgeRemoved, removePost, restorePost } from "@/app/actions";
 import { createChatRunner, type AnswerRequest } from "@/lib/answer";
@@ -50,6 +50,7 @@ import { ResourcesView } from "./resources-view";
 import { runAction } from "./run-action";
 import { Sidebar, type SidebarProps } from "./sidebar";
 import { SidebarDeck, type DeckFront, type DeckState } from "./sidebar-deck";
+import { useSettledKeyword } from "./settled-keyword";
 import { SidebarResizer } from "./sidebar-resizer";
 import { useSyncStatus } from "./sync-status";
 import { iconButton, quietAnswer } from "./styles";
@@ -319,7 +320,7 @@ export function CorpusScreen({
     return () => window.removeEventListener("keydown", shortcuts);
   }, []);
 
-  const keyword = useDeferredValue(filter.keyword);
+  const keyword = useSettledKeyword(filter.keyword, snapshot.posts);
   const listView = JSON.stringify({ ...filter, keyword });
   const held = new Set(edited.view === listView ? edited.ids : []);
   const holdPost = (postId: string) =>

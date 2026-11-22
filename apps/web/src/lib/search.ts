@@ -22,10 +22,30 @@ export function aroundHit(text: string, query: string, after: number, lead = 48)
   return `…${text.slice(space < 0 ? Math.max(0, first[0] - lead) : space + 1)}`;
 }
 
-export function matchesKeyword(post: Post, query: string): boolean {
-  const fields = [post.text.replace(X_URL, ""), post.authorName, post.authorHandle, (post.quoted?.text ?? "").replace(X_URL, ""), ...post.linkedPages.map((page) => page.title)];
-  return words(query).every((word) => {
-    const pattern = new RegExp(escape(word), "i");
-    return fields.some((field) => pattern.test(field));
-  });
+const searchTexts = new WeakMap<Post, string>();
+
+export function searchText(post: Post): string {
+  let text = searchTexts.get(post);
+  if (text === undefined) {
+    const fields = [post.text.replace(X_URL, ""), post.authorName, post.authorHandle, (post.quoted?.text ?? "").replace(X_URL, ""), ...post.linkedPages.map((page) => page.title)];
+    text = fields.join("\n").toLowerCase();
+    searchTexts.set(post, text);
+  }
+  return text;
 }
+
+export const keywordTerms = (query: string): string[] => words(query).map((word) => word.toLowerCase());
+
+export function keywordMatcher(query: string): (post: Post) => boolean {
+  const terms = keywordTerms(query);
+  if (terms.length === 0) return () => true;
+  return (post) => {
+    const text = searchText(post);
+    return terms.every((term) => text.includes(term));
+  };
+}
+
+export const matchesKeyword = (post: Post, query: string): boolean => keywordMatcher(query)(post);
+
+export const narrows = (before: string[], after: string[]): boolean =>
+  after.length >= before.length && before.every((term, index) => after[index].includes(term));

@@ -289,3 +289,21 @@ test("recently added puts the posts a later sync found first, then newest within
   assert.deepEqual(ids(run({ sort: "added" }, snap).posts), ["old-saved-later", "new-in-first", "old-in-first"]);
   assert.deepEqual(ids(run({ sort: "newest" }, snap).posts), ["new-in-first", "old-in-first", "old-saved-later"]);
 });
+
+test("typing forward narrows from the last result and lists exactly what a fresh filter lists", () => {
+  const texts = ["spring animation", "Spring physics", "animation spring", "springs", "spring", "sprint plan", "unrelated"];
+  const posts = texts.map((text, index) => post(`p${index}`, { text, createdAt: "2026-01-01T00:00:00Z" }));
+  const typing = ["s", "sp", "spr", "spri", "sprin", "spring", "spring a", "spring an", "spring", "spr", "sprint"];
+  const narrowed = snapshot({ areas: AREAS, topics: TOPICS, posts });
+  for (const keyword of typing) {
+    const fresh = snapshot({ areas: AREAS, topics: TOPICS, posts });
+    assert.deepEqual(ids(run({ keyword }, narrowed).posts), ids(run({ keyword }, fresh).posts), keyword);
+  }
+});
+
+test("a held post stays listed while the keyword narrows past it", () => {
+  const snap = snapshot({ areas: AREAS, topics: TOPICS, posts: [post("kept", { text: "alpha" }), post("other", { text: "alphabet" })] });
+  const held = new Set(["kept"]);
+  applyFilter(snap, filter({ keyword: "alpha" }), NOW, held);
+  assert.deepEqual(ids(applyFilter(snap, filter({ keyword: "alphab" }), NOW, held).posts).sort(), ["kept", "other"]);
+});

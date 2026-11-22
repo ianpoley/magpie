@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { aroundHit, highlightRanges, matchesKeyword } from "../src/lib/search.ts";
+import { aroundHit, highlightRanges, keywordTerms, matchesKeyword, narrows } from "../src/lib/search.ts";
 import { post } from "./fixtures/snapshot.ts";
 
 const quoted = {
@@ -104,4 +104,19 @@ test("a match before the cutoff, or no match, leaves the text whole", () => {
   assert.equal(aroundHit("the needle early", "needle", 40), "the needle early");
   assert.equal(aroundHit("nothing here", "needle", 0), "nothing here");
   assert.equal(aroundHit("anything", "", 0), "anything");
+});
+
+test("a query narrows another only when every earlier term is inside the term in its place", () => {
+  assert.equal(narrows(keywordTerms("spr"), keywordTerms("Spring")), true);
+  assert.equal(narrows(keywordTerms("spring"), keywordTerms("spring anim")), true);
+  assert.equal(narrows([], keywordTerms("x")), true);
+  assert.equal(narrows(keywordTerms("spring"), keywordTerms("spr")), false);
+  assert.equal(narrows(keywordTerms("spring an"), keywordTerms("animation")), false);
+  assert.equal(narrows(keywordTerms('"spring an'), keywordTerms('"spring animation"')), false);
+});
+
+test("a term never matches across two fields", () => {
+  const split = post("5", { text: "ends with spring", authorName: "Animation Fan" });
+  assert.equal(matchesKeyword(split, '"spring animation"'), false);
+  assert.equal(matchesKeyword(split, "spring animation"), true);
 });
