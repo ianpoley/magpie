@@ -11,29 +11,6 @@ When the code changes, update or remove the entry here in the same commit.
 
 ## Decisions
 
-### `packages/engine/bin/birdclaw-nightly.sh`
-
-#### 0003.1 `PATH export`
-
-launchd starts jobs with a bare PATH; make brew + node reachable.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/birdclaw-nightly.sh#L22)
-
-#### 0003.2 `bird nvm lookup`
-
-birdclaw shells out to `bird`, which npm installs under the active nvm node (not on launchd's bare PATH). Prefer whatever `bird` is already reachable, else the newest nvm-installed one, and fail loudly if neither exists.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/birdclaw-nightly.sh#L40-L42)
-
-#### 0003.3 `categorize step`
-
-```text
-4) Categorize: resolve links, tag new posts, and evolve the category list.
-   Runs last and never fails the job: the export above is already written.
-```
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/birdclaw-nightly.sh#L98-L99)
-
 ### `packages/engine/bin/worker.mjs`
 
 #### 0003.4 `worker.mjs shutdown`
