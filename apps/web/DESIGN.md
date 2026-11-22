@@ -96,6 +96,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - Each section keeps its own save: Categories and Jev key have a Save or Replace key button. Model and effort save as soon as they change.
   - The Settings row in the sidebar footer carries the same rose dot when any tab needs attention. A tab holding a draft you haven't saved (a changed focus, a typed Jev key) carries an orange dot until you save it or empty it. Closing the window still discards the draft.
   - ⌘, (Ctrl+, elsewhere) opens Settings when no other window is open. ⌘↵ in Categories saves the focus, as Save would.
+  - In an answer's footer, the model name ("Opus 5.5 · medium effort") opens Settings on the Answers tab.
   - Status rows that need `bun run setup` have a Copy command button, with the update notice's copy behaviour. When the Claude skill links to another copy of Magpie, the row names that copy's folder.
   - The copy follows the plain style (rewritten with ste80-humanizer): one idea per sentence, an actor in every sentence, "your Claude plan" as the one term for plan use.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces use `rounded-inner` (10px), and avatars use `rounded-avatar` (12px).
