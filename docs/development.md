@@ -32,6 +32,19 @@ state/            # corpus.sqlite: your edits live here      (gitignored, not re
 logs/             # sync and service logs                    (gitignored)
 ```
 
+## Commits and releases
+
+Every push to `main` can publish a release, and the commit messages decide the version:
+
+| Prefix | Release |
+|---|---|
+| `feat:` | minor (`v0.2.0` → `v0.3.0`) |
+| `fix:`, `perf:` | patch (`v0.2.0` → `v0.2.1`) |
+| `feat!:`, or a `BREAKING CHANGE:` footer | major from 1.0; minor below 1.0 |
+| `docs:`, `refactor:`, `chore:`, `test:` | none |
+
+A misspelled prefix such as `Feat:` or `feature:` makes no release. Merge PRs by rebasing, so each commit keeps its message. Users see the new version in the sidebar's update row. The decision is in [ADR 0009.26](adr/0009-engine-service.md).
+
 ## Read next
 
 | Read | For |
