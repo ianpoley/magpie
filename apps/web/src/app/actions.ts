@@ -20,7 +20,7 @@ import {
 import { errorName } from "@/lib/error-name";
 import { MAX_FOCUS_CHARS, RESORT_FAILED_MESSAGE } from "@/lib/focus";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
-import type { ActionErrorCode, ActionResult, FocusMode, PlayableMedia, ResortChoice, ResortPreview, SyncState, UndoStep } from "@/lib/types";
+import type { ActionErrorCode, ActionResult, FocusMode, FormField, PlayableMedia, ResortChoice, ResortPreview, SyncState, UndoStep } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
@@ -29,7 +29,14 @@ const MAX_NAME_CHARS = 200;
 const MAX_POST_ID_CHARS = 64;
 const MAX_PIN_SCORES = 50_000;
 
-class InvalidInput extends Error {}
+class InvalidInput extends Error {
+  readonly field?: FormField;
+
+  constructor(message: string, field?: FormField) {
+    super(message);
+    this.field = field;
+  }
+}
 
 function id(value: unknown, what: string): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) throw new InvalidInput(`${what} is not an id.`);
@@ -199,14 +206,14 @@ export async function undoChange(changeId: number) {
 
 const COOKIE = /^[A-Za-z0-9%._-]{1,512}$/;
 
-function cookie(value: unknown, name: string): string {
+function cookie(value: unknown, name: "auth_token" | "ct0"): string {
   if (typeof value !== "string" || !COOKIE.test(value)) {
-    throw new InvalidInput(`${name} must be 1 to 512 letters, digits or the characters % . _ - with no spaces or line breaks.`);
+    throw new InvalidInput(`${name} must be 1 to 512 letters, digits or the characters % . _ - with no spaces or line breaks.`, name);
   }
   return value;
 }
 
-const refused = (code: ActionErrorCode, message: string) => ({ ok: false as const, code, message });
+const refused = (code: ActionErrorCode, message: string, field?: FormField) => ({ ok: false as const, code, message, ...(field ? { field } : {}) });
 
 const LOCKED_MESSAGE = "Can't reach the keychain. Unlock it, then try again.";
 
@@ -217,7 +224,7 @@ async function guarded<T extends object>(what: string, work: () => Promise<Actio
   try {
     return await work();
   } catch (error) {
-    if (error instanceof InvalidInput) return refused("invalid_input", error.message);
+    if (error instanceof InvalidInput) return refused("invalid_input", error.message, error.field);
     console.error(`${what}:`, errorName(error));
     return refused("failed", "That did not work. Try again.");
   }
@@ -268,7 +275,7 @@ const API_KEY = /^[\x21\x23-\x26\x28-\x5b\x5d-\x7e]{1,512}$/;
 export async function saveJevKey(key: string): Promise<ActionResult<{ sync: SyncState }>> {
   return guarded("save the Jev key", async () => {
     if (typeof key !== "string" || !API_KEY.test(key)) {
-      throw new InvalidInput("The key is 1 to 512 characters with no spaces, quotes or backslashes. Copy it again.");
+      throw new InvalidInput("The key is 1 to 512 characters with no spaces, quotes or backslashes. Copy it again.", "jev");
     }
     const [{ checkJevKey }, { createSecretStore }, state, { paths }] = await Promise.all([engineJev(), engineSecrets(), engineSyncState(), engineConfig()]);
     const checked = await checkJevKey(key);
