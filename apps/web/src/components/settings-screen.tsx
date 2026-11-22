@@ -240,7 +240,7 @@ export function SettingsScreen({ settings, sync: initialSync }: { settings: Sett
             <StatusRow
               ok={sync.state.workerAlive}
               title={sync.state.workerAlive ? "Background sync is running" : "Background sync isn't running"}
-              hint={sync.state.workerAlive ? null : "Start it with bun run service:install."}
+              hint={sync.state.workerAlive ? null : "Start it with bun run setup."}
             />
             <StatusRow ok={skill.ok} title={skill.title} hint={skill.hint} />
           </div>

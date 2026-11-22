@@ -91,6 +91,11 @@ export const SERVICE = {
 
 export const RELEASES = {
   repo: 'ianpoley/magpie',
+  branch: 'main',
+  applyRounds: 3,
+  nothingToApplyExit: 3,
+  syncWaitMs: 30 * 60_000,
+  syncPollMs: 15_000,
   checkEveryMs: 6 * 60 * 60_000,
   timeoutMs: 10_000,
 } as const;

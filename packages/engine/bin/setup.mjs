@@ -4,9 +4,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+const SETUP_WAIT_MS = 20 * 60_000;
+const SETUP_POLL_MS = 2_000;
 
 const parts = (version) => version.replace(/^v/, '').split('.').map(Number);
 
@@ -66,7 +69,33 @@ function versionOf(path) {
   return ran.status === 0 ? ran.stdout.trim() : null;
 }
 
-function main() {
+async function holdSetupLock() {
+  const { paths } = await import('../src/config.ts');
+  const { acquireLock } = await import('../src/lock.ts');
+  const path = join(paths().stateDir, 'setup.lock');
+  const deadline = Date.now() + SETUP_WAIT_MS;
+  let told = false;
+  for (;;) {
+    const attempt = acquireLock(path);
+    if (attempt.held) return attempt.release;
+    if (Date.now() > deadline) {
+      console.error(`Another Magpie setup (pid ${attempt.pid}) is still running after ${SETUP_WAIT_MS / 60_000} minutes. Stop it or wait, then run bun run setup again.`);
+      process.exit(1);
+    }
+    if (!told) console.log(`Another Magpie setup is running (pid ${attempt.pid}), such as the update that follows a git pull. Waiting for it to finish.`);
+    told = true;
+    await sleep(SETUP_POLL_MS);
+  }
+}
+
+async function main() {
+  const release = await holdSetupLock();
+  const status = run();
+  release();
+  process.exit(status);
+}
+
+function run() {
   const range = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).engines.node;
 
   console.log('Installing dependencies (bun install)');
@@ -74,7 +103,7 @@ function main() {
   const installed = spawnSync(bun, ['install'], { cwd: ROOT, stdio: 'inherit' });
   if (installed.status !== 0) {
     console.error('bun install failed; fix the error above, then run bun run setup again.');
-    process.exit(installed.status ?? 1);
+    return installed.status ?? 1;
   }
 
   const { chosen, first } = pickNode(nodeCandidates(), versionOf, range);
@@ -85,19 +114,23 @@ function main() {
     console.error('  nvm:      nvm install 26 && nvm use 26');
     console.error('  Homebrew: brew install node');
     console.error('  other:    https://nodejs.org');
-    process.exit(1);
+    return 1;
   }
   if (first && chosen.path !== first.path) {
     console.log(`Using Node ${chosen.version} at ${chosen.path}; the node first on your PATH is ${first.version}.`);
   }
 
-  const env = { ...process.env, PATH: [dirname(chosen.path), process.env.PATH].filter(Boolean).join(delimiter) };
+  const env = {
+    ...process.env,
+    MAGPIE_BUN: globalThis.Bun?.which('bun') ?? (process.versions.bun ? process.execPath : ''),
+    PATH: [dirname(chosen.path), process.env.PATH].filter(Boolean).join(delimiter),
+  };
   const ran = spawnSync(chosen.path, [join(ROOT, 'packages', 'engine', 'bin', 'magpie.mjs'), 'setup', ...process.argv.slice(2)], {
     cwd: ROOT,
     env,
     stdio: 'inherit',
   });
-  process.exit(ran.status ?? 1);
+  return ran.status ?? 1;
 }
 
-if (import.meta.main) main();
+if (import.meta.main) await main();

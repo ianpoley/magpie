@@ -13,13 +13,13 @@ import { launchd } from './launchd.ts';
 import { SERVICE_NAMES, spawnRunner } from './manager.ts';
 import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
 import { systemd } from './systemd.ts';
+import { idleWebBuild, liveBuildFile, readBuiltCommit, webDir } from './web-build.ts';
 
 export { must, spawnRunner } from './manager.ts';
+export { builtCommitFile, liveWebBuild } from './web-build.ts';
 export type { CommandResult, Runner } from './manager.ts';
 
 const CODE_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
-const webDir = (codeRoot: string) => join(codeRoot, 'apps', 'web');
-export const builtCommitFile = (codeRoot: string) => join(webDir(codeRoot), '.next', 'magpie-commit');
 const nextBin = (codeRoot: string) => join(webDir(codeRoot), 'node_modules', 'next', 'dist', 'bin', 'next');
 
 export function serviceSpecs(input: {
@@ -193,7 +193,7 @@ export function installBlocker(options: Pick<ServiceOptions, 'codeRoot'> = {}): 
   const codeRoot = options.codeRoot ?? CODE_ROOT;
   const main = mainCheckout(codeRoot);
   if (main !== codeRoot) {
-    return `This is a git worktree. Services installed from it would run this worktree's code and stop when it is removed. Run bun run service:install from the main checkout, ${main}. Worktrees already share its corpus and worker.`;
+    return `This is a git worktree. Services installed from it would run this worktree's code and stop when it is removed. Run bun run setup from the main checkout, ${main}. Worktrees already share its corpus and worker.`;
   }
   return null;
 }
@@ -241,17 +241,20 @@ export async function installService(options: ServiceOptions = {}): Promise<void
 
   const port = webPort(env);
   const specs = serviceSpecs({ nodePath, codeRoot, repoRoot: files.repoRoot, home, port });
-  log('stopping the web service');
-  await manager.stop('magpie-web');
-  log('building the web app');
-  const build = await run(nodePath, [nextBin(codeRoot), 'build'], { cwd: webDir(codeRoot), showOutput: true });
-  if (build.code !== 0) {
-    throw new Error(
-      `the web app build failed (exit ${build.code}). The service files were left as they were, and the web service stays stopped until an install succeeds.`,
-    );
-  }
+  const target = idleWebBuild(codeRoot);
   const head = await run('git', ['-C', codeRoot, 'rev-parse', 'HEAD']);
-  if (head.code === 0) writeFileSync(builtCommitFile(codeRoot), `${head.stdout.trim()}\n`);
+  log(`building the web app into apps/web/${target}; the running app keeps serving until the build is done`);
+  const build = await run(nodePath, [nextBin(codeRoot), 'build'], {
+    cwd: webDir(codeRoot),
+    showOutput: true,
+    env: { ...env, MAGPIE_NEXT_DIST: target },
+  });
+  if (build.code !== 0) {
+    throw new Error(`the web app build failed (exit ${build.code}). The running app and the service files were left as they were.`);
+  }
+  mkdirSync(join(webDir(codeRoot), target), { recursive: true });
+  if (head.code === 0) writeFileSync(join(webDir(codeRoot), target, 'magpie-commit'), `${head.stdout.trim()}\n`);
+  writeFileSync(liveBuildFile(codeRoot), `${target}\n`);
 
   mkdirSync(files.logsDir, { recursive: true });
   for (const spec of specs) {
@@ -302,12 +305,8 @@ export type ServiceStatus = {
 };
 
 async function buildBehindCode(run: Runner, root: string): Promise<boolean> {
-  let built: string;
-  try {
-    built = readFileSync(builtCommitFile(root), 'utf8').trim();
-  } catch {
-    return false;
-  }
+  const built = readBuiltCommit(root);
+  if (built === null) return false;
   const head = await run('git', ['-C', root, 'rev-parse', 'HEAD']);
   return head.code === 0 && head.stdout.trim() !== built;
 }

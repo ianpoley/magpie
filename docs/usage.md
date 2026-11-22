@@ -86,7 +86,7 @@ Run these from the repo root:
 
 ```bash
 bun run setup            # install deps, check the machine, walk through what is left (--yes: no prompts)
-bun run service:install  # build, then install or update both services
+bun run service:install  # build, then install or update both services (uses the node on PATH; setup picks one in range)
 bun run service:status   # what is running and how the last sync went; exits 1 when something needs attention
 bun run service:uninstall
 bun run secrets:set-jev  # store the Jev key
@@ -106,4 +106,5 @@ bun run build:markdown   # rebuild markdown/ and jsonl from existing data/*.json
 - **Sync interval.** Set `SYNC_INTERVAL_HOURS` in `~/.config/magpie/settings.env`. The default is 3.
 - **Secret fallback.** If no keychain works, Magpie writes the secrets to `~/.config/magpie/secrets.env`, which only you can read, and the app shows a warning.
 - **History fills in over time.** The first sync of each collection gets its full history. X rate-limits the likes endpoint, so likes can take several syncs to arrive.
-- **Node upgrades.** With Homebrew's Node, the services run it through `/opt/homebrew/opt/node`, so `brew upgrade` does not stop them. With another version manager, the services stop if the old Node path goes away. Run `bun run service:install` again to fix this. `service:status` tells you when it happens.
+- **Node upgrades.** With Homebrew's Node, the services run it through `/opt/homebrew/opt/node`, so `brew upgrade` does not stop them. With another version manager, the services stop if the old Node path goes away. Run `bun run setup` again to fix this. `service:status` tells you when it happens.
+- **Updates.** `git pull` on `main` applies itself: git hooks that setup installs rebuild the app and restart the services in the background, and the app keeps running until the new build is ready. The sidebar shows the update while it runs, and it says so when an update didn't finish. The log is `logs/update.log`. Without the hooks, run `bun run setup` after the pull.

@@ -298,7 +298,7 @@ export async function requestSync(): Promise<ActionResult<{ sync: SyncState }>> 
     if (!current.workerAlive) {
       return refused(
         "no_worker",
-        "Background sync isn't running. Start it with bun run service:install, or sync once by hand with bun run sync.",
+        "Background sync isn't running. Start it with bun run setup, or sync once by hand with bun run sync.",
       );
     }
     state.writeSyncRequest(paths().syncRequest);

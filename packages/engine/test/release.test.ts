@@ -44,7 +44,12 @@ test('updateStatus nudges only when the latest release is newer than the build',
     installed: 'v0.2.0',
     latest: 'v0.3.0',
     url: 'https://example.test/v0.3.0',
+    autoApplies: false,
   });
+  mkdirSync(join(root, '.git', 'hooks'), { recursive: true });
+  for (const hook of ['post-merge', 'post-rewrite']) writeFileSync(join(root, '.git', 'hooks', hook), '#!/bin/sh\nMAGPIE_UPDATE_HOOK=1\n');
+  const withHooks = async (args: string[]) => (args[0] === 'rev-parse' && args[1] === '--git-path' ? '.git/hooks' : described('v0.2.0')(args));
+  assert.equal((await updateStatus(root, { git: withHooks, release: release('v0.3.0') }))?.autoApplies, true);
   assert.equal(await updateStatus(root, { git: described('v0.3.0'), release: release('v0.3.0') }), null);
   assert.equal(await updateStatus(root, { git: described('v0.4.0'), release: release('v0.3.0') }), null);
 });
