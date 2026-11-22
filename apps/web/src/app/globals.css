@@ -13,6 +13,7 @@
 
 @theme {
   --color-canvas: oklch(0.972 0.014 235);
+  --color-canvas-glass: oklch(0.972 0.014 235 / 0.82);
   --color-surface: oklch(1 0 0);
   --color-sunken: oklch(0.955 0.018 60);
   --color-ink: oklch(0.24 0.03 255);
@@ -427,7 +428,7 @@ body {
 }
 
 .pinned-row[data-stuck] {
-  background: color-mix(in oklch, var(--color-canvas) 82%, transparent);
+  background: var(--color-canvas-glass);
   backdrop-filter: blur(12px) saturate(1.2);
   box-shadow: var(--shadow-pinned);
 }

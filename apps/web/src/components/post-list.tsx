@@ -146,7 +146,7 @@ export function PostList({
                 </ul>
               ) : null}
               {run.label ? (
-                <h2 className="sticky top-[var(--pinned-h,56px)] z-10 -mx-4 -mt-2 flex items-baseline gap-2 bg-[color-mix(in_oklch,var(--color-canvas)_82%,transparent)] px-5 py-1.5 backdrop-blur-[12px] sm:-mx-8 sm:px-9">
+                <h2 className="sticky top-[var(--pinned-h,56px)] z-10 -mx-4 -mt-2 flex items-baseline gap-2 bg-canvas-glass px-5 py-1.5 backdrop-blur-[12px] sm:-mx-8 sm:px-9">
                   <span className="text-eyebrow text-ink">{run.label}</span>
                   <span className="text-[12px] font-medium text-ink-muted tabular-nums">{formatCount(run.count)}</span>
                 </h2>
