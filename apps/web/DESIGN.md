@@ -40,7 +40,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - With reduced motion on, each flock is drawn still, as one loose body, and the mark and the empty-state birds rest. Turning the setting on or off changes the flock at once, without a reload.
 - **Page header** (`components/page-header.tsx`):
   - The title row holds the title (30px display), a count line (`N posts · N bookmarked · N liked`, or `N resources` on the Resources view) and the Posts / Resources switch.
-  - The tool row under it holds one search field, Time, Sort, the Media toggle and an icon-only Surprise. It pins to the top on scroll over a frosted strip (`shadow-pinned`). Changing a filter while it's pinned jumps back to the top of the results.
+  - The tool row under it holds one search field, Time, Sort, the Media toggle and an icon-only Surprise. It pins to the top on scroll over a frosted strip (`shadow-pinned`). Under 1,024px the pinned row also carries the menu button once it pins, so the filters and the answer stay one press away. Changing a filter while it's pinned jumps back to the top of the results.
   - The eyebrow shows only when it adds something: the collection, the area or the author.
 - **Ask is an action on the search field, not a mode.** You start it with the Ask button that appears once you type, or with ⌘↵ (Ctrl ↵). Plain Enter never starts an ask, because each one costs money. Once an ask is open, Enter re-runs it after an edit, and Escape puts the asked question back. A search that matches nothing offers Ask instead in its empty state, beside Clear filters.
 - **Primary fills:** a vertical gradient from `primary-top` to `primary`, with `shadow-primary`. Solid UI SDK buttons and the segmented-control indicator get it automatically.

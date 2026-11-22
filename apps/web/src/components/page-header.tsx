@@ -91,7 +91,7 @@ function SearchField({ h }: { h: PageHeaderProps }) {
   return (
     <form
       role="search"
-      className="min-w-[min(20rem,100%)] flex-1"
+      className="min-w-0 flex-1"
       onSubmit={(event) => {
         event.preventDefault();
         if (asking && query !== h.askedQuery) ask();
@@ -321,7 +321,10 @@ export function PageHeader(h: PageHeaderProps) {
       <div ref={ref} aria-hidden="true" className="h-0" />
       <div ref={pinnedRef} data-stuck={stuck ? "" : undefined} className="pinned-row sticky top-0 z-20 px-4 py-2 sm:px-8">
         <div className="flex flex-wrap items-center gap-2">
-          <SearchField h={h} />
+          <div className="flex min-w-[min(20rem,100%)] flex-1 items-center gap-2">
+            {stuck ? h.menuButton : null}
+            <SearchField h={h} />
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Choice label="Time range" icon={CalendarDays} options={TIME_RANGES} value={h.timeRange} fallback="all" onChange={h.onTimeRange} />
             {h.sortable ? <Choice label="Sort" icon={ArrowDownUp} options={SORTS} value={h.sort} fallback="newest" onChange={h.onSort} /> : null}
