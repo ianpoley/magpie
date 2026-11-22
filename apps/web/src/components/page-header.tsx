@@ -112,6 +112,11 @@ function SearchField({ h }: { h: PageHeaderProps }) {
           value={value}
           onValueChange={asking ? h.onAskDraft : h.onKeyword}
           onKeyDown={(event) => {
+            if (event.key === "Escape" && asking && h.askedQuery !== null) {
+              event.preventDefault();
+              h.onAskDraft(h.askedQuery);
+              return;
+            }
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault();
               ask();
