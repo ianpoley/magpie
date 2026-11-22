@@ -5,6 +5,7 @@ import { authorHue } from "@/lib/author-hues";
 import { initials } from "./format";
 
 const SIZES = {
+  xs: "size-5 rounded-[6px] text-[9px]",
   sm: "size-6 rounded-[8px] text-[10px]",
   md: "size-10 rounded-avatar text-[13px]",
   lg: "size-12 rounded-avatar text-[15px]",

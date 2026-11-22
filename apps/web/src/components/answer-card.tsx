@@ -10,6 +10,7 @@ import type { AskState } from "@/lib/ask";
 import { resourceName, resourcesFor } from "@/lib/resources";
 import type { Post, Snapshot } from "@/lib/types";
 
+import { AuthorAvatar } from "./author-avatar";
 import { formatCount, plural } from "./format";
 import { Tip } from "./tip";
 
@@ -112,8 +113,9 @@ function Sources({ point, card }: { point: AnswerPoint; card: AnswerCardProps })
               onClick={() => card.onCite(post.id)}
               aria-label={`${card.listed.has(post.id) ? "Show" : "Open"} the post by ${post.authorName}`}
               aria-pressed={marked}
-              className={`${CHIP} relative max-w-[11rem] cursor-pointer font-semibold before:absolute before:inset-x-0 before:-inset-y-1.5 ${marked ? "bg-side-ink text-ink" : QUIET_CHIP}`}
+              className={`${CHIP} relative max-w-[11rem] cursor-pointer gap-1.5 pl-1 font-semibold before:absolute before:inset-x-0 before:-inset-y-1.5 ${marked ? "bg-side-ink text-ink" : QUIET_CHIP}`}
             >
+              <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} size="xs" ring={false} />
               <span className="truncate">@{post.authorHandle}</span>
             </button>
           </li>
