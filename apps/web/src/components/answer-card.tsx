@@ -309,7 +309,7 @@ function Composer({ card }: { card: AnswerCardProps }) {
           onValueChange={setDraft}
           maxLength={500}
           autoComplete="off"
-          placeholder={first ? "Type a question…" : ready ? "Ask a follow-up…" : "A follow-up needs an answer first"}
+          placeholder={first ? "Type a question…" : ready || busy ? "Ask a follow-up…" : "A follow-up needs an answer first"}
           disabled={!first && !ready && !busy}
           className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[16px] text-side-ink shadow-none outline-none placeholder:text-side-muted sm:text-[14px]"
         />
