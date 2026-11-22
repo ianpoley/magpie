@@ -167,6 +167,10 @@ The posts the proposal itself matched: what was merged in is not part of it.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/evolve/undo.ts#L127)
 
+#### 0007.23 `removeCreatedTopics (copyFixes)`
+
+A merge records on each per-post fix it moves the topic the fix first came from (`overrides.merged_from`). A later merge keeps the first value, so a fix still names its own topic after a chain of merges. A restored topic takes back the fixes that came from it or from a topic that is still merged into it. Other restored topics' fixes, and those of created topics going out of use, stay out. A fix with no recorded source goes to every restored topic, as before: it was made on the created topic itself, or merged before sources were recorded, and there is no telling whose it is. A fix kept in one place too many can be taken off; a lost one cannot be found again.
+
 #### 0007.22 `reverseChanges`
 
 Reverses `chain` in the order given and logs the undo. Posts return to where the membership view puts them once the topics change state; nothing is scored here. The caller runs this inside one transaction. Returns the id of the log entry for the undo.

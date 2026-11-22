@@ -205,13 +205,17 @@ Stores the two band thresholds where the membership view reads them. The sync jo
 
 ### `packages/engine/src/store/schema.ts`
 
+#### 0002.22 `run_stages.reason`
+
+A stage can record a typed reason next to its message, so readers branch on it instead of the message's wording. The only reason so far is `secret_store_unreadable`, set on `x_auth` when the X session could not be read from the secret store. The web app shows the keychain as locked from it. The migration that adds the column tags the earlier rows by their message once, so a store upgraded during such a run still reads right.
+
 #### 0002.23 `REREAD_HOST_TITLED_VIDEOS`
 
 Videos resolved before they were read from oEmbed were titled by their host. This one-time migration finds them, resolved YouTube links titled by their host after one attempt, and makes them due for one last try: `failed`, three attempts of `LINKS.maxAttempts` (4), due at once. The next link stage reads them through the ordinary path. A video read from oEmbed gets its title and channel. One that still cannot be read reaches the attempt limit and settles as a resource under its host, and is not asked about again. Until that stage runs, their posts show as pending. The migration replaced a re-read that ran on every sync and found these rows by the same test. The 3 is written out because a shipped migration must not change when the constant does.
 
-#### 0002.22 `run_stages.reason`
+#### 0002.24 `overrides.merged_from`
 
-A stage can record a typed reason next to its message, so readers branch on it instead of the message's wording. The only reason so far is `secret_store_unreadable`, set on `x_auth` when the X session could not be read from the secret store. The web app shows the keychain as locked from it. The migration that adds the column tags the earlier rows by their message once, so a store upgraded during such a run still reads right.
+The topic a per-post fix first came from when a merge moved it. NULL for a fix made on the topic that holds it, and for every fix merged before the column existed. Undo reads it to give each restored topic back only its own fixes (see 0007.23).
 
 #### 0002.18 `MIGRATIONS`
 

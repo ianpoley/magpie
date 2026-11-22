@@ -112,8 +112,15 @@ function removeCreatedTopics(
      ORDER BY s.post_id`,
   );
   const copyFixes = db.prepare(
-    `INSERT OR IGNORE INTO overrides (post_id, topic_id, action, created_at)
-     SELECT post_id, ?, action, created_at FROM overrides WHERE topic_id = ? AND action IN ('add', 'remove')`,
+    `WITH RECURSIVE sources (id) AS (
+       SELECT :restored
+       UNION
+       SELECT t.id FROM topics t JOIN sources s ON t.merged_into = s.id WHERE t.state = 'merged'
+     )
+     INSERT OR IGNORE INTO overrides (post_id, topic_id, action, created_at)
+     SELECT post_id, :restored, action, created_at FROM overrides
+     WHERE topic_id = :holder AND action IN ('add', 'remove')
+       AND (merged_from IS NULL OR merged_from IN (SELECT id FROM sources))`,
   );
   const restore = db.prepare(
     `UPDATE topics SET state = 'active', merged_into = NULL, locked = 1, updated_at = ? WHERE id = ?`,
@@ -122,7 +129,7 @@ function removeCreatedTopics(
     if (read.get(topicId)?.state !== 'active') continue;
     const merged = mergedInto(db, topicId, created);
     for (const own of merged.own) {
-      copyFixes.run(own.id, topicId);
+      copyFixes.run({ restored: own.id, holder: topicId });
       restore.run(now, own.id);
     }
     for (const id of [topicId, ...merged.made.map((topic) => topic.id)]) {
