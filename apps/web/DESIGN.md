@@ -84,11 +84,17 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - The answer streams in, lead first, then each section as it arrives, with source chips that carry the author's avatar and handle. When a section cites two posts by one author, their chips add the day each was posted. Placeholder lines hold the space until the first words arrive. A source chip scrolls the list to that post and marks it, or opens the post when the list does not show it.
   - Under the last answer, "Ask next" offers 2 or 3 follow-up questions as chips. Pressing one asks it.
   - The footer names the model and effort and what was read: "Written by Opus 5.5 · medium effort from the 417 strongest of 511 matches (144 confident)."
-  - Claude reads every match it can: confident matches first, then possible ones, strongest first, up to 400,000 characters, with up to 8,000 characters of each post. Settings › Answers picks the model (Opus 5.5 by default, Sonnet 5.5, Haiku 5.5, Fable 5.2) and the effort (medium by default). Higher effort waits longer before giving up: up to 15 minutes at Max.
+  - Claude reads every match it can: confident matches first, then possible ones, strongest first, up to 400,000 characters, with up to 8,000 characters of each post. The Answers tab in Settings picks the model (Opus 5.5 by default, Sonnet 5.5, Haiku 5.5, Fable 5.2) and the effort (medium by default). Higher effort waits longer before giving up: up to 15 minutes at Max.
   - A follow-up field sits at the foot of the card. A follow-up's question scrolls to the top of the card, with room below it for the answer to stream into. New chat, in the header, clears the conversation and leaves the card in front.
   - Under 1,024px the sidebar is a sheet, and the same deck is inside it. The Ask panel gets an Answer button that opens the sheet. A source chip there closes the sheet first, then scrolls to the post.
   - A post a source chip points at is marked: a 2px primary ring on a card (`shadow-cited`), a primary bar and soft fill on a row.
   - The answer never shares the main column with the results.
+- **Settings window** (`components/settings-dialog.tsx`), decided 2026-11-22 in `/proto/settings` (Window). The Settings page was growing fast. Settings is now a dialog over the app, not a route, opened from the Settings row in the sidebar footer, in the sheet too.
+  - Section tabs sit down the left: Categories, X, Answers, Jev key, Status. The selected section shows on the right with its heading and one line on what it does. A rose dot on a tab marks a section that needs attention (X not connected, no Jev key, background sync stopped or the Claude skill not linked).
+  - Under 640px the tabs become a row along the top that scrolls sideways.
+  - Panels stay mounted, so a draft survives a switch to another tab. The window reads the settings fresh each time it opens, because saves don't refresh the page and Status changes outside the app.
+  - Each section keeps its own save: Categories and Jev key have a Save or Replace key button. Model and effort save as soon as they change.
+  - The copy follows the plain style (rewritten with ste80-humanizer): one idea per sentence, an actor in every sentence, "your Claude plan" as the one term for plan use.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces use `rounded-inner` (10px), and avatars use `rounded-avatar` (12px).
 - **Type:**
   - Text is Hanken Grotesk.
@@ -170,5 +176,10 @@ Search intents round (2026-11-22, `/proto/search-intents`, on the real screen): 
 - **Verbs:** Find topic (⌘↵) and Ask (⇧⌘↵) both in the main field. Two actions squeezed the field, so they folded to icons at normal widths.
 - **Ladder:** keyword only in the field, then a three-step strip under it: Words (free), Meaning (Jev, then Pin), Answer (Claude from the same matches). The strip showed on every keyword search and pushed the list about 130px down.
 - Cost kept with Two homes: an Ask from the sidebar runs its own Jev pass, so it cannot reuse a Find that is already open.
+
+Settings round (2026-11-22, `/proto/settings`, on the real screen): **Window** ✅. The user's reason for the round: "the setting page is growing quickly". They also asked for one direction that keeps settings in the left sidebar. No reason was given for passing on the others. The costs below were seen in the prototype.
+- **Page:** the `/settings` route as it was. It takes you off the posts, and each new section makes one long scroll with no navigation.
+- **Deck card:** settings as a third sidebar card, which shuffles forward from the footer row. It opens as a list of sections with one-line summaries, and each section opens inside the card. It was tight at the 220px minimum width (effort became a dropdown), and it hid the answer card while open.
+- **In place:** no settings area at all. Focus opened from a button on the Categories header, model and effort from a chip in the answer card header, and the Jev key and status from a footer row. There was no single place to look things over, and every new setting needed a home of its own.
 
 Grove (2026-11-19) beat Citrus, Lagoon, Riso, Spectrum, Ultraviolet, Tidepool and Sunset in two `/proto/style` rounds, then gave way to Murmur when the app was renamed Magpie.

@@ -309,7 +309,7 @@ function JevStep({
         />
       </fieldset>
       <FormError failure={failure} />
-      <p className="text-[12px] leading-snug text-ink-muted">It&rsquo;s checked with Jev, then kept {kept}.</p>
+      <p className="text-[12px] leading-snug text-ink-muted">Magpie checks it with Jev, then keeps it {kept}.</p>
       <div className="flex items-center gap-2">
         <button type="button" onClick={onBack} disabled={busy} className={`${quietAnswer} inline-flex items-center gap-1.5`}>
           <ArrowLeft className="size-3.5" aria-hidden="true" />
