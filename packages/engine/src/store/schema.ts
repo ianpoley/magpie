@@ -2,6 +2,12 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { MEMBERSHIP_VIEWS_V1, MEMBERSHIP_VIEWS_V2, MEMBERSHIP_VIEWS_V3 } from './membership.ts';
 
+export const REREAD_HOST_TITLED_VIDEOS = `
+  UPDATE links SET status = 'failed', attempts = 3, next_attempt_at = '1970-01-01T00:00:00.000Z'
+  WHERE status = 'resolved' AND title = host AND attempts = 1
+    AND host IN ('youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com');
+`;
+
 const MIGRATIONS: string[] = [
   `
   CREATE TABLE IF NOT EXISTS meta (
@@ -250,6 +256,7 @@ const MIGRATIONS: string[] = [
   UPDATE run_stages SET reason = 'secret_store_unreadable'
   WHERE stage = 'x_auth' AND outcome = 'failed' AND message LIKE 'The X session could not be read%';
   `,
+  REREAD_HOST_TITLED_VIDEOS,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
