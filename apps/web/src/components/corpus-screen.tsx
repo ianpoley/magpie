@@ -4,7 +4,7 @@ import { Button } from "@ui-sdk/react/button";
 import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@ui-sdk/react/dialog";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
-import { CircleAlert, CircleCheck, Menu as MenuIcon, Sparkles, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Menu as MenuIcon, ScanSearch, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -110,7 +110,7 @@ const solidButton = (label: string, action: () => void) => (
   </Button>
 );
 
-function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void, ask: (query: string) => void) {
+function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void, find: (query: string) => void) {
   const filter = result.state;
   if (!snapshot.storeExists) {
     return (
@@ -134,9 +134,9 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
         title="No posts match"
         action={
           <div className="flex flex-wrap justify-center gap-2">
-            <Button data-variant="solid" onClick={() => ask(keyword.slice(0, MAX_QUERY_CHARS))} className="pressable focus-ring h-9 gap-1.5 px-4">
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              Ask instead
+            <Button data-variant="solid" onClick={() => find(keyword.slice(0, MAX_QUERY_CHARS))} className="pressable focus-ring h-9 gap-1.5 px-4">
+              <ScanSearch className="size-3.5" aria-hidden="true" />
+              Find by meaning
             </Button>
             <Button onClick={clear} className={quietAnswer}>
               Clear filters
@@ -144,7 +144,7 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
           </div>
         }
       >
-        Nothing you saved mentions “{keyword}” under these filters. Ask it as a question to find posts about it, or try fewer words.
+        Nothing you saved says “{keyword}” under these filters. Find it by meaning to catch posts about it in other words, or try fewer words.
       </EmptyState>
     );
   }
@@ -262,6 +262,7 @@ export function CorpusScreen({
   const ask = useSyncExternalStore(askRunner.subscribe, askRunner.getState, () => null);
   const [chatRunner] = useState(() => createChatRunner(postAnswer));
   const chat = useSyncExternalStore(chatRunner.subscribe, chatRunner.getState, () => null);
+  const [chatWanted, setChatWanted] = useState(false);
   const [deck, setDeck] = useState<DeckState>({ front: "filters" });
   const [cited, setCited] = useState<string[]>([]);
   const swapDeck = (front: DeckFront) => setDeck({ front });
@@ -271,6 +272,7 @@ export function CorpusScreen({
     setAskDraft("");
     setMode("search");
     setCited([]);
+    setChatWanted(false);
     setDeck((current) => (current.front === front ? current : { front }));
   };
 
@@ -347,6 +349,7 @@ export function CorpusScreen({
         setAskDraft("");
         setMode("search");
         setCited([]);
+        setChatWanted(false);
         setDeck((current) => (current.front === "filters" ? current : { front: "filters" }));
       }
       setFilter((current) => ({ ...current, ...selectionInAddress() }));
@@ -411,16 +414,19 @@ export function CorpusScreen({
   const clearCategories = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false }));
   const clearPills = () => setFilter((current) => ({ ...current, topicIds: [], areaIds: [], unfiled: false, author: null, keyword: "" }));
   const clearAll = () => setFilter((current) => ({ ...DEFAULT_FILTER, sort: current.sort, revealHidden: current.revealHidden }));
-  const startAsk = (query: string) => {
+  const startRun = (query: string, chatToo: boolean) => {
     emitMagpie("ask");
-    if (chatRunner.getState()?.root !== cleanQuery(query)) chatRunner.clear();
+    if (!chatToo || chatRunner.getState()?.root !== cleanQuery(query)) chatRunner.clear();
     setCited([]);
-    swapDeck("answer");
+    if (chatToo) swapDeck("answer");
+    setChatWanted(chatToo);
     setFilter((current) => ({ ...current, keyword: "" }));
     setAskDraft(query);
-    setMode("ask");
+    setMode(chatToo ? "ask" : "find");
     askRunner.ask(query);
   };
+  const startAsk = (query: string) => startRun(query, true);
+  const startFind = (query: string) => startRun(query, false);
   const pin = async () => {
     if (!ask) return;
     const pinned = await runAction(pinQuery(ask.query, ask.scores));
@@ -498,8 +504,8 @@ export function CorpusScreen({
   const confidentKey = ask ? result.posts.slice(0, result.unsureStart ?? result.posts.length).map((post) => post.id).join(",") : "";
   const judged = ask?.status === "done" ? ask.query : null;
   useEffect(() => {
-    if (judged !== null) chatRunner.start(judged, confidentKey === "" ? [] : confidentKey.split(","));
-  }, [judged, confidentKey, chatRunner]);
+    if (judged !== null && chatWanted) chatRunner.start(judged, confidentKey === "" ? [] : confidentKey.split(","));
+  }, [judged, confidentKey, chatRunner, chatWanted]);
 
   const pendingCite = useRef<string | null>(null);
   const showCited = (postId: string) => {
@@ -520,7 +526,8 @@ export function CorpusScreen({
     pendingCite.current = postId;
     sidebarPanel.close();
   };
-  const writing = ask?.status === "running" || (chat?.turns.some((turn) => turn.status === "writing") ?? false);
+  const asked = chatWanted ? ask : null;
+  const writing = asked?.status === "running" || (asked !== null && (chat?.turns.some((turn) => turn.status === "writing") ?? false));
   const finishedTurns = chat?.turns.filter((turn) => turn.status !== "writing").length ?? 0;
   const [seenTurns, setSeenTurns] = useState(0);
   if ((deck.front === "answer" || finishedTurns < seenTurns) && seenTurns !== finishedTurns) setSeenTurns(finishedTurns);
@@ -536,7 +543,7 @@ export function CorpusScreen({
       type="button"
       onClick={() => {
         swapDeck("answer");
-        if (!ask) focusAnswerField();
+        if (!asked) focusAnswerField();
       }}
       className={SIDE_BUTTON}
     >
@@ -549,12 +556,12 @@ export function CorpusScreen({
           />
         ) : null}
       </span>
-      <span className="@max-[17rem]:sr-only">{ask ? "Answer" : "Ask"}</span>
+      <span className="@max-[17rem]:sr-only">{asked ? "Answer" : "Ask"}</span>
       {answerNews ? <span className="sr-only">. {answerNews}</span> : null}
     </button>
   );
   const answerCard = {
-    ask,
+    ask: asked,
     chat,
     snapshot,
     postsById,
@@ -608,7 +615,7 @@ export function CorpusScreen({
               sortable={!ask}
               onKeyword={(next) => setFilter((current) => ({ ...current, keyword: next }))}
               onAskDraft={setAskDraft}
-              onAsk={startAsk}
+              onRun={asked ? startAsk : startFind}
               onLeaveAsk={leaveAsk}
               onTimeRange={(timeRange) => setFilter((current) => ({ ...current, timeRange }))}
               onSort={(sort) => setFilter((current) => ({ ...current, sort }))}
@@ -630,6 +637,7 @@ export function CorpusScreen({
               {ask ? (
                 <AskBar
                   ask={ask}
+                  intent={chatWanted ? "ask" : "find"}
                   onPin={pin}
                   onRetry={() => askRunner.ask(ask.query)}
                   onClear={leaveAsk}
@@ -676,7 +684,7 @@ export function CorpusScreen({
                 emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)
               ) : view === "posts" ? (
                 result.posts.length === 0 ? (
-                  emptyPosts(snapshot, result, clearAll, clearCategories, startAsk)
+                  emptyPosts(snapshot, result, clearAll, clearCategories, startFind)
                 ) : (
                   <PostList
                     key={listKey}
@@ -698,7 +706,7 @@ export function CorpusScreen({
                 )
               ) : groups.length === 0 ? (
                 result.posts.length === 0 ? (
-                  emptyPosts(snapshot, result, clearAll, clearCategories, startAsk)
+                  emptyPosts(snapshot, result, clearAll, clearCategories, startFind)
                 ) : shownKind && allGroups.length > 0 ? (
                   <EmptyState title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
                     These posts link to other kinds of resources.

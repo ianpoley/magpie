@@ -29,13 +29,13 @@ Read everything first, so no store handle is held while the answers stream.
 
 #### 0014.3 `PageHeader / SearchField`
 
-Ask is an action on the search field (the Ask button or ⌘↵), not a mode: plain Enter never starts one, since each ask costs money.
+Find topic is an action on the search field (the Find topic button or ⌘↵), not a mode: plain Enter never starts one, since each run costs money. The search field never starts an Ask: an Ask starts only from the answer card, so a topic search can be pinned without starting a conversation. Decided in `/proto/search-intents`; see `apps/web/DESIGN.md`.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/page-header.tsx#L4)
 
 #### 0014.4 `SearchField`
 
-Plain Enter re-runs an open ask only once its question has been edited; in search, results are already live. Enter on the question that is already asked does nothing, whether it is still running or done, since each ask costs money. ⌘↵ and Try again still re-run it on purpose.
+Plain Enter re-runs an open Find topic or Ask only once its words have been edited, and keeps its kind: an edited Ask runs as an Ask. In search, results are already live. Enter on the words that already ran does nothing, whether the run is still going or done, since each run costs money. ⌘↵ and Try again still re-run it on purpose.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/page-header.tsx#L105)
 
@@ -81,7 +81,7 @@ Runs one search at a time against `send` and holds what the screen shows. Only t
 
 #### 0014.11 `createChatRunner`
 
-An Ask ends in a written answer, and the answer is a conversation. Jev runs first and Claude second: Claude cannot read the whole corpus on every question, so Jev's ranking picks the posts it reads. Those are the strongest confident matches, at most `READ_LIMIT`, under the filters that are on when judging finishes. That way every source is a card in the list beside the answer.
+An Ask ends in a written answer, and the answer is a conversation. A Find topic runs the same Jev pass and stops there: the conversation starts only when the run was an Ask (`chatWanted` in `CorpusScreen`). Jev runs first and Claude second: Claude cannot read the whole corpus on every question, so Jev's ranking picks the posts it reads. Those are the strongest confident matches, at most `READ_LIMIT`, under the filters that are on when judging finishes. That way every source is a card in the list beside the answer.
 
 The posts are fixed when the first answer is asked for. The one exception is a conversation that ended as too few posts: it starts again when the confident posts change, so widening a filter can still produce an answer. A follow-up sends the same posts and the conversation so far, and runs no new search: a second Jev run per turn would cost more and reshuffle the list under the reader. The cost is that a follow-up on another subject can come back thin, and the card's hint says so.
 
