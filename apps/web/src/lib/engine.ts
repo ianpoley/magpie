@@ -11,3 +11,4 @@ export const engineFocus = () => import(/* turbopackIgnore: true */ "@magpie/eng
 export const engineResort = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/focus/resort.ts");
 export const engineClaude = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/claude/cli.ts");
 export const engineSkillLink = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/setup/skill-link.ts");
+export const engineUpdate = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/release/update.ts");

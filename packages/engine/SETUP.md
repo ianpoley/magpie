@@ -64,6 +64,8 @@ bun run service:install          # rebuilds and restarts both services
 bun run service:status
 ```
 
+When a new release is out, the web app shows a notice at the bottom of the sidebar with the command to run. Releases are tagged automatically from each push to `main` that has `feat:` or `fix:` commits; the notice needs the repository to be public.
+
 After a `git pull`, the services keep running the old build until you reinstall; `service:status` and `setup` say when that is the case.
 
 With Homebrew's Node the services run it through the keg's `opt` link, which survives `brew upgrade`. With another version manager, if the path the services captured goes away they stay stopped until you rerun `service:install`; `service:status` reports it.

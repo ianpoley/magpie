@@ -19,7 +19,7 @@ export type { CommandResult, Runner } from './manager.ts';
 
 const CODE_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
 const webDir = (codeRoot: string) => join(codeRoot, 'apps', 'web');
-const builtCommitFile = (codeRoot: string) => join(webDir(codeRoot), '.next', 'magpie-commit');
+export const builtCommitFile = (codeRoot: string) => join(webDir(codeRoot), '.next', 'magpie-commit');
 const nextBin = (codeRoot: string) => join(webDir(codeRoot), 'node_modules', 'next', 'dist', 'bin', 'next');
 
 export function serviceSpecs(input: {

@@ -122,3 +122,25 @@ One ExecStart word: bare when it is plain, otherwise quoted; `$` would expand a 
 `process.execPath` resolves Homebrew's symlinks to `Cellar/node/<version>/bin/node`, and `brew upgrade` deletes that directory, so services pinned to it stop. The keg's `opt/<formula>` link names the same binary and follows upgrades. It is used only while it resolves to the very Node running the install, so the version that passed the setup checks is the one the services run.
 
 The `opt` link follows the formula, not the major version: once Homebrew's `node` moves to 27, the services run a Node outside `engines.node`. `service:status` reports that and exits 1, which is louder than the services stopping on a deleted path.
+
+### `packages/engine/src/release/version.ts`, `packages/engine/bin/next-release.mjs`, `.github/workflows/release.yml`
+
+#### 0009.26 Releases
+
+A version is a `vX.Y.Z` git tag and the GitHub release made from it. No file in the repo holds the number, so a release never commits back to `main`. Every push to `main` runs `next-release.mjs`, which reads the commit messages since the last tag: a `!` after the type or a `BREAKING CHANGE:` footer bumps the major version, `feat:` the minor, and `fix:` or `perf:` the patch. Below 1.0 a breaking change bumps the minor version. A push that has only other types, such as `docs:` or `chore:`, makes no release. The first release is `v0.1.0`.
+
+Releases go out on every push to `main`, not through a release PR, so a fix reaches users without a second merge. This is why the workflow tags directly instead of using release-please, which only releases by merging a release PR it opens.
+
+The bump reads each commit on `main`, which works because the repository allows rebase merges only, so every commit keeps its own message. If squash merges are turned on, the PR title becomes the only message, and a title without a `feat:` or `fix:` prefix makes no release.
+
+### `packages/engine/src/release/update.ts`
+
+#### 0009.27 `updateStatus`
+
+The running version is the newest release tag that the build in `apps/web/.next/magpie-commit` contains. That file exists only after `service:install`, so `next dev` in a worktree never shows the notice. The latest version is the GitHub API's latest release for `RELEASES.repo`. The call needs no token, so while the repository is private it returns 404 and the app shows nothing. Unauthenticated calls are limited to 60 an hour per IP, so the web app checks at most once every `RELEASES.checkEveryMs`. A build with no release tag counts as older than any release: a clone made before the first release, or never pulled since, has no tags. Any failure, offline included, means no notice.
+
+### `apps/web/src/lib/update-status.ts`
+
+#### 0009.28 `checkForUpdate`
+
+The notice tells the user to run `git pull && bun run setup` in the clone, not the `curl` installer. That works from a clone in any folder. Setup runs `bun install` and offers to rebuild the services when the build is behind the code. The app has no update button, because the rebuild stops the web service that would run it.
