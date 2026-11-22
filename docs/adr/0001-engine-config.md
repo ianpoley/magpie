@@ -60,3 +60,7 @@ A command-line tool: `pinned` is the entry file of the repo's own pinned package
 The bird and Birdclaw commands. Each defaults to the pinned engine dependency; MAGPIE_BIRD_BIN and MAGPIE_BIRDCLAW_BIN replace them with another executable, such as a test stub.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L296-L300)
+
+#### 0001.9 `Paths.claudeCli`
+
+The Claude CLI is spawned by this absolute path, so nothing has to put it on PATH. It defaults to ~/.local/bin/claude, where the CLI's installer puts it; MAGPIE_CLAUDE_BIN names another executable.
