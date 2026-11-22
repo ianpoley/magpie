@@ -257,7 +257,7 @@ test("the last run carries its stages, and the last complete run is remembered",
   });
 });
 
-test("hidden and Unfiled agree with the store's own views", (t) => {
+test("a post is hidden only when its strongest unpinned claim is in a hidden topic and no visible topic holds it confidently; Unfiled when no topic does", (t) => {
   const { db } = tempStore(t);
   const ai = seedArea(db, "AI");
   const politics = seedArea(db, "Politics", { hidden: true });
@@ -298,9 +298,12 @@ test("hidden and Unfiled agree with the store's own views", (t) => {
   const flagged = (view: string) => db.prepare(`SELECT post_id FROM ${view} ORDER BY post_id`).all().map((row) => String(row.post_id));
   const snap = readSnapshot(db);
   const derived = (flag: "hidden" | "unfiled") => snap.posts.filter((p) => p[flag]).map((p) => p.id).sort();
-  assert.deepEqual(derived("hidden"), flagged("post_hidden"));
-  assert.deepEqual(derived("unfiled"), flagged("post_unfiled"));
-  assert.ok(derived("hidden").length >= 4 && derived("hidden").length < snap.posts.length);
+  const hidden = ["added-hidden", "carried", "hidden-sure", "hidden-sure-visible-unsure", "hidden-topic-sure", "hidden-unsure-wins", "merged-in", "pin-and-hidden-unsure"];
+  const unfiled = ["carried", "hidden-unsure-wins", "low", "none", "removed-hidden", "unsure-tie", "visible-unsure-wins"];
+  assert.deepEqual(derived("hidden"), hidden);
+  assert.deepEqual(derived("unfiled"), unfiled);
+  assert.deepEqual(flagged("post_hidden"), hidden);
+  assert.deepEqual(flagged("post_unfiled"), unfiled);
 });
 
 test("a removed post is listed apart and counts toward no post list, topic, area, or resource", (t) => {

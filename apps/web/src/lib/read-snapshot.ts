@@ -232,11 +232,11 @@ function read(db: DatabaseSync): Snapshot {
   const topicsById = new Map(topics.map((topic) => [topic.id, topic]));
 
   const areaPosts = new Map<number, Set<string>>();
-  const standing = new Map<string, { confidentVisible: boolean; confidentHidden: boolean; hidden: number; visible: number }>();
   const filed = new Set<string>();
+  const hidden = new Set<string>();
   const membershipRows = db
     .prepare(
-      `SELECT post_id, topic_id, band, strength, hidden, pinned FROM topic_membership
+      `SELECT post_id, topic_id, band, post_filed, post_hidden FROM membership_standing
        ORDER BY band = 'confident' DESC, strength DESC, topic_id`,
     )
     .all();
@@ -247,32 +247,19 @@ function read(db: DatabaseSync): Snapshot {
     const band: Band = row.band === "confident" ? "confident" : "unsure";
     post.memberships.push({ topicId: topic.id, band });
     topic.postCount++;
-    if (band === "confident") {
-      topic.confidentCount++;
-      filed.add(post.id);
-    }
+    if (band === "confident") topic.confidentCount++;
+    if (row.post_filed === 1) filed.add(post.id);
+    if (row.post_hidden === 1) hidden.add(post.id);
     if (topic.areaId !== null) {
       let seen = areaPosts.get(topic.areaId);
       if (!seen) areaPosts.set(topic.areaId, (seen = new Set()));
       seen.add(post.id);
     }
-    if (row.pinned === 1) continue;
-    let state = standing.get(post.id);
-    if (!state) standing.set(post.id, (state = { confidentVisible: false, confidentHidden: false, hidden: -1, visible: -1 }));
-    const strength = Number(row.strength);
-    if (row.hidden === 1) {
-      state.hidden = Math.max(state.hidden, strength);
-      if (band === "confident") state.confidentHidden = true;
-    } else {
-      state.visible = Math.max(state.visible, strength);
-      if (band === "confident") state.confidentVisible = true;
-    }
   }
   for (const area of areas) area.postCount = areaPosts.get(area.id)?.size ?? 0;
   for (const post of posts) {
-    const state = standing.get(post.id);
     post.unfiled = !filed.has(post.id);
-    post.hidden = state !== undefined && !state.confidentVisible && (state.confidentHidden || state.hidden > state.visible);
+    post.hidden = hidden.has(post.id);
   }
 
   for (const row of db.prepare(`SELECT post_id FROM post_pending`).all()) {

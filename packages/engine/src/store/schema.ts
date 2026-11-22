@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-import { MEMBERSHIP_VIEWS_V1, MEMBERSHIP_VIEWS_V2 } from './membership.ts';
+import { MEMBERSHIP_VIEWS_V1, MEMBERSHIP_VIEWS_V2, MEMBERSHIP_VIEWS_V3 } from './membership.ts';
 
 const MIGRATIONS: string[] = [
   `
@@ -236,6 +236,7 @@ const MIGRATIONS: string[] = [
   `,
   MEMBERSHIP_VIEWS_V1,
   MEMBERSHIP_VIEWS_V2,
+  MEMBERSHIP_VIEWS_V3,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

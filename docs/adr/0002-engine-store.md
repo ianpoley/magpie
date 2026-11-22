@@ -182,6 +182,21 @@ drops and recreates it and append that as a new migration.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/store/membership.ts#L168-L174)
 
+#### 0002.21 `MEMBERSHIP_VIEWS_V3`
+
+```text
+  membership_standing (topic_membership's columns, post_filed, post_hidden)
+    Each topic_membership row, with two flags about its whole post:
+      post_filed   1 when any topic holds the post confidently
+      post_hidden  1 when the post is hidden, by the rule post_hidden states
+    The flags are window aggregates over the post's rows, so a reader that
+    already lists memberships learns Unfiled and hidden in the same read.
+    post_unfiled and post_hidden are recreated on top of it, so the rule is
+    written once.
+```
+
+The web snapshot reads this view instead of `topic_membership`. Reading `post_hidden` and `post_unfiled` as well would each cost about as much again as the membership read itself (on the owner's 3,200-post store: 426 ms for the membership read, 430 and 496 ms for the two views). The window columns add about 6% (453 ms). The recreated `post_hidden` and `post_unfiled` cost about 7% more than before, and only evolve's triggers read them.
+
 #### 0002.17 `syncBands`
 
 Stores the two band thresholds where the membership view reads them. The sync job calls this at the start of a run so the store follows the config.
