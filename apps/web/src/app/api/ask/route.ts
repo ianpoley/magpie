@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
       buildRequest: questions.askRequest,
       questionId: questions.askQuestionId,
       hasSomethingToJudge: questions.hasSomethingToJudge,
-      chunkSize: ASK.chunkSize,
+      requestTokenBudget: ASK.requestTokenBudget,
       concurrency: ASK.concurrency,
       bands: BANDS,
       onChunkError: (error) => console.error("ask: a request failed:", errorName(error)),
