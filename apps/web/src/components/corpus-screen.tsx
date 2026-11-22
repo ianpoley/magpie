@@ -32,7 +32,7 @@ import type { FilterResult, FilterState, Post, SettingsState, Snapshot, SyncStat
 import { AnswerCard } from "./answer-card";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { ConnectXDialog, createConnectXController } from "./connect-x-dialog";
-import { createSettingsController, SettingsDialog } from "./settings-dialog";
+import { createSettingsController, SettingsDialog, settingsNeedAttention } from "./settings-dialog";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { Flock } from "./flock";
@@ -251,6 +251,7 @@ export function CorpusScreen({
   const [postDialog] = useState(() => createDialogController<string>());
   const [connectX] = useState(createConnectXController);
   const [settingsDialog] = useState(createSettingsController);
+  const [settings, setSettings] = useState(initialSettings);
   const sync = useSyncStatus(initialSync);
   const [removedPosts] = useState(createRemovedPostsController);
   const [confirmRemove] = useState(createConfirmRemoveController);
@@ -476,6 +477,7 @@ export function CorpusScreen({
     sync,
     connectX,
     settings: settingsDialog,
+    settingsAttention: settingsNeedAttention(settings, sync.state),
     filter: applied,
     viewed: inView(applied, now),
     totals,
@@ -787,7 +789,7 @@ export function CorpusScreen({
         onSelectTopic={selectTopic}
         onEdit={holdPost}
       />
-      <SettingsDialog controller={settingsDialog} settings={initialSettings} sync={sync} connectX={connectX} />
+      <SettingsDialog controller={settingsDialog} settings={initialSettings} sync={sync} connectX={connectX} onLoad={setSettings} />
       <ConnectXDialog controller={connectX} sync={sync} />
       <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} onEmpty={emptyRemoved} />
       <ConfirmRemove controller={confirmRemove} onConfirm={removeConfirmed} />
