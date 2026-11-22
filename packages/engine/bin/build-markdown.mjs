@@ -12,43 +12,38 @@ let raw;
 try { raw = JSON.parse(readFileSync(inPath, 'utf8')); }
 catch (e) { console.error(`Could not parse ${inPath}: ${e.message}`); process.exit(1); }
 
-function findTweetArray(node, best = []) {
-  if (Array.isArray(node)) {
-    const tweety = node.filter(x => x && typeof x === 'object' &&
-      (x.text || x.full_text || x.content || x.tweet || x.id || x.id_str || x.rest_id || x.tweet_id));
-    if (tweety.length > best.length) best = node;
-    for (const el of node) best = findTweetArray(el, best);
-    return best;
+const isText = (value) => typeof value === 'string' && value !== '';
+
+function exportedPost(record, index) {
+  const author = record?.author;
+  if (!isText(record?.id) || typeof record.text !== 'string' || !isText(author?.handle)) {
+    const keys = record && typeof record === 'object' ? Object.keys(record).join(', ') : typeof record;
+    throw new Error(`post ${index} in ${inPath} is not in the Birdclaw export shape (needs id, text, author.handle; has ${keys})`);
   }
-  if (node && typeof node === 'object') for (const v of Object.values(node)) best = findTweetArray(v, best);
-  return best;
+  const handle = author.handle;
+  return {
+    id: record.id,
+    text: record.text,
+    handle,
+    name: isText(author.displayName) ? author.displayName : handle,
+    created: isText(record.createdAt) ? record.createdAt : '',
+    url: `https://x.com/${handle}/status/${record.id}`,
+  };
 }
 
-const arr = findTweetArray(raw);
-if (!arr.length) {
-  console.error(`No tweet-like array found in ${inPath}. Top-level keys: ${Object.keys(raw || {}).join(', ')}`);
+if (!Array.isArray(raw)) {
+  console.error(`${inPath} is not a Birdclaw export: expected a JSON array of posts, got ${raw === null ? 'null' : typeof raw}`);
+  process.exit(1);
 }
 
-const pick = (o, keys) => { for (const k of keys) if (o && o[k] != null && o[k] !== '') return o[k]; return undefined; };
+let items;
+try { items = raw.map(exportedPost); }
+catch (e) { console.error(e.message); process.exit(1); }
+
 const clean = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 const slug = s => clean(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'untitled';
 
-function norm(t) {
-  const id = pick(t, ['id', 'id_str', 'rest_id', 'tweet_id']);
-  const text = pick(t, ['full_text', 'text', 'content', 'tweet']) ?? '';
-  const author = t.author || t.user || t.core || t.account || {};
-  const handle = pick(t, ['handle', 'screen_name', 'username']) ||
-                 pick(author, ['handle', 'screen_name', 'username']) || 'unknown';
-  const name = pick(t, ['name', 'display_name']) || pick(author, ['name', 'display_name']) || handle;
-  const created = pick(t, ['created_at', 'createdAt', 'date', 'timestamp']);
-  const url = pick(t, ['url', 'permalink']) ||
-    (id ? (handle !== 'unknown' ? `https://x.com/${handle}/status/${id}` : `https://x.com/i/status/${id}`) : '');
-  return { id: id != null ? String(id) : '', text: String(text), handle: String(handle), name: String(name),
-           created: created ? String(created) : '', url: String(url), raw: t };
-}
-
 mkdirSync(outDir, { recursive: true });
-const items = arr.map(norm);
 
 const indexLines = [`# ${label}s (${items.length})`, '', `_Last built: ${new Date().toISOString()}_`, ''];
 const seen = new Set();
@@ -87,4 +82,3 @@ if (jsonlOut) {
 }
 
 console.log(`Wrote ${items.length} ${label} files -> ${outDir}`);
-if (items[0]) console.log(`Fields seen on first record: ${Object.keys(items[0].raw).join(', ')}`);
