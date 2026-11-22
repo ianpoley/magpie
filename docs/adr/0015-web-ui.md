@@ -119,7 +119,7 @@ Back to the control that opened it, or, when connecting replaced it, to the pane
 
 #### 0015.118 `SidebarDeck`
 
-The back card is `inert`, so nothing on it can be reached while it is behind. When a swap would leave focus on the card that just went back, focus moves to the card that came forward; focus anywhere else, such as the search field an Ask was started from, is left alone. Which card held focus is tracked from `focusin`, because by the time the swap has rendered the browser has already dropped focus to the body. Ask in the filters header, before any Ask, and New chat put focus in the question field of the deck on screen, since the desktop deck stays in the page, hidden, while the phone sheet is open.
+The back card is `inert`, so nothing on it can be reached while it is behind. When a swap would leave focus on the card that just went back, focus moves to the card that came forward; focus anywhere else, such as the search field an Ask was started from, is left alone. Which card held focus is tracked from `focusin`, because by the time the swap has rendered the browser has already dropped focus to the body. Ask in the filters header, when no Ask is open, and New chat put focus in the question field of the deck on screen, since the desktop deck stays in the page, hidden, while the phone sheet is open.
 
 The peeking edge is a button of its own, outside both cards, so it stays pressable whichever card is in front.
 
@@ -129,7 +129,7 @@ Each deck remembers for itself whether its front card has changed since it mount
 
 #### 0015.119 `AnswerCard`
 
-The answer never shares the main column with the results: it was tried above the list, woven into it and beside it, and each was turned down (see `DESIGN.md`). Everything that ends an Ask ends the conversation too, through one path: the Ask panel's clear, a category, a topic chip, an author, Pin as topic and Back. New chat ends it and keeps the card in front. Filters in the card's header only swaps the cards.
+The answer never shares the main column with the results: it was tried above the list, woven into it and beside it, and each was turned down (see `DESIGN.md`). Everything that ends an Ask or a Find topic ends the conversation too, through one path: the panel's clear, a category, a topic chip, an author, Pin as topic and Back. New chat ends it and keeps the card in front. Filters in the card's header only swaps the cards.
 
 A follow-up scrolls inside the conversation only. `scrollIntoView` would also scroll the card, which clips its contents.
 

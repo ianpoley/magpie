@@ -4,7 +4,7 @@ import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { Menu, MenuContent, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@ui-sdk/react/menu";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle } from "@ui-sdk/react/toggle";
-import { ArrowDownUp, CalendarDays, Check, ChevronDown, Image as ImageIcon, LayoutList, Rows3, Search, Shuffle, Sparkles, X, type LucideIcon } from "lucide-react";
+import { ArrowDownUp, CalendarDays, Check, ChevronDown, Image as ImageIcon, LayoutList, Rows3, ScanSearch, Search, Shuffle, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { MAX_QUERY_CHARS } from "@/lib/ask";
@@ -15,7 +15,7 @@ import type { PostLayout } from "./post-layout";
 import { menuContent, menuItem, pillControl } from "./styles";
 import { Tip } from "./tip";
 
-export type SearchMode = "search" | "ask";
+export type SearchMode = "search" | "find" | "ask";
 export type View = "posts" | "resources";
 
 const LAYOUT_ITEM = "focus-ring flex h-8 w-9 items-center justify-center px-0 text-ink-muted data-checked:text-on-primary [&>svg]:size-4";
@@ -56,7 +56,7 @@ export type PageHeaderProps = {
   sortable: boolean;
   onKeyword: (keyword: string) => void;
   onAskDraft: (draft: string) => void;
-  onAsk: (query: string) => void;
+  onRun: (query: string) => void;
   onLeaveAsk: () => void;
   onTimeRange: (timeRange: TimeRange) => void;
   onSort: (sort: Sort) => void;
@@ -80,21 +80,21 @@ const useIsMac = () =>
   );
 
 function SearchField({ h }: { h: PageHeaderProps }) {
-  const asking = h.mode === "ask";
+  const asking = h.mode !== "search";
   const value = asking ? h.askDraft : h.keyword;
   const mac = useIsMac();
   const query = value.trim().slice(0, MAX_QUERY_CHARS);
-  const ask = () => {
-    if (query) h.onAsk(query);
+  const run = () => {
+    if (query) h.onRun(query);
   };
-  const Lead = asking ? Sparkles : Search;
+  const Lead = h.mode === "find" ? ScanSearch : h.mode === "ask" ? Sparkles : Search;
   return (
     <form
       role="search"
       className="min-w-0 flex-1"
       onSubmit={(event) => {
         event.preventDefault();
-        if (asking && query !== h.askedQuery) ask();
+        if (asking && query !== h.askedQuery) run();
       }}
     >
       <InputGroup className="group h-10 items-center gap-2 rounded-full bg-surface pr-1.5 pl-3.5 shadow-card transition-shadow duration-150 ease-out has-[input:focus-visible]:shadow-[0_0_0_2px_var(--color-primary)]">
@@ -104,8 +104,8 @@ function SearchField({ h }: { h: PageHeaderProps }) {
           aria-keyshortcuts="/"
           type="search"
           enterKeyHint={asking ? "send" : "search"}
-          aria-label={asking ? "Question about your saved posts" : "Search saved posts, or ask a question"}
-          placeholder={asking ? "Edit the question, then press Enter" : "Search, or ask a question…"}
+          aria-label={h.mode === "find" ? "Topic to find by meaning" : h.mode === "ask" ? "Question about your saved posts" : "Search saved posts, or find a topic"}
+          placeholder={asking ? "Edit, then press Enter to run it again" : "Search by keyword, or find a topic…"}
           autoComplete="off"
           spellCheck={false}
           maxLength={asking ? MAX_QUERY_CHARS : undefined}
@@ -119,7 +119,7 @@ function SearchField({ h }: { h: PageHeaderProps }) {
             }
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault();
-              ask();
+              run();
             }
           }}
           className="min-w-0 text-[16px] placeholder:text-ink-muted sm:text-[14px] [&::-webkit-search-cancel-button]:hidden"
@@ -133,7 +133,7 @@ function SearchField({ h }: { h: PageHeaderProps }) {
           </kbd>
         ) : (
           <InputClear
-            aria-label={asking ? "Clear the question and go back to search" : "Clear search"}
+            aria-label={asking ? "Clear and go back to keyword search" : "Clear search"}
             onClick={asking ? h.onLeaveAsk : undefined}
             className="focus-ring pressable relative flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-ink-muted before:absolute before:-inset-1.5 hover:bg-sunken hover:text-ink"
           >
@@ -143,12 +143,12 @@ function SearchField({ h }: { h: PageHeaderProps }) {
         {!asking && value.trim() !== "" ? (
           <button
             type="button"
-            onClick={ask}
+            onClick={run}
             aria-keyshortcuts={mac ? "Meta+Enter" : "Control+Enter"}
             className="focus-ring pressable inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-primary-soft pr-2 pl-3 text-[13px] font-semibold text-primary-text hover:bg-[color-mix(in_oklch,var(--color-primary-soft)_85%,var(--color-primary))]"
           >
-            <Sparkles className="size-3.5" aria-hidden="true" />
-            Ask
+            <ScanSearch className="size-3.5" aria-hidden="true" />
+            Find topic
             <kbd aria-hidden="true" className="hidden h-5 items-center rounded-[6px] bg-surface/70 px-1 font-sans text-[11px] font-semibold pointer-fine:inline-flex">
               {mac ? "⌘↵" : "Ctrl ↵"}
             </kbd>
