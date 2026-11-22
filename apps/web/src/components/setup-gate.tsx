@@ -292,7 +292,7 @@ function JevStep({
         Add your Jev key
       </StepTitle>
       <p className="-mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
-        Jev sorts each post into topics and answers Ask. Paste your{" "}
+        Jev sorts each post into topics and checks your saved posts against each Ask question. Paste your{" "}
         <a href="https://docs.typesafe.ai" target="_blank" rel="noreferrer" className="focus-ring rounded-sm font-medium text-primary-text underline underline-offset-2">
           TypeSafe
         </a>{" "}
