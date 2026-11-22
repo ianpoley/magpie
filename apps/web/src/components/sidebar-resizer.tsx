@@ -4,8 +4,6 @@ import { useRef, useSyncExternalStore, type KeyboardEvent, type PointerEvent } f
 
 import { clampSidebarWidth, SIDEBAR_WIDTH, SIDEBAR_WIDTH_KEY, SIDEBAR_WIDTH_VAR, storedSidebarWidth } from "./sidebar-width";
 
-const MAIN_MIN = 600;
-
 const listeners = new Set<() => void>();
 let width: number | null = null;
 
@@ -38,7 +36,7 @@ function saveWidth() {
   }
 }
 
-const widest = (): number => clampSidebarWidth(window.innerWidth - MAIN_MIN);
+const widest = (): number => clampSidebarWidth(window.innerWidth - SIDEBAR_WIDTH.mainMin);
 
 function subscribeWindow(listener: () => void): () => void {
   window.addEventListener("resize", listener);
