@@ -63,8 +63,6 @@ export type RemovedPost = {
 
 export type AreaKind = "auto" | "system";
 export type TopicKind = "auto" | "pinned";
-export type ChangeKind = "initial" | "new_topic" | "split" | "undo";
-export type ChangeSource = "auto" | "user";
 export type RunStatus = "running" | "complete" | "failed";
 
 export type Area = {
@@ -99,17 +97,6 @@ export type Resource = {
   postIds: string[];
 };
 
-export type Change = {
-  id: number;
-  kind: ChangeKind;
-  source: ChangeSource;
-  summary: string;
-  postCount: number;
-  createdAt: string;
-  undoable: boolean;
-  undoneAt: string | null;
-};
-
 export type RunStage = {
   stage: string;
   outcome: string;
@@ -136,7 +123,6 @@ export type Snapshot = {
   areas: Area[];
   topics: Topic[];
   resources: Resource[];
-  changes: Change[];
   lastRun: Run | null;
   lastCompleteRunAt: string | null;
 };
@@ -240,11 +226,3 @@ export type SkillLink = "linked" | "elsewhere" | "missing" | "none";
 
 export type SettingsState = { focus: FocusState; skillLink: SkillLink; jevKeyStored: boolean };
 
-export type UndoStep = {
-  id: number;
-  kind: string;
-  summary: string;
-  postCount: number;
-  createdAt: string;
-  restores: string[];
-};

@@ -5,7 +5,7 @@ import { Input, InputClear, InputGroup } from "@ui-sdk/react/input";
 import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from "@ui-sdk/react/scroll-area";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
-import { Bookmark, Eye, Heart, History, Layers, Search, Settings, Tags, Trash2, X, type LucideIcon } from "lucide-react";
+import { Bookmark, Eye, Heart, Layers, Search, Settings, Tags, Trash2, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
@@ -21,7 +21,6 @@ import type { RemovedPostsController } from "./removed-posts";
 import type { ConnectXController } from "./connect-x-dialog";
 import { SIDE_FOOTER_ROW, SyncStatus, type SyncController } from "./sync-status";
 import { UpdateNotice } from "./update-notice";
-import type { WhatChangedController } from "./what-changed";
 
 const COLLECTIONS: { value: Collection; label: string; icon: LucideIcon }[] = [
   { value: "everything", label: "Everything", icon: Layers },
@@ -41,7 +40,6 @@ export type SidebarProps = {
   totals: { everything: number; bookmarks: number; likes: number };
   authors: AuthorCount[];
   expanded: string[];
-  whatChanged: WhatChangedController;
   removedPosts: RemovedPostsController;
   categoryEdits: CategoryEdits;
   headerAction?: ReactNode;
@@ -63,7 +61,6 @@ export function Sidebar({
   totals,
   authors,
   expanded,
-  whatChanged,
   removedPosts,
   categoryEdits,
   headerAction,
@@ -77,7 +74,6 @@ export function Sidebar({
 }: SidebarProps) {
   const hasCategories = snapshot.topics.length > 0;
   const hasHidden = snapshot.areas.some((area) => area.hidden) || snapshot.topics.some((topic) => topic.hiddenSelf);
-  const changeCount = snapshot.changes.length;
   const removedCount = snapshot.removed.length;
   const [categoryQuery, setCategoryQuery] = useState("");
 
@@ -231,13 +227,6 @@ export function Sidebar({
       <div className="flex flex-col gap-0.5 border-t border-[color-mix(in_oklch,var(--color-side-ink)_12%,transparent)] px-3 pt-2 pb-3">
         <UpdateNotice />
         <SyncStatus sync={sync} connectX={connectX} />
-        <DialogTrigger controller={whatChanged} className={SIDE_FOOTER_ROW}>
-          <History className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
-          What changed
-          {changeCount > 0 ? (
-            <span className="ml-auto text-[12px] font-medium text-side-muted tabular-nums">{formatCount(changeCount)}</span>
-          ) : null}
-        </DialogTrigger>
         <Link href="/settings" className={`${SIDE_FOOTER_ROW} no-underline`}>
           <Settings className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
           Settings

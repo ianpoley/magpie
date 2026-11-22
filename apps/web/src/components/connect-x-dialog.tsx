@@ -133,7 +133,7 @@ function DisconnectButton({ sync, onDone }: { sync: SyncController; onDone: () =
       <AlertDialogContent className={alertContent}>
         <AlertDialogTitle className="text-display text-[20px]">Disconnect X?</AlertDialogTitle>
         <AlertDialogDescription className="mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
-          The saved cookies are deleted from this machine and syncing stops. Posts already synced stay here.
+          The saved cookies are deleted from this machine and syncing stops. Magpie goes back to its setup screen. Posts already synced stay on this machine and show again once X is connected.
         </AlertDialogDescription>
         <p className="mt-2 text-[13px] leading-[1.55] text-pretty text-ink-muted">
           This doesn&apos;t sign the session out of X. If you think the cookies leaked, end it on x.com too: Settings and privacy, Security and account access, Apps and sessions, Sessions.

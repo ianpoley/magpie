@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { displayUrl, expandLinks, shortenUrls, usableTarget, withoutTracking } from "../src/lib/post-links.ts";
+import { displayUrl, expandLinks, postAddress, shortenUrls, trimUrl, usableTarget, withoutTracking } from "../src/lib/post-links.ts";
 
 const targets = new Map([
   ["https://t.co/repo", "https://github.com/firecrawl/firecrawl"],
@@ -61,4 +61,19 @@ test("tracking parameters are taken off an address, and nothing else is", () => 
   assert.equal(withoutTracking("https://example.com/a?id=4&utm_campaign=x"), "https://example.com/a?id=4");
   assert.equal(withoutTracking("https://example.com/a?id=4"), "https://example.com/a?id=4");
   assert.equal(withoutTracking("not a url"), "not a url");
+});
+
+test("a closing bracket that belongs to the address is kept, and one that closes the sentence is dropped", () => {
+  const mercury = "https://en.wikipedia.org/wiki/Mercury_(planet)";
+  assert.equal(trimUrl(mercury), mercury);
+  assert.equal(trimUrl(`${mercury}.`), mercury);
+  assert.equal(trimUrl(`${mercury}).`), mercury);
+  assert.equal(trimUrl("https://example.com/a[1]"), "https://example.com/a[1]");
+  assert.equal(trimUrl("https://example.com/a]),"), "https://example.com/a");
+});
+
+test("a post opens at its own http(s) address, and anything else falls back to its address on X", () => {
+  assert.equal(postAddress("https://x.com/ada/status/1", "ada", "1"), "https://x.com/ada/status/1");
+  assert.equal(postAddress("javascript:alert(1)", "ada", "42"), "https://x.com/ada/status/42");
+  assert.equal(postAddress("", "a/b", "4?2"), "https://x.com/a%2Fb/status/4%3F2");
 });

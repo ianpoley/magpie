@@ -65,7 +65,6 @@ export function snapshot(parts: Partial<Snapshot>): Snapshot {
     areas: [],
     topics: [],
     resources: [],
-    changes: [],
     lastRun: null,
     lastCompleteRunAt: null,
     ...parts,

@@ -105,13 +105,13 @@ The submit button is gone; keep focus in the dialog until it closes.
 
 #### 0015.14 `visibleSyncAction`
 
-The sync panel's action in the sidebar on screen: what replaces the trigger once X is connected or disconnected.
+The sync panel's action in the sidebar on screen: what replaces the trigger once X is connected. Disconnecting leaves the corpus screen for the setup screen, so there is no panel to return to then.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/connect-x-dialog.tsx#L174)
 
 #### 0015.15 `ConnectXDialog (finalFocus)`
 
-Back to the control that opened it, or, when connecting or disconnecting replaced it, to the panel's new action.
+Back to the control that opened it, or, when connecting replaced it, to the panel's new action.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/connect-x-dialog.tsx#L191)
 
@@ -143,9 +143,17 @@ Only from the page itself or a card, so a focused menu, tree row, or control kee
 
 #### 0015.20 `CorpusScreen history replaceState/pushState`
 
-A selection the address already names is tidied in place, so Back still leaves it. A search alone rewrites the current entry, so Back does not step through every letter typed.
+A selection the address already names is tidied in place, so Back still leaves it. A search alone rewrites the current entry, so Back does not step through every letter typed. The address counts as naming the selection when it matches either the selection as chosen or as shown, since a deleted topic, or an area chosen with one of its own topics, is dropped from what is shown and so from the address.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/corpus-screen.tsx#L292-L293)
+
+#### 0015.113 `CorpusScreen popstate`
+
+Back and Forward set the selection from the address. An open ask sets the category selection aside (0014.9), so following the address would change the URL but not the results; the ask is closed first, as picking a category in the sidebar does.
+
+#### 0015.114 `CorpusScreen disconnected`
+
+The page shows the setup screen while X is not connected. Once the sync state says so, after Disconnect or a read that finds the cookies gone, the page is refreshed at once, so the swap happens then and not at some later refresh.
 
 #### 0015.21 `shownSelection`
 
@@ -266,6 +274,10 @@ Chosen from a prototype round. Rejected:
 - A frame with an arrow at the thumbnail: the white arrow disappeared against the white card.
 - The wedge appearing after the preview grows out of the thumbnail: too busy.
 - The line without the dim: the line and preview were lost against the cards.
+
+#### 0015.117 `loadVideo`
+
+The playable address of a video is read once per thumbnail and kept for the session. A read that failed is forgotten, so the next hover tries again.
 
 #### 0015.111 `playWithSound`
 
@@ -601,6 +613,10 @@ The sidebar's sync panel. While all is well it is one compact line, the status a
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/sync-status.tsx#L95-L100)
 
+#### 0015.115 `SyncStatus clock`
+
+Relative times ("Synced 5 minutes ago") are measured from when the state was read on the server's render, then from a clock that ticks each minute after mount, so they keep moving while nothing is synced and the first render matches the server's. A refused Sync now message belongs to the state it was refused under, and goes away once a newer state is read.
+
 #### 0015.82 `SyncStatus live region`
 
 One element tree for both shapes, so the live region stays mounted and announces a change of state.
@@ -801,6 +817,10 @@ The text from a little before the first match, when that match sits more than `a
 Settings is its own route, `/settings`, opened from a row in the sidebar footer, so the corpus screen's query-param state stays out of it. A back link returns to `/`. It holds the category focus setting, the X connection, the Jev key, and read-only status for background sync and the Claude skill link.
 
 Changing the focus saves it first, then asks whether to re-sort existing areas, showing a preview of what would change. Apply writes only the previewed changes, and only to areas still unflagged and active. Choosing not to re-sort keeps the saved setting for new areas. The page is in `apps/web/src/components/settings-screen.tsx`; the preview dialog is `apps/web/src/components/resort-dialog.tsx`.
+
+#### 0015.116 `FocusSection / JevSection messages`
+
+Cache Components keeps the settings page's state when it is navigated away from (see the Next.js guide on preserving UI state). Saved notes, failures and "New key saved" are cleared when the page is hidden, so coming back does not show the result of an earlier visit. Unsaved drafts are kept.
 
 ### `apps/web/src/components/update-notice.tsx`
 

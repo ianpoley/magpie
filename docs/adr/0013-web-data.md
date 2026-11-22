@@ -67,6 +67,12 @@ Checks the pasted Jev key with TypeSafe and stores it only if TypeSafe accepts i
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/app/actions.ts#L254-L258)
 
+### `apps/web/next.config.ts`
+
+#### 0013.54 `experimental.serverActions.bodySizeLimit`
+
+Pinning an ask sends every score it judged to `pinQuery`, up to `MAX_PIN_SCORES` (50,000). Each is about 65 bytes with an X post id and about 110 at `MAX_POST_ID_CHARS`, so a full pin is 3 to 6 MB, over the 1 MB server actions accept by default. The limit is 8 MB; the proxy buffers request bodies up to 10 MB by default, which is above it.
+
 ### `apps/web/src/app/api/sync-status/route.ts`
 
 #### 0013.10 `GET`
@@ -119,6 +125,10 @@ The selection a URL names. Anything that is not a list of ids is ignored, never 
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/filter-url.ts#L40)
 
+#### 0013.55 `linkedKeyword`
+
+The search words in a link are cut to 200 characters both when the address is written and when it is read, so a link opens to the same search it was made from. The cut counts whole characters, so an emoji at the limit is kept or dropped whole.
+
 ### `apps/web/src/lib/filter.ts`
 
 #### 0013.17 `ORDER.added`
@@ -162,6 +172,10 @@ Post text with each shortened address replaced by where it leads, read from the 
 The address a resolved link should open: only http(s), and nothing that would split it in the text.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/post-links.ts#L42)
+
+#### 0013.56 `postAddress`
+
+Where Open on X and Copy link go. The store's address is used only when it is http(s); anything else falls back to the post's address on X, built from its author and id.
 
 ### `apps/web/src/lib/read-snapshot.ts`
 
@@ -301,12 +315,6 @@ Posts still bookmarked or liked that the user removed, most recently removed fir
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/types.ts#L145)
 
-#### 0013.43 `Snapshot.changes`
-
-Newest first.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/types.ts#L150)
-
 #### 0013.44 `SyncState`
 
 The background sync as the web app can see it: the X connection, the worker's heartbeat and schedule, the run lock and the last run. Never holds a cookie value.
@@ -342,14 +350,6 @@ Under a topic or area selection, the index of the first post that is only an uns
 A half-open range of string indexes: [start, end).
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/types.ts#L223)
-
-#### 0013.50 `UndoStep.restores`
-
-Names of topics the user merged into a topic this change created; undoing it brings them back.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/types.ts#L262)
-
-### `apps/web/src/proxy.ts`
 
 #### 0013.51 `proxy`
 

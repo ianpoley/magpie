@@ -21,7 +21,7 @@ The page reads the store on every request and again whenever you return to the w
 
 ## What is on the screen
 
-- **Sidebar:** collections (Everything, Bookmarks, Likes), the category tree, the ten most-saved authors, sync status, and What changed.
+- **Sidebar:** collections (Everything, Bookmarks, Likes), the category tree, the ten most-saved authors, and sync status.
   - Pressing an area or topic adds it to the filter; pressing it again removes it. Several topics narrow to posts in all of them. An area stands for any topic inside it.
   - Search categories narrows the tree to the areas and topics whose names match. It does not change the filter.
   - Each row has a menu button that is always visible. A topic has Rename, Merge, Hide, and Delete; an area has Rename, Hide, and Delete; a pinned search has Rename and Delete. Shift+F10 opens the focused row's menu.

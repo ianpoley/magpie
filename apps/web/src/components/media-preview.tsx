@@ -17,16 +17,17 @@ const videos = new Map<string, Promise<PlayableMedia | null>>();
 
 function loadVideo(sourceId: string, item: Media) {
   const key = `${sourceId} ${item.url}`;
-  let read = videos.get(key);
-  if (!read) {
-    read = playableMedia(sourceId)
-      .then((result) => {
-        if (!result.ok) return null;
-        return result.media.find((media) => media.thumbUrl === item.url) ?? (result.media.length === 1 ? result.media[0] : null);
-      })
-      .catch(() => null);
-    videos.set(key, read);
-  }
+  const cached = videos.get(key);
+  if (cached) return cached;
+  const failed = () => {
+    if (videos.get(key) === read) videos.delete(key);
+    return null;
+  };
+  const read: Promise<PlayableMedia | null> = playableMedia(sourceId).then((result) => {
+    if (!result.ok) return failed();
+    return result.media.find((media) => media.thumbUrl === item.url) ?? (result.media.length === 1 ? result.media[0] : null);
+  }, failed);
+  videos.set(key, read);
   return read;
 }
 

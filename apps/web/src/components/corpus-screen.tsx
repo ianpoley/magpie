@@ -51,7 +51,6 @@ import { SidebarResizer } from "./sidebar-resizer";
 import { useSyncStatus } from "./sync-status";
 import { iconButton } from "./styles";
 import { TipProvider } from "./tip";
-import { createWhatChangedController, WhatChanged } from "./what-changed";
 
 const RESOURCE_KINDS = [
   { value: "repo", label: "Repos", none: "No repos here" },
@@ -218,7 +217,6 @@ export function CorpusScreen({
     ...new Set(snapshot.topics.flatMap((topic) => (topic.areaId !== null && linked.topicIds.includes(topic.id) ? [areaNode(topic.areaId)] : []))),
   ]);
   const [postDialog] = useState(() => createDialogController<string>());
-  const [whatChanged] = useState(createWhatChangedController);
   const [connectX] = useState(createConnectXController);
   const sync = useSyncStatus(initialSync);
   const [removedPosts] = useState(createRemovedPostsController);
@@ -289,17 +287,31 @@ export function CorpusScreen({
 
   const shownQuery = linkedQuery(browsed.state);
   const heldSelection = linkedQuery({ ...filter, keyword: "" });
+  const appliedSelection = linkedQuery({ ...browsed.state, keyword: "" });
   useEffect(() => {
     const search = shownQuery === "" ? "" : `?${shownQuery}`;
     if (window.location.search === search) return;
-    const step = linkedQuery({ ...selectionInAddress(), keyword: "" }) === heldSelection ? "replaceState" : "pushState";
+    const addressed = linkedQuery({ ...selectionInAddress(), keyword: "" });
+    const step = addressed === heldSelection || addressed === appliedSelection ? "replaceState" : "pushState";
     window.history[step](null, "", `${window.location.pathname}${search}${window.location.hash}`);
-  }, [shownQuery, heldSelection]);
+  }, [shownQuery, heldSelection, appliedSelection]);
   useEffect(() => {
-    const follow = () => setFilter((current) => ({ ...current, ...selectionInAddress() }));
+    const follow = () => {
+      if (askRunner.getState() !== null) {
+        askRunner.clear();
+        setAskDraft("");
+        setMode("search");
+      }
+      setFilter((current) => ({ ...current, ...selectionInAddress() }));
+    };
     window.addEventListener("popstate", follow);
     return () => window.removeEventListener("popstate", follow);
-  }, []);
+  }, [askRunner]);
+
+  const disconnected = sync.state.connection === "not_connected";
+  useEffect(() => {
+    if (disconnected) router.refresh();
+  }, [disconnected, router]);
 
   const topicsById = new Map(snapshot.topics.map((topic) => [topic.id, topic]));
   const areasById = new Map(snapshot.areas.map((area) => [area.id, area]));
@@ -406,7 +418,6 @@ export function CorpusScreen({
     totals,
     authors,
     expanded,
-    whatChanged,
     removedPosts,
     categoryEdits,
     onCollection: (collection) => setFilter((current) => ({ ...current, collection })),
@@ -461,6 +472,7 @@ export function CorpusScreen({
               keyword={filter.keyword}
               askDraft={askDraft}
               askActive={ask !== null}
+              askedQuery={ask?.query ?? null}
               timeRange={applied.timeRange}
               sort={applied.sort}
               mediaOnly={applied.mediaOnly}
@@ -622,7 +634,6 @@ export function CorpusScreen({
         onSelectTopic={selectTopic}
         onEdit={holdPost}
       />
-      <WhatChanged controller={whatChanged} changes={snapshot.changes} />
       <ConnectXDialog controller={connectX} sync={sync} />
       <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} onEmpty={emptyRemoved} />
       <ConfirmRemove controller={confirmRemove} onConfirm={removeConfirmed} />
