@@ -475,8 +475,8 @@ export function CorpusScreen({
     if (judged !== null) chatRunner.start(judged, confidentKey === "" ? [] : confidentKey.split(","));
   }, [judged, confidentKey, chatRunner]);
 
-  const cite = (postId: string) => {
-    setCited([postId]);
+  const pendingCite = useRef<string | null>(null);
+  const showCited = (postId: string) => {
     const card = document.querySelector<HTMLElement>(postCardOpen(postId));
     if (!card) {
       if (postsById.has(postId)) void postDialog.open({ payload: postId });
@@ -484,6 +484,15 @@ export function CorpusScreen({
     }
     card.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     card.focus({ preventScroll: true });
+  };
+  const cite = (postId: string) => {
+    setCited([postId]);
+    if (!sidebarPanel.isOpen()) {
+      showCited(postId);
+      return;
+    }
+    pendingCite.current = postId;
+    sidebarPanel.close();
   };
   const deckButton = (
     <button type="button" onClick={() => swapDeck("answer")} className={SIDE_BUTTON}>
@@ -661,7 +670,14 @@ export function CorpusScreen({
         </main>
       </div>
 
-      <Dialog controller={sidebarPanel}>
+      <Dialog
+        controller={sidebarPanel}
+        onOpenChangeComplete={(open) => {
+          const postId = pendingCite.current;
+          pendingCite.current = null;
+          if (!open && postId !== null) window.requestAnimationFrame(() => showCited(postId));
+        }}
+      >
         <DialogBackdrop />
         <DialogContent
           initialFocus="content"

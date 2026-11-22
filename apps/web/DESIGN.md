@@ -65,7 +65,7 @@ A dawn sky with a flock of tiny pixel magpies in it, and **the flock is your res
   - Before any Ask the answer card is a place to start one: a heading, two lines on what happens, and a question field.
   - The answer streams in: the lead sentence, then each point with its title, text and source chips. Placeholder lines hold the space until the first words arrive. A source chip scrolls the list to that post and marks it, or opens the post when the list does not show it.
   - A follow-up field sits at the foot of the card. New chat, in the header, clears the conversation and leaves the card in front.
-  - Under 1,024px the sidebar is a sheet, and the same deck is inside it. The Ask panel gets an Answer button that opens the sheet.
+  - Under 1,024px the sidebar is a sheet, and the same deck is inside it. The Ask panel gets an Answer button that opens the sheet. A source chip there closes the sheet first, then scrolls to the post.
   - A post a source chip points at is marked: a 2px primary ring on a card (`shadow-cited`), a primary bar and soft fill on a row.
   - The answer never shares the main column with the results.
 - **Controls:** pills (`--ui-radius: 999px`). Inner surfaces use `rounded-inner` (10px), and avatars use `rounded-avatar` (12px).
