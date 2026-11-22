@@ -103,8 +103,9 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
   const active = new Set<ChildProcess>();
   let tools: ReturnType<typeof xTools> | undefined;
 
-  function childEnv(pair: XSession, bird: XTool): Record<string, string> {
+  function childEnv(pair: XSession, bird: XTool): NodeJS.ProcessEnv {
     return {
+      NODE_ENV: process.env.NODE_ENV,
       AUTH_TOKEN: pair.authToken,
       CT0: pair.ct0,
       BIRDCLAW_BIRD_COMMAND: bird.path,
@@ -127,7 +128,7 @@ export function createBirdclaw(options: BirdclawOptions = {}): Birdclaw {
       const [command, argv] = pinned ? [process.execPath, [path, ...args]] : [path, args];
       const result: Child = { code: null, timedOut: false, stdout: '', stderr: '', spawnError: null };
       const child = spawn(command, argv, {
-        env: childEnv(pair, tools.bird) as NodeJS.ProcessEnv,
+        env: childEnv(pair, tools.bird),
         stdio: ['ignore', stdoutFd ?? 'pipe', 'pipe'],
         detached: true,
       });
