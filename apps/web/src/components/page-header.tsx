@@ -271,7 +271,7 @@ export function PageHeader(h: PageHeaderProps) {
 
   return (
     <>
-      <header className="@container flex flex-col gap-3">
+      <header className="@container flex flex-col gap-3 px-4 sm:px-8">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3 @max-2xl:basis-full">
             {h.menuButton}
@@ -312,8 +312,8 @@ export function PageHeader(h: PageHeaderProps) {
         </div>
         {h.detail ? <p className="max-w-[60ch] text-[14px] leading-[1.5] text-pretty text-ink-muted">{h.detail}</p> : null}
       </header>
-      <div ref={ref} aria-hidden="true" className="-mt-5 h-px" />
-      <div ref={pinnedRef} data-stuck={stuck ? "" : undefined} className="pinned-row sticky top-0 z-20 -mx-4 -mt-[22px] -mb-2 px-4 py-2 sm:-mx-8 sm:px-8">
+      <div ref={ref} aria-hidden="true" className="h-0" />
+      <div ref={pinnedRef} data-stuck={stuck ? "" : undefined} className="pinned-row sticky top-0 z-20 px-4 py-2 sm:px-8">
         <div className="flex flex-wrap items-center gap-2">
           <SearchField h={h} />
           <div className="flex flex-wrap items-center gap-2">

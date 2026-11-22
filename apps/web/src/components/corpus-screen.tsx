@@ -445,7 +445,7 @@ export function CorpusScreen({
 
         <main className="bg-wash relative min-w-0 flex-1">
           <Flock count={result.posts.length} collection={totals.everything} asking={ask?.status === "running"} column={contentColumn} />
-          <div ref={contentColumn} className="relative z-[1] mx-auto flex max-w-[800px] flex-col gap-5 px-4 pt-4 pb-24 sm:px-8 lg:pt-10">
+          <div className="relative z-[1] mx-auto flex max-w-[800px] flex-col pt-4 pb-24 lg:pt-10">
             <PageHeader
               menuButton={
                 <DialogTrigger controller={sidebarPanel} aria-label="Open filters" className={`${iconButton} size-10 bg-surface text-ink shadow-card lg:hidden`}>
@@ -484,86 +484,88 @@ export function CorpusScreen({
               liked={result.posts.filter((post) => post.liked).length}
               resourceCount={view === "resources" ? groups.length : null}
             />
+            <div ref={contentColumn} className="flex flex-col gap-5 px-4 pt-3 sm:px-8">
 
-            {ask ? <AskBar ask={ask} onPin={pin} onRetry={() => askRunner.ask(ask.query)} onClear={leaveAsk} /> : null}
+              {ask ? <AskBar ask={ask} onPin={pin} onRetry={() => askRunner.ask(ask.query)} onClear={leaveAsk} /> : null}
 
-            {view === "resources" && kinds.length > 1 ? (
-              <SegmentedControl
-                aria-label="Resource kind"
-                value={resourceKind}
-                onValueChange={(next) => next && setResourceKind(next)}
-                className="-mt-2 self-start border-0 bg-sunken p-[3px]"
-              >
-                <SegmentedControlIndicator />
-                <SegmentedControlItem value="all" className="focus-ring h-7 px-3 text-[12px] font-semibold">
-                  All kinds
-                </SegmentedControlItem>
-                {kinds.map((kind) => (
-                  <SegmentedControlItem key={kind.value} value={kind.value} className="focus-ring h-7 px-3 text-[12px] font-semibold">
-                    {kind.label}
+              {view === "resources" && kinds.length > 1 ? (
+                <SegmentedControl
+                  aria-label="Resource kind"
+                  value={resourceKind}
+                  onValueChange={(next) => next && setResourceKind(next)}
+                  className="-mt-2 self-start border-0 bg-sunken p-[3px]"
+                >
+                  <SegmentedControlIndicator />
+                  <SegmentedControlItem value="all" className="focus-ring h-7 px-3 text-[12px] font-semibold">
+                    All kinds
                   </SegmentedControlItem>
-                ))}
-              </SegmentedControl>
-            ) : null}
+                  {kinds.map((kind) => (
+                    <SegmentedControlItem key={kind.value} value={kind.value} className="focus-ring h-7 px-3 text-[12px] font-semibold">
+                      {kind.label}
+                    </SegmentedControlItem>
+                  ))}
+                </SegmentedControl>
+              ) : null}
 
-            <ActiveFilters
-              filter={applied}
-              topicsById={topicsById}
-              areasById={areasById}
-              authorName={authorName}
-              onRemoveTopic={sidebar.onToggleTopic}
-              onRemoveArea={sidebar.onToggleArea}
-              onRemoveUnfiled={sidebar.onToggleUnfiled}
-              onRemoveAuthor={() => setFilter((current) => ({ ...current, author: null }))}
-              onRemoveKeyword={() => setFilter((current) => ({ ...current, keyword: "" }))}
-              onClear={clearPills}
-            />
+              <ActiveFilters
+                filter={applied}
+                topicsById={topicsById}
+                areasById={areasById}
+                authorName={authorName}
+                onRemoveTopic={sidebar.onToggleTopic}
+                onRemoveArea={sidebar.onToggleArea}
+                onRemoveUnfiled={sidebar.onToggleUnfiled}
+                onRemoveAuthor={() => setFilter((current) => ({ ...current, author: null }))}
+                onRemoveKeyword={() => setFilter((current) => ({ ...current, keyword: "" }))}
+                onClear={clearPills}
+              />
 
-            {ask && result.posts.length === 0 ? (
-              emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)
-            ) : view === "posts" ? (
-              result.posts.length === 0 ? (
-                emptyPosts(snapshot, result, clearAll, clearCategories)
+              {ask && result.posts.length === 0 ? (
+                emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)
+              ) : view === "posts" ? (
+                result.posts.length === 0 ? (
+                  emptyPosts(snapshot, result, clearAll, clearCategories)
+                ) : (
+                  <PostList
+                    key={listKey}
+                    posts={result.posts}
+                    unsureStart={result.unsureStart}
+                    filter={applied}
+                    layout={layout}
+                    ranked={ask !== null}
+                    arriving={ask?.status === "running"}
+                    topicsById={topicsById}
+                    dialog={postDialog}
+                    topicsEditor={topicsEditor}
+                    onSelectTopic={selectTopic}
+                    onSelectAuthor={selectAuthor}
+                    onCopyLink={copyLink}
+                    onRemove={remove}
+                  />
+                )
+              ) : groups.length === 0 ? (
+                result.posts.length === 0 ? (
+                  emptyPosts(snapshot, result, clearAll, clearCategories)
+                ) : shownKind && allGroups.length > 0 ? (
+                  <EmptyState title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
+                    These posts link to other kinds of resources.
+                  </EmptyState>
+                ) : (
+                  <EmptyState title="No resources here">
+                    None of these posts link to a repo, package, video, or page that could be read. They are still listed under Posts.
+                  </EmptyState>
+                )
               ) : (
-                <PostList
-                  key={listKey}
-                  posts={result.posts}
-                  unsureStart={result.unsureStart}
-                  filter={applied}
-                  layout={layout}
-                  ranked={ask !== null}
-                  arriving={ask?.status === "running"}
-                  topicsById={topicsById}
-                  dialog={postDialog}
-                  topicsEditor={topicsEditor}
-                  onSelectTopic={selectTopic}
-                  onSelectAuthor={selectAuthor}
-                  onCopyLink={copyLink}
-                  onRemove={remove}
-                />
-              )
-            ) : groups.length === 0 ? (
-              result.posts.length === 0 ? (
-                emptyPosts(snapshot, result, clearAll, clearCategories)
-              ) : shownKind && allGroups.length > 0 ? (
-                <EmptyState title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
-                  These posts link to other kinds of resources.
-                </EmptyState>
-              ) : (
-                <EmptyState title="No resources here">
-                  None of these posts link to a repo, package, video, or page that could be read. They are still listed under Posts.
-                </EmptyState>
-              )
-            ) : (
-              <>
-                <ResourcesView key={listKey} groups={groups.slice(0, RESOURCE_ROWS)} dialog={postDialog} />
-                {groups.length > RESOURCE_ROWS ? (
-                  <p className="text-center text-[13px] text-ink-muted">
-                    Showing the {RESOURCE_ROWS} most saved of <span className="tabular-nums">{formatCount(groups.length)}</span>.
-                  </p>
-                ) : null}
-              </>
-            )}
+                <>
+                  <ResourcesView key={listKey} groups={groups.slice(0, RESOURCE_ROWS)} dialog={postDialog} />
+                  {groups.length > RESOURCE_ROWS ? (
+                    <p className="text-center text-[13px] text-ink-muted">
+                      Showing the {RESOURCE_ROWS} most saved of <span className="tabular-nums">{formatCount(groups.length)}</span>.
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
           </div>
         </main>
       </div>
