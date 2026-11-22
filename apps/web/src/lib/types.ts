@@ -228,5 +228,5 @@ export type AnswerModelOption = { id: string; label: string };
 
 export type AnswerModelState = { model: string; effort: string; models: readonly AnswerModelOption[]; efforts: readonly string[] };
 
-export type SettingsState = { focus: FocusState; skillLink: SkillLink; jevKeyStored: boolean; answerModel: AnswerModelState };
+export type SettingsState = { focus: FocusState; skillLink: SkillLink; skillTarget: string | null; jevKeyStored: boolean; answerModel: AnswerModelState };
 
