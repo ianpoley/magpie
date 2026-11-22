@@ -53,38 +53,34 @@ Magpie depends on these outside services and tools. Have the required ones ready
 | A [Jev (TypeSafe)](https://docs.typesafe.ai) API key | Required | Scores each post against each topic, and answers **Ask** questions. The web app shows nothing until the key is saved. |
 | [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Proposes and updates the categories. Without it, sync and search still work, but no categories are created. |
 | macOS or Linux | Required | The background services run as LaunchAgents or `systemd --user` units. |
-| [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. Setup finds Node 26, or tells you how to install it. |
+| git, [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. The installer adds Bun if it is missing. Setup finds Node 26, or tells you how to install it. |
 
 What leaves your machine: post text goes to Jev for tagging and Ask, and to Claude through your CLI login for categories. Each page your posts link to is requested once to read its title. Browsing sends nothing.
 
 ## Quick start
 
-You need macOS or Linux and [Bun](https://bun.sh). Setup finds Node 26 for you, or tells you how to install it.
+Paste this into a terminal on macOS or Linux:
 
 ```bash
-git clone https://github.com/ianpoley/magpie.git
-cd magpie
-bun run setup
+curl -fsSL https://raw.githubusercontent.com/ianpoley/magpie/main/install.sh | bash
 ```
 
-`setup` installs the dependencies, checks the machine, and walks you through each step that is not done yet. It asks before each one:
+The installer adds [Bun](https://bun.sh) to `~/.bun` if you don't have it, downloads Magpie into `~/magpie` (set `MAGPIE_DIR` to pick another folder), and starts `bun run setup`. Setup finds Node 26 for you, or tells you how to install it.
+
+Setup installs the dependencies, checks the machine, and walks you through each step that is not done yet. It asks before each one:
 
 1. Install the background services: the sync worker and the web app on http://127.0.0.1:3030.
 2. Connect X: it opens the web app, where you paste your X cookies into the **Connect X** dialog.
 3. Paste your Jev (TypeSafe) key. Magpie needs it, and typing is hidden. Skip it here and the web app asks for it before it shows anything.
 4. Optional: link the Claude skill, so your agents can search your saved posts.
 
-It ends with what is running and what is left. Run it again at any time: it skips what is done, so on a machine that is set up it asks nothing.
+It ends with what is running and what is left. Run the same command again at any time: it updates the code, skips what is done, and offers to rebuild the services when the code changed.
+
+Already have a clone? Run `bun run setup` in it instead.
 
 ## Get started with an agent
 
-You can also let a coding agent such as Claude Code do the setup. Clone the repo, open your agent in the clone, and paste one of the prompts below.
-
-```bash
-git clone https://github.com/ianpoley/magpie.git
-cd magpie
-claude
-```
+You can also let a coding agent such as Claude Code do the setup. Open your agent in any folder and paste the first prompt below. The others assume Magpie is installed.
 
 > [!IMPORTANT]
 > Never paste your X cookies or your Jev key into the agent chat. You enter both in the web app's setup screen, or the Jev key in your own terminal. The prompts below tell the agent to stop and hand those steps to you.
@@ -92,26 +88,31 @@ claude
 ### Prompt: set up Magpie on this machine
 
 ```text
-Set up Magpie on this machine. Read README.md and packages/engine/SETUP.md first.
+Set up Magpie on this machine.
 
-1. Check that Bun is installed. If it is missing, tell me how to install it and wait.
-   Do not install global npm packages or Homebrew formulas: Birdclaw and bird are
-   repo dependencies, and setup finds Node 26 itself or says how to install it.
-2. Run `bun run setup --yes`. Without a terminal it never prompts: it installs the
+1. Run: curl -fsSL https://raw.githubusercontent.com/ianpoley/magpie/main/install.sh | bash
+   It installs Bun if missing, downloads Magpie into ~/magpie (or updates it), and
+   runs setup. With no terminal attached, setup never prompts: it installs the
    background services and links the Claude skill, and stops at anything that holds
    a secret or would replace something (services installed from another clone, a
-   skill linked elsewhere). Fix what you can and explain what you can't.
+   skill linked elsewhere). Do not install global npm packages or Homebrew formulas:
+   Birdclaw and bird are repo dependencies, and setup says how to get Node 26 if it
+   can't find it.
+2. If it stops, read ~/magpie/README.md and ~/magpie/packages/engine/SETUP.md, fix
+   what you can, and explain what you can't.
 3. If it lists services from another clone or a skill linked elsewhere, stop and
    ask me before doing anything about it.
-4. Do not ask for, read, or handle my X cookies or my Jev key. Tell me to run
-   `bun run setup` myself in a terminal: it opens the web app's setup screen, reads the
-   Jev key with echo off, and skips everything already done.
+4. Do not ask for, read, or handle my X cookies or my Jev key. Tell me to run the
+   same install command myself in a terminal: it opens the web app's setup screen,
+   reads the Jev key with echo off, and skips everything already done.
 
 End with setup's "Still to do" list and a short summary: what is running, on which
 port, and what I still need to do.
 ```
 
 ### Prompt: get oriented before changing the code
+
+Open your agent in the Magpie folder (`~/magpie` by default) first.
 
 ```text
 I want to work on Magpie. Before you change anything, get oriented:
@@ -140,6 +141,14 @@ for this feature, and cite each one with the @handle and post URL.
 ```
 
 ## Manual setup
+
+The [Quick start](#quick-start) installer does all of this. Use these steps to install from a clone you manage yourself.
+
+```bash
+git clone https://github.com/ianpoley/magpie.git
+cd magpie
+bun run setup
+```
 
 ### Prerequisites
 
@@ -182,6 +191,8 @@ Without the Claude CLI, the sync and export still work and categorization is ski
 
 ### Update or remove
 
+Rerunning the [Quick start](#quick-start) command updates Magpie. By hand:
+
 ```bash
 git pull
 bun run service:install          # rebuilds and restarts both services
@@ -205,6 +216,8 @@ The installed service runs at http://127.0.0.1:3030 (`MAGPIE_PORT` overrides it)
 - **Resources** lists the repos, packages, videos and pages your posts link to, most saved first.
 - Rename, merge, hide or delete topics. Remove a post from the corpus without touching X.
 - Keyboard: `/` to search, `j` and `k` to move between cards, Enter to open one.
+
+**Open it as an app.** You can give Magpie its own window and dock icon. In Chrome or Edge, open http://127.0.0.1:3030 and choose **Install Magpie** from the address bar or the menu. In Safari on macOS, choose **File → Add to Dock**.
 
 See [apps/web/README.md](apps/web/README.md) for the full tour.
 
@@ -268,6 +281,7 @@ bun run test             # node --test across engine, skill and web
 ## Project layout
 
 ```
+install.sh        # one-command installer: Bun, clone or update, then setup
 apps/web/         # @magpie/web: the Next.js corpus screen
 packages/engine/  # @magpie/engine: sync, export, categorize, worker, service installer
 packages/skill/   # the magpie Claude skill (symlinked into ~/.claude/skills)
