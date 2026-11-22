@@ -93,7 +93,7 @@ export function mergeTopics(db: Store, fromId: number, intoId: number): { fromId
     db.prepare(
       `DELETE FROM overrides WHERE topic_id = ? AND post_id IN (SELECT post_id FROM overrides WHERE topic_id = ?)`,
     ).run(fromId, intoId);
-    db.prepare(`UPDATE overrides SET topic_id = ? WHERE topic_id = ?`).run(intoId, fromId);
+    db.prepare(`UPDATE overrides SET topic_id = ?, merged_from = COALESCE(merged_from, ?) WHERE topic_id = ?`).run(intoId, fromId, fromId);
     db.prepare(
       `UPDATE topics SET state = 'merged', merged_into = ?, locked = 1, updated_at = ? WHERE id = ?`,
     ).run(intoId, now, fromId);
