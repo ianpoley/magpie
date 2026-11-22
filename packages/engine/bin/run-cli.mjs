@@ -8,10 +8,11 @@ export const RUN_OPTIONS_USAGE = `  --limit-posts N  score at most N posts in th
                    evolution, so Claude is not called
   --help           show this text`;
 
-export function readRunOptions(usage) {
+export function readRunOptions(usage, args = process.argv.slice(2)) {
   let values;
   try {
     ({ values } = parseArgs({
+      args,
       options: {
         'limit-posts': { type: 'string' },
         'skip-links': { type: 'boolean', default: false },
