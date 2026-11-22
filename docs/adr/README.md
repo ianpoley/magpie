@@ -6,18 +6,18 @@ Each entry has a heading with its number and the symbol it applies to, then the 
 
 | ADR | Subsystem | Entries |
 |---|---|---|
-| [0001](0001-engine-config.md) | Engine configuration and paths | 9 |
-| [0002](0002-engine-store.md) | The store: schema, membership views and edits | 20 |
+| [0001](0001-engine-config.md) | Engine configuration and paths | 7 |
+| [0002](0002-engine-store.md) | The store: schema, membership views and edits | 26 |
 | [0003](0003-engine-sync.md) | Sync: X, the run, the worker and the scheduler | 54 |
 | [0004](0004-engine-links.md) | Link resolution and resources | 22 |
 | [0005](0005-engine-jev.md) | Scoring posts with Jev | 16 |
 | [0006](0006-engine-claude.md) | Headless Claude calls | 8 |
 | [0007](0007-engine-evolve.md) | Growing the category list | 22 |
-| [0008](0008-engine-secrets.md) | Secrets | 29 |
-| [0009](0009-engine-service.md) | Background services | 24 |
-| [0010](0010-engine-setup.md) | Setup and migration | 17 |
+| [0008](0008-engine-secrets.md) | Secrets | 27 |
+| [0009](0009-engine-service.md) | Background services | 17 |
+| [0010](0010-engine-setup.md) | Setup | 9 |
 | [0011](0011-engine-cli.md) | Command-line entry points | 5 |
-| [0012](0012-skill.md) | The Claude Code skill | 10 |
+| [0012](0012-skill.md) | The Claude Code skill | 8 |
 | [0013](0013-web-data.md) | Web app: reading and changing data | 52 |
 | [0014](0014-web-ask.md) | Web app: Ask | 10 |
 | [0015](0015-web-ui.md) | Web app: interface behavior | 109 |

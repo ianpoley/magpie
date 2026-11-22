@@ -73,7 +73,6 @@ bun run setup
 2. Connect X: it opens the web app, where you paste your X cookies into the **Connect X** dialog.
 3. Paste your Jev (TypeSafe) key. Magpie needs it, and typing is hidden. Skip it here and the web app asks for it before it shows anything.
 4. Optional: link the Claude skill, so your agents can search your saved posts.
-5. If you moved off the old nightly job: delete the logs it left in `logs/`, about 25 MB a night.
 
 It ends with what is running and what is left. Run it again at any time: it skips what is done, so on a machine that is set up it asks nothing.
 
@@ -233,7 +232,7 @@ Every sync writes plain files you can read from any tool:
 | `state/corpus.sqlite` | Categories, tags, links, your edits and the change log |
 
 > [!WARNING]
-> `state/corpus.sqlite` is the one file that cannot be rebuilt from X. It holds your category edits, per-post fixes, removed posts and the change log. Back it up.
+> `state/corpus.sqlite` is the one file that cannot be rebuilt from X. It holds your category edits, per-post fixes, removed posts and the change log. Back it up. Each schema upgrade first saves a copy of the old store in `state/backups/`.
 
 ## Things to know
 

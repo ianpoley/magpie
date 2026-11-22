@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Runner, ServiceManager, ServiceSpec, UnitName } from './manager.ts';
+import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
 import { must } from './manager.ts';
 
 const specifiers = (text: string) => text.replaceAll('%', '%%');
@@ -41,8 +41,8 @@ export function renderUnit(spec: ServiceSpec): string {
 export function systemd(options: { home: string; env: Record<string, string | undefined>; run: Runner }): ServiceManager {
   const { home, env, run } = options;
   const dir = join(env.XDG_CONFIG_HOME || join(home, '.config'), 'systemd', 'user');
-  const unit = (name: UnitName) => `${name}.service`;
-  const unitPath = (name: UnitName) => join(dir, unit(name));
+  const unit = (name: ServiceName) => `${name}.service`;
+  const unitPath = (name: ServiceName) => join(dir, unit(name));
   const ctl = (...args: string[]) => must(run, 'systemctl', ['--user', ...args]);
 
   return {
@@ -53,7 +53,7 @@ export function systemd(options: { home: string; env: Record<string, string | un
       return line ? unword(line[1]) : null;
     },
     dataRootOf(text) {
-      const line = /^Environment="(?:MAGPIE|X_CORPUS)_ROOT=((?:[^"\\]|\\.)*)"$/m.exec(text);
+      const line = /^Environment="MAGPIE_ROOT=((?:[^"\\]|\\.)*)"$/m.exec(text);
       return line ? line[1].replace(/\\(.)/g, '$1').replaceAll('%%', '%') : null;
     },
     async stop(name) {

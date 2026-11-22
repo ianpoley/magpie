@@ -407,4 +407,4 @@ The browser streams the MP4 straight from X; nothing is downloaded or proxied. X
 
 #### 0003.56 `previousUpstream`
 
-`data/sync-status.json` was written only by the retired nightly job, and migrate deletes it. Without it, a categorize-only run takes the X sync result of the run before it, so an X failure stays on the sync panel until a sync clears it instead of being hidden by a later `bun run categorize`.
+Nothing writes `data/sync-status.json` any more; only the retired nightly job did. Without it, a categorize-only run takes the X sync result of the run before it, so an X failure stays on the sync panel until a sync clears it instead of being hidden by a later `bun run categorize`.

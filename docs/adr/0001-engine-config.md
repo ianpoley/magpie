@@ -31,24 +31,6 @@ The main checkout when `dir` is a linked git worktree, else `dir` itself. A link
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L174-L180)
 
-#### 0001.4 `LEGACY_NAMES`
-
-The names Magpie had while it was called x-corpus, still found on installs from then.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L209)
-
-#### 0001.5 `setting`
-
-The setting MAGPIE_<name>, or X_CORPUS_<name> from before the rename. Unit files installed then still pass the old name, and a run pointed at a scratch copy with the old name must never fall through to the live store.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L217-L221)
-
-#### 0001.6 `usesLegacyNames`
-
-Whether this machine still keeps its config and secrets under the old x-corpus names: no config dir override, no ~/.config/magpie, and a ~/.config/x-corpus. Old names are then used for every read and write, so renamed code and services installed before the rename share one install. `service:install` hands them over to the new names, all at once.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L226-L232)
-
 #### 0001.7 `XTool`
 
 A command-line tool: `pinned` is the entry file of the repo's own pinned package, run with this process's node; otherwise `path` is an executable.
@@ -69,7 +51,7 @@ The category focus setting is a file in the config dir, next to `x-connection.js
 
 It is a file, not a store row, because setup can run before any sync has created the store, and store access refuses with `no_store` until then.
 
-Reading it: the file wins. With no file, a store that is an upgrade reads as focus on software: either it carries the legacy marker in `meta`, or it is below the marker's schema version and has categories. Anything else reads as not chosen, and setup asks. Checking only whether categories exist would misread a new install whose first discovery ran before the choice.
+Reading it: the file wins. With no file the focus reads as not chosen, and setup asks. Checking whether categories exist would misread a new install whose first discovery ran before the choice.
 
 #### 0001.10 `Paths.claudeCli`
 

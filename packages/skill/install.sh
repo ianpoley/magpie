@@ -7,12 +7,6 @@ target="$skills/magpie"
 
 mkdir -p "$skills"
 
-legacy="$skills/x-corpus"
-if [ -L "$legacy" ] && [ "$legacy" -ef "$src" ]; then
-  rm "$legacy"
-  echo "Removed the old link $legacy"
-fi
-
 if [ -L "$target" ]; then
   if [ "$target" -ef "$src" ]; then
     echo "magpie skill already linked: $target -> $src"

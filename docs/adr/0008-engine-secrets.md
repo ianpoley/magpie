@@ -192,11 +192,3 @@ The cookies travel only in this environment, built from nothing so no other secr
 The single place bird and Birdclaw are spawned, and only with both cookies.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/x/birdclaw.ts#L120)
-
-### `packages/engine/test/migrate.test.ts`
-
-#### 0008.29 `failed-migration test (legacy secret store)`
-
-A legacy categorize builds a store with no backend recorded, which reads the Jev key from secrets.env.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/test/migrate.test.ts#L378)

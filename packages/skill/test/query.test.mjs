@@ -327,28 +327,6 @@ test('a removed post is left out of every command, with and without --include-hi
   }
 });
 
-test('a store from before posts could be removed still answers every command', (t) => {
-  const store = missingStore(t);
-  const db = new DatabaseSync(store);
-  db.exec(readFileSync(join(HERE, '..', '..', 'engine', 'test', 'fixtures', 'store-v2.sql'), 'utf8'));
-  db.exec(`
-    INSERT INTO posts (id, text, url, author_handle, author_name, bookmarked, liked, first_seen_at)
-    VALUES ('101', 'animation post', 'https://x.com/alpha_dev/status/101', 'alpha_dev', 'Alpha Dev', 1, 1, '2026-01-01'),
-           ('104', 'election post', 'https://x.com/delta_pol/status/104', 'delta_pol', 'Delta', 1, 0, '2026-01-01');
-    INSERT INTO areas (name, hidden, created_at) VALUES ('UI', 0, '2026-01-01'), ('Politics', 1, '2026-01-01');
-    INSERT INTO topics (area_id, name, definition, created_at)
-    VALUES (1, 'Animation', 'Posts about animation.', '2026-01-01'), (2, 'Elections', 'Posts about elections.', '2026-01-01');
-    INSERT INTO scores (post_id, topic_id, probability, scored_at)
-    VALUES ('101', 1, 0.9, '2026-01-01'), ('104', 2, 0.9, '2026-01-01');
-  `);
-  db.close();
-
-  assert.deepEqual(json(store, ['topic', 'animation']).map((post) => post.id), ['101']);
-  assert.deepEqual(json(store, ['categories']).map((group) => group.area), ['UI']);
-  assert.deepEqual(json(store, ['animation']).map((post) => post.id).sort(), ['101', '103', '105', '202']);
-  assert.deepEqual(json(store, ['animation', '--include-hidden']).map((post) => post.id).sort(), ['101', '103', '104', '105', '202']);
-});
-
 test('an unknown category name suggests the closest names', (t) => {
   const store = seedStore(t, { politicsHidden: true });
 
@@ -407,22 +385,6 @@ test('install links the skill into a home that has none, and can run again', (t)
   }
   assert.deepEqual(readdirSync(join(home, '.claude', 'skills')), ['magpie']);
   assert.ok(!existsSync(join(SKILL_DIR, 'skill')));
-});
-
-test('install removes an old x-corpus link to this clone, and leaves one that points elsewhere', (t) => {
-  const home = tempHome(t);
-  const skills = join(home, '.claude', 'skills');
-  mkdirSync(skills, { recursive: true });
-  symlinkSync(SKILL_DIR, join(skills, 'x-corpus'));
-  assert.equal(install(home).status, 0);
-  assert.deepEqual(readdirSync(skills), ['magpie']);
-
-  const other = tempHome(t);
-  const otherSkills = join(other, '.claude', 'skills');
-  mkdirSync(otherSkills, { recursive: true });
-  symlinkSync(other, join(otherSkills, 'x-corpus'));
-  assert.equal(install(other).status, 0);
-  assert.deepEqual(readdirSync(otherSkills).sort(), ['magpie', 'x-corpus']);
 });
 
 test('install moves an existing skill directory to a dated backup and leaves its secrets file there', (t) => {

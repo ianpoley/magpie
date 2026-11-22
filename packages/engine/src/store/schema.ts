@@ -1,15 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-import { MEMBERSHIP_VIEWS_V1, MEMBERSHIP_VIEWS_V2, MEMBERSHIP_VIEWS_V3 } from './membership.ts';
+import { MEMBERSHIP_VIEWS } from './membership.ts';
 
-export const REREAD_HOST_TITLED_VIDEOS = `
-  UPDATE links SET status = 'failed', attempts = 3, next_attempt_at = '1970-01-01T00:00:00.000Z'
-  WHERE status = 'resolved' AND title = host AND attempts = 1
-    AND host IN ('youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com');
-`;
+export const BASELINE_VERSION = 8;
 
-const MIGRATIONS: string[] = [
-  `
+const LAST_FULL_CHAIN_COMMIT = '899224e';
+
+const BASELINE = `
   CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -34,7 +31,8 @@ const MIGRATIONS: string[] = [
     entities_json     TEXT NOT NULL DEFAULT '{}',
     bookmarked        INTEGER NOT NULL DEFAULT 0,
     liked             INTEGER NOT NULL DEFAULT 0,
-    first_seen_at     TEXT NOT NULL
+    first_seen_at     TEXT NOT NULL,
+    removed_at        TEXT
   ) WITHOUT ROWID;
   CREATE INDEX posts_author_handle ON posts (author_handle);
 
@@ -102,7 +100,8 @@ const MIGRATIONS: string[] = [
     state      TEXT NOT NULL DEFAULT 'active',
     position   INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
-    updated_at TEXT
+    updated_at TEXT,
+    set_by_owner INTEGER NOT NULL DEFAULT 0
   );
 
   -- kind: auto | pinned | system
@@ -148,8 +147,9 @@ const MIGRATIONS: string[] = [
   CREATE TABLE overrides (
     post_id    TEXT NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
     topic_id   INTEGER NOT NULL REFERENCES topics (id) ON DELETE CASCADE,
-    action     TEXT NOT NULL,
-    created_at TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    merged_from INTEGER,
     PRIMARY KEY (post_id, topic_id)
   ) WITHOUT ROWID;
   CREATE INDEX overrides_topic ON overrides (topic_id);
@@ -173,7 +173,8 @@ const MIGRATIONS: string[] = [
     counts_json TEXT NOT NULL DEFAULT '{}',
     message     TEXT,
     started_at  TEXT,
-    finished_at TEXT
+    finished_at TEXT,
+    reason      TEXT
   );
   CREATE INDEX run_stages_run ON run_stages (run_id);
 
@@ -239,28 +240,13 @@ const MIGRATIONS: string[] = [
     change_id      INTEGER REFERENCES changes (id) ON DELETE SET NULL,
     created_at     TEXT NOT NULL
   );
-  `,
-  MEMBERSHIP_VIEWS_V1,
-  MEMBERSHIP_VIEWS_V2,
-  `
-  ALTER TABLE areas ADD COLUMN set_by_owner INTEGER NOT NULL DEFAULT 0;
-  UPDATE areas SET set_by_owner = 1
-   WHERE kind = 'auto' AND state = 'active' AND (locked = 1 OR hidden != 1 - is_dev);
-  INSERT INTO meta (key, value)
-  SELECT 'category_focus_legacy', '1'
-   WHERE EXISTS (SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active');
-  `,
-  MEMBERSHIP_VIEWS_V3,
-  `
-  ALTER TABLE run_stages ADD COLUMN reason TEXT;
-  UPDATE run_stages SET reason = 'secret_store_unreadable'
-  WHERE stage = 'x_auth' AND outcome = 'failed' AND message LIKE 'The X session could not be read%';
-  `,
-  REREAD_HOST_TITLED_VIDEOS,
-  `ALTER TABLE overrides ADD COLUMN merged_from INTEGER;`,
-];
 
-export const SCHEMA_VERSION = MIGRATIONS.length;
+  ${MEMBERSHIP_VIEWS}
+`;
+
+const MIGRATIONS: string[] = [];
+
+export const SCHEMA_VERSION = BASELINE_VERSION + MIGRATIONS.length;
 
 export function readSchemaVersion(db: DatabaseSync): number {
   const hasMeta = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'`).get();
@@ -276,6 +262,11 @@ export function assertKnownVersion(db: DatabaseSync): number {
       `Store has schema version ${version}, newer than version ${SCHEMA_VERSION} this code knows. Update the code before opening it.`,
     );
   }
+  if (version > 0 && version < BASELINE_VERSION) {
+    throw new Error(
+      `Store has schema version ${version}, from before the version ${BASELINE_VERSION} baseline, and this code no longer upgrades it. Open it read-write once with Magpie at commit ${LAST_FULL_CHAIN_COMMIT}, which upgrades it to version ${BASELINE_VERSION}, then retry.`,
+    );
+  }
   return version;
 }
 
@@ -283,8 +274,10 @@ export function migrate(db: DatabaseSync): void {
   if (assertKnownVersion(db) === SCHEMA_VERSION) return;
   db.exec('BEGIN IMMEDIATE');
   try {
-    for (let version = assertKnownVersion(db); version < SCHEMA_VERSION; version++) {
-      db.exec(MIGRATIONS[version]);
+    const from = assertKnownVersion(db);
+    if (from === 0) db.exec(BASELINE);
+    for (let version = Math.max(from, BASELINE_VERSION); version < SCHEMA_VERSION; version++) {
+      db.exec(MIGRATIONS[version - BASELINE_VERSION]);
     }
     db.prepare(
       `INSERT INTO meta (key, value) VALUES ('schema_version', ?)

@@ -1,4 +1,4 @@
-# ADR 0010: Setup and migration
+# ADR 0010: Setup
 
 - Status: accepted
 - Date: 2026-11-21
@@ -20,56 +20,6 @@ The first command after cloning. Bun runs this file, because Bun is the one tool
 No dependencies and no TypeScript: it has to run before both are in place.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/setup.mjs#L5-L11)
-
-### `packages/engine/src/migrate/legacy.ts`
-
-#### 0010.2 `migrate (module)`
-
-Moves an install that syncs through the old nightly LaunchAgent, with its cookies in ~/.birdclaw/bird.env and its Jev key in ~/.config/magpie/secrets.env, onto the OS secret store and the two background services. The new setup has to finish one good sync before anything of the old one is deleted, and any failure puts the old one back. The old job's script, `packages/engine/bin/birdclaw-nightly.sh`, and its plist template were deleted from the tree once the owner's install had moved. Putting the old job back now reloads the installed plist, which runs that script from the clone it was installed from, so the put-back gives a working job only in a clone that predates the deletion.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L21-L27)
-
-#### 0010.3 `Stop`
-
-Why the migration cannot go on; the message never holds a secret value.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L53)
-
-#### 0010.4 `migrate`
-
-The OS secret store must work: moving onto the file fallback would only swap one plaintext file for another.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L151)
-
-#### 0010.5 `migrate`
-
-The old job already pulled both histories into Birdclaw's database.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L179)
-
-#### 0010.6 `migrate`
-
-Only a sync that started after the install proves the new services; the first one decides.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L203)
-
-#### 0010.7 `rollBack`
-
-Straight from the OS store and never through the secret store's delete, which would also take the Jev key out of secrets.env.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L262-L263)
-
-#### 0010.8 `rollBack`
-
-Only there if the store fell back to the file after all; the old Jev key stays.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L268)
-
-#### 0010.9 `rollBack`
-
-Harmless to the old job, which never reads it; a later migration marks them again.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/migrate/legacy.ts#L287)
 
 ### `packages/engine/src/service/index.ts`
 
@@ -112,10 +62,6 @@ Read with echo off; '' means skip.
 A worktree borrows the main checkout's data and services; it only reports.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/setup/walkthrough.ts#L81)
-
-#### 0010.16 `oldNightlyLogs`
-
-The retired nightly job wrote a full JSON dump into `logs/nightly-<date>.log` every night, about 25 MB each, and migrate removes the job but not its logs. Setup offers to delete them only at a terminal: `--yes` is for agents, and deleting files is not something an agent should do unasked. While the old job is still installed the step is skipped, since that job still writes them.
 
 ### `packages/engine/src/setup/skill-link.ts`, added later
 

@@ -13,12 +13,6 @@ When the code changes, update or remove the entry here in the same commit.
 
 ### `packages/skill/install.sh`
 
-#### 0012.1 `legacy x-corpus link removal`
-
-Before the rename the skill was linked as x-corpus. A link from then that points at this clone would load the same skill twice, so it goes.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/install.sh#L14-L15)
-
 #### 0012.2 `skill backup location`
 
 Outside the skills directory: a backup left there would load as a second skill.
@@ -63,12 +57,6 @@ Usage:
 ```
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L2-L33)
-
-#### 0012.4 `ENV_STORE / ENV_DIR`
-
-Each override is also read under its name from before the rename, X_CORPUS_*.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L83)
 
 #### 0012.5 `loadSqlite`
 

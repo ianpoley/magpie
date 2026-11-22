@@ -13,10 +13,7 @@ Commands:
                                        X cookies and Jev key and disconnects X
   service status                       show both services, the worker's heartbeat, the secret backend and the node they run
   secrets set-jev                      store the Jev (TypeSafe) API key, read from stdin (typed hidden at a terminal)
-  sync [options]                       run one whole sync now (sync --help lists the options)
-  migrate [--timeout-minutes N]        move an install run by the old nightly LaunchAgent onto the secret store
-                                       and these services; nothing old is deleted until the new worker finishes
-                                       one good sync, and any failure puts the old job back (default wait 15 min)`;
+  sync [options]                       run one whole sync now (sync --help lists the options)`;
 
 let service;
 try {
@@ -70,14 +67,12 @@ function waitForConnection(readConnection) {
 async function setup(args) {
   const yes = args.includes('--yes');
   const { spawn, spawnSync } = await import('node:child_process');
-  const { rmSync } = await import('node:fs');
   const { join } = await import('node:path');
-  const { codeRoot, mainCheckout, paths, usesLegacyNames } = await import('../src/config.ts');
+  const { codeRoot, mainCheckout, paths } = await import('../src/config.ts');
   const { createSecretStore } = await import('../src/secrets/store.ts');
   const { readConnection } = await import('../src/sync/state.ts');
   const { walkthrough } = await import('../src/setup/walkthrough.ts');
   const { skillLinkState } = await import('../src/setup/skill-link.ts');
-  const { nightlyLogs } = await import('../src/migrate/legacy.ts');
 
   const code = codeRoot();
   const main = mainCheckout(code);
@@ -97,7 +92,6 @@ async function setup(args) {
     secret: (prompt) => readKey(prompt),
     checks: () => service.setupChecks(),
     worktreeOf: main === code ? null : main,
-    legacy: service.legacyInstall(),
     async services() {
       const status = await service.serviceStatus();
       return {
@@ -105,17 +99,11 @@ async function setup(args) {
         running: status.units.every((unit) => unit.running),
         dataRoot: status.dataRoot,
         here: status.here,
-        legacy: status.legacyUnits.length > 0 || usesLegacyNames(),
         upgradeSafeNode: status.node.upgradeSafePath,
         buildBehindCode: status.buildBehindCode,
       };
     },
     install: () => service.installService({ log: (line) => log(`  ${line}`) }),
-    async migrate() {
-      const { migrate } = await import('../src/migrate/legacy.ts');
-      const done = await migrate({ log: (line) => log(`  ${line}`) });
-      return done.ok ? { ok: true, message: '' } : { ok: false, message: `${done.message} ${done.state.join(' ')}` };
-    },
     connection,
     appUrl: `http://127.0.0.1:${service.webPort()}`,
     async openApp(url) {
@@ -136,13 +124,6 @@ async function setup(args) {
     async linkSkill() {
       spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' });
     },
-    oldLogs() {
-      const { paths: found, bytes } = nightlyLogs(files.logsDir);
-      return { count: found.length, bytes, dir: files.logsDir };
-    },
-    deleteOldLogs() {
-      for (const path of nightlyLogs(files.logsDir).paths) rmSync(path, { force: true });
-    },
   });
   if (!result.ok) process.exit(1);
 }
@@ -161,9 +142,6 @@ async function status() {
   }
   if (report.units.some((unit) => unit.name.endsWith('-web') && unit.running)) {
     console.log(`[status] web app           ${report.appUrl}`);
-  }
-  if (report.legacyUnits.length > 0) {
-    console.log('[status] old names         these services still run as x-corpus: run bun run setup (or bun run service:install) to rename them to magpie');
   }
   const { worker } = report;
   if (worker === null) console.log('[status] worker heartbeat  none: the worker has not run here');
@@ -272,31 +250,6 @@ async function setJev() {
   console.log(`[secrets] the Jev key is stored in ${where}`);
 }
 
-async function migrateCommand(args) {
-  let timeoutMs;
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--help' || args[i] === '-h') {
-      console.log(USAGE);
-      return;
-    }
-    if (args[i] === '--timeout-minutes' && /^\d+(\.\d+)?$/.test(args[i + 1] ?? '') && Number(args[i + 1]) > 0) {
-      timeoutMs = Number(args[++i]) * 60_000;
-    } else {
-      usage(`unknown migrate argument: ${args[i]}`);
-    }
-  }
-  const { migrate } = await import('../src/migrate/legacy.ts');
-  const result = await migrate({ timeoutMs, log: (line) => console.log(`[migrate] ${line}`) }).catch((error) =>
-    fail('[migrate] the migration stopped unexpectedly; check the old job and the services by hand:', error),
-  );
-  if (!result.ok) {
-    console.error(`[migrate] the migration did not complete: ${result.message}`);
-    console.error('[migrate] this machine is now in this state:');
-    for (const line of result.state) console.error(`[migrate]   ${line}`);
-    process.exit(1);
-  }
-}
-
 const [command, sub, ...rest] = process.argv.slice(2);
 switch (command) {
   case 'setup': {
@@ -317,9 +270,6 @@ switch (command) {
     await syncCommand([sub, ...rest].filter((arg) => arg !== undefined));
     break;
   }
-  case 'migrate':
-    await migrateCommand([sub, ...rest].filter((arg) => arg !== undefined));
-    break;
   case undefined:
   case '--help':
   case 'help':
