@@ -111,12 +111,12 @@ export function SidebarResizer({ controls }: { controls: string }) {
       onDoubleClick={() => set(SIDEBAR_WIDTH.fallback)}
       onKeyDown={keys}
       className={
-        "group/resizer absolute inset-y-0 -right-2 z-10 flex w-3 cursor-col-resize touch-none justify-start outline-none select-none"
+        "group/resizer absolute inset-y-0 -right-7 z-10 flex w-3 cursor-col-resize touch-none justify-start outline-none select-none"
       }
     >
       <span
         aria-hidden="true"
-        className="ml-[3px] h-full w-0.5 rounded-full bg-transparent transition-colors duration-150 ease-out group-hover/resizer:bg-primary group-focus-visible/resizer:bg-primary group-focus-visible/resizer:outline-2 group-focus-visible/resizer:outline-offset-1 group-focus-visible/resizer:outline-primary group-active/resizer:bg-primary"
+        className="h-full w-0.5 rounded-full bg-transparent transition-colors duration-150 ease-out group-hover/resizer:bg-primary group-focus-visible/resizer:bg-primary group-focus-visible/resizer:outline-2 group-focus-visible/resizer:outline-offset-1 group-focus-visible/resizer:outline-primary group-active/resizer:bg-primary"
       />
     </div>
   );
