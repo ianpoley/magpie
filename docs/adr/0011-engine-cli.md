@@ -37,7 +37,7 @@ A Node too old to run TypeScript would fail with a loader error; name the range 
 
 #### 0011.4 `categorizeDeps (lazy jev client)`
 
-Built on first use: a missing API key then fails the tagging stage, not the whole run. The pending client is shared, so concurrent first asks read the secret store once. A failed read is not kept: the worker lives for days, and a key added later with secrets:set-jev must be picked up by the next run without a restart.
+Built on first use: a missing API key then fails the tagging stage, not the whole run. The pending client is shared, so concurrent first asks read the secret store once. A failed read is not kept. The worker lives for days, so it calls `categorizeDeps` again for every run: a key added or replaced later, with secrets:set-jev or from the web app, is picked up by the next run without a restart.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/run-cli.mjs#L48-L51)
 
@@ -45,6 +45,6 @@ Built on first use: a missing API key then fails the tagging stage, not the whol
 
 #### 0011.5 `sync.mjs exit codes`
 
-Exits 0 when the run reached its end, even if a stage failed (the summary and the run row say which). Exits 1 when a run is already in progress or the run could not start, and 2 for a bad argument.
+Exits 0 when the run reached its end, even if a stage failed (the summary and the run row say which). Exits 1 when a run is already in progress, the run could not start, or it was stopped by SIGINT, SIGTERM or SIGHUP, and 2 for a bad argument. On one of those signals it does what the worker does on shutdown (0003.4): it kills any bird or Birdclaw process the run started and releases the run lock, so Ctrl-C leaves no tool running and the worker cannot start a second sync beside one.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/sync.mjs#L5-L7)

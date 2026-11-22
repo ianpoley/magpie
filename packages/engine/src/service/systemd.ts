@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { userInfo } from 'node:os';
 import { join } from 'node:path';
 
 import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
@@ -75,6 +76,12 @@ export function systemd(options: { home: string; env: Record<string, string | un
       const enabled = await run('systemctl', ['--user', 'is-enabled', unit(name)]);
       const active = await run('systemctl', ['--user', 'is-active', unit(name)]);
       return { loaded: enabled.stdout.trim() === 'enabled', running: active.stdout.trim() === 'active' };
+    },
+    async bootHint() {
+      const user = userInfo().username;
+      const linger = await run('loginctl', ['show-user', user, '-p', 'Linger']);
+      if (linger.code !== 0 || linger.stdout.trim() !== 'Linger=no') return null;
+      return `lingering is off for ${user}: the services stop when you log out and do not start at boot. To keep them running: loginctl enable-linger ${user}`;
     },
   };
 }

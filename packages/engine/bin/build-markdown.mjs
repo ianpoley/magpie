@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const [, , inPath, outDir, label = 'item', jsonlOut] = process.argv;
@@ -45,6 +45,12 @@ const slug = s => clean(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-
 
 mkdirSync(outDir, { recursive: true });
 
+const writeWhole = (path, text) => {
+  const draft = `${path}.${process.pid}.tmp`;
+  writeFileSync(draft, text);
+  renameSync(draft, path);
+};
+
 const indexLines = [`# ${label}s (${items.length})`, '', `_Last built: ${new Date().toISOString()}_`, ''];
 const seen = new Set();
 for (const it of items) {
@@ -68,17 +74,23 @@ for (const it of items) {
     `— [@${it.handle}](${it.url})${it.created ? ' · ' + it.created : ''}`,
     '',
   ].join('\n');
-  writeFileSync(join(outDir, fname), body);
+  writeWhole(join(outDir, fname), body);
   const snippet = clean(it.text).slice(0, 120);
   indexLines.push(`- [@${it.handle}](${it.url}) — ${snippet}${snippet.length >= 120 ? '…' : ''}`);
 }
-writeFileSync(join(outDir, 'index.md'), indexLines.join('\n') + '\n');
+writeWhole(join(outDir, 'index.md'), indexLines.join('\n') + '\n');
 
 if (jsonlOut) {
   const jsonl = items.map(i => JSON.stringify(
     { type: label, id: i.id, handle: i.handle, name: i.name, created: i.created, url: i.url, text: i.text }
   )).join('\n');
-  writeFileSync(jsonlOut, jsonl + (jsonl ? '\n' : ''));
+  writeWhole(jsonlOut, jsonl + (jsonl ? '\n' : ''));
+}
+
+for (const entry of readdirSync(outDir, { withFileTypes: true })) {
+  if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'index.md' && !seen.has(entry.name)) {
+    rmSync(join(outDir, entry.name), { force: true });
+  }
 }
 
 console.log(`Wrote ${items.length} ${label} files -> ${outDir}`);

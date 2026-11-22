@@ -17,7 +17,7 @@ export type WalkthroughDeps = {
   jevStored: () => Promise<boolean>;
   storeJev: (key: string) => Promise<{ ok: boolean; message: string }>;
   skill: () => SkillState;
-  linkSkill: () => Promise<void>;
+  linkSkill: () => Promise<boolean>;
 };
 
 export type ServicesState = {
@@ -204,8 +204,8 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
         return;
       }
     }
-    await deps.linkSkill();
-    done.push('The magpie skill is linked into ~/.claude/skills.');
+    if (await deps.linkSkill()) done.push('The magpie skill is linked into ~/.claude/skills.');
+    else todo.push('The magpie skill was not linked. Try again: bash packages/skill/install.sh');
   }
 
   function finish(ok: boolean): WalkthroughResult {

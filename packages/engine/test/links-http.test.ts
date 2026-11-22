@@ -76,3 +76,20 @@ test('request headers given by the caller are sent', async (t) => {
 
   assert.deepEqual(JSON.parse(response.body), { accept: 'application/vnd.github+json' });
 });
+
+test('a request given vetted addresses connects to them, not to what the name resolves to now', async (t) => {
+  const base = await serve(t, (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' }).end(String(req.headers.host));
+  });
+  const port = new URL(base).port;
+
+  const response = await fetchHttp({
+    url: `http://pinned.invalid:${port}/`,
+    timeoutMs: 2000,
+    maxBytes: 1000,
+    addresses: ['127.0.0.1'],
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body, `pinned.invalid:${port}`);
+});

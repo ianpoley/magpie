@@ -15,7 +15,7 @@ When the code changes, update or remove the entry here in the same commit.
 
 #### 0002.1 `INGEST.shrinkGuard`
 
-A collection whose export shrank by more than this share clears no flags.
+A collection whose export shrank by more than this share since the last export clears no flags. Each collection's last export is kept in `meta` (`ingest_bookmarked_export`, `ingest_liked_export`) as its post count, the file's modification time and size, and the count it was measured against. The next export is measured against that count, so a shrink only holds flags until a new export confirms it: when the next export shrinks by no more than this share again, the user really did remove those posts and their flags are cleared. Reading the same export file again (a categorize run, or a sync whose export stage failed) is no confirmation, so it is measured against what that file was measured against before. With nothing kept yet, the run measures against the number of posts the store has flagged.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/config.ts#L137)
 

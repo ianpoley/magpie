@@ -115,6 +115,10 @@ One ExecStart word: bare when it is plain, otherwise quoted; `$` would expand a 
 
 `enable --now` would leave a running unit on its old definition.
 
+#### 0009.29 `systemd().bootHint`
+
+systemd stops a user's units when their last session ends and does not start them at boot unless lingering is on for that user. Turning it on needs `loginctl enable-linger`, which may ask for a password, so install does not run it. `service:install` and `service:status` print a one-line hint with the command when `loginctl show-user <name> -p Linger` says `Linger=no`. The user is named explicitly: with no argument `loginctl show-user` shows the service manager, not the user. A failed `loginctl` gives no hint. launchd has no such setting, so the macOS manager has no `bootHint`.
+
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/service/systemd.ts#L72)
 
 #### 0009.25 `upgradeSafeNodePath`

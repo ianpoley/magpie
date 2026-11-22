@@ -267,7 +267,7 @@ async function follow(start: URL, http: HttpFetch, lookup: HostLookup): Promise<
 
     let response: HttpResponse;
     try {
-      response = await http({ url: url.href, timeoutMs: LINKS.timeoutMs, maxBytes: LINKS.htmlCapBytes });
+      response = await http({ url: url.href, timeoutMs: LINKS.timeoutMs, maxBytes: LINKS.htmlCapBytes, addresses });
     } catch (error) {
       throw unreachable(error);
     }

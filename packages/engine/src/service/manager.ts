@@ -26,6 +26,7 @@ export interface ServiceManager {
   remove(names: readonly ServiceName[]): Promise<void>;
   afterRemove(): Promise<void>;
   state(name: ServiceName): Promise<{ loaded: boolean; running: boolean }>;
+  bootHint?(): Promise<string | null>;
 }
 
 export async function must(run: Runner, command: string, args: string[]): Promise<CommandResult> {
