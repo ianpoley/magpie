@@ -245,6 +245,11 @@ const MIGRATIONS: string[] = [
    WHERE EXISTS (SELECT 1 FROM areas WHERE kind = 'auto' AND state = 'active');
   `,
   MEMBERSHIP_VIEWS_V3,
+  `
+  ALTER TABLE run_stages ADD COLUMN reason TEXT;
+  UPDATE run_stages SET reason = 'secret_store_unreadable'
+  WHERE stage = 'x_auth' AND outcome = 'failed' AND message LIKE 'The X session could not be read%';
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -103,7 +103,7 @@ async function checkAuth(deps: SyncDeps): Promise<AuthCheck> {
     return {
       auth: { status: 'transient', handle: null, message },
       session: null,
-      body: { outcome: 'failed', counts: {}, message },
+      body: { outcome: 'failed', counts: {}, message, reason: 'secret_store_unreadable' },
     };
   }
   if (read.value === null) {

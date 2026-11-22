@@ -29,7 +29,7 @@ function run(status: RunStatus, stages: [stage: string, outcome: string, message
     upstreamSync: "ok",
     upstreamSyncDetail: null,
     message: null,
-    stages: stages.map(([stage, outcome, message]) => ({ stage, outcome, message: message ?? null, counts: {} })),
+    stages: stages.map(([stage, outcome, message]) => ({ stage, outcome, message: message ?? null, reason: null, counts: {} })),
   };
 }
 
@@ -166,7 +166,7 @@ test("the status route reads the last run from the store, and a run that could n
   const db = openStore(join(stateDir, "corpus.sqlite"));
   db.prepare(`INSERT INTO runs (started_at, finished_at, status) VALUES (?, ?, 'complete')`).run(at(-3 * HOUR), at(-3 * HOUR));
   const runId = Number(db.prepare(`INSERT INTO runs (started_at, status) VALUES (?, 'running')`).run(at(-MINUTE)).lastInsertRowid);
-  db.prepare(`INSERT INTO run_stages (run_id, stage, outcome, counts_json, message) VALUES (?, 'x_auth', 'failed', '{}', ?)`).run(
+  db.prepare(`INSERT INTO run_stages (run_id, stage, outcome, counts_json, message, reason) VALUES (?, 'x_auth', 'failed', '{}', ?, 'secret_store_unreadable')`).run(
     runId,
     "The X session could not be read: The secret store is locked or did not answer (security exited 36).",
   );

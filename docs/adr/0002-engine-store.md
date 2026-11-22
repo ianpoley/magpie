@@ -205,6 +205,10 @@ Stores the two band thresholds where the membership view reads them. The sync jo
 
 ### `packages/engine/src/store/schema.ts`
 
+#### 0002.22 `run_stages.reason`
+
+A stage can record a typed reason next to its message, so readers branch on it instead of the message's wording. The only reason so far is `secret_store_unreadable`, set on `x_auth` when the X session could not be read from the secret store. The web app shows the keychain as locked from it. The migration that adds the column tags the earlier rows by their message once, so a store upgraded during such a run still reads right.
+
 #### 0002.18 `MIGRATIONS`
 
 The store schema is a contract shared by the sync job, the web app and the skill. Change it only by appending a migration; never edit one that shipped.
