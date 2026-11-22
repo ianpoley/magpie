@@ -90,7 +90,7 @@ Ranking: posts hitting more of your **distinct** query terms rank first, then by
 - **Browsable:** `<clone>/markdown/{bookmarks,likes}/` — one `.md` per post (YAML frontmatter + quoted text) plus `index.md`.
 - **Categories:** `<clone>/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts.
 - Set `MAGPIE_DIR` to override the base data dir. The store is then looked for at `<MAGPIE_DIR>/../state/corpus.sqlite`; set `MAGPIE_STORE` to point at it directly.
-- The category commands need node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store and no command runs, keyword search included: tell the user to update it.
+- Once the store exists, every command reads it, keyword search included, so every command needs node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store and no command runs, keyword search included: tell the user to update it.
 - This skill's source is `packages/skill/` in the magpie repo, installed as a symlink by `packages/skill/install.sh`.
 
 Notes:
