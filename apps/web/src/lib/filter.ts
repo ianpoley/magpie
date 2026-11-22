@@ -1,4 +1,4 @@
-import { matchesKeyword } from "./search.ts";
+import { keywordMatcher, keywordTerms, narrows } from "./search.ts";
 import type { AuthorCount, Band, Chip, Collection, FilterResult, FilterState, Post, Snapshot, TimeRange } from "./types.ts";
 
 export const DEFAULT_FILTER: FilterState = {
@@ -38,12 +38,28 @@ export type ViewFilter = Pick<FilterState, "collection" | "author" | "timeRange"
 
 export function inView(state: ViewFilter, now: number): (post: Post) => boolean {
   const since = state.timeRange === "all" ? null : now - RANGE_DAYS[state.timeRange] * DAY_MS;
+  const matchesKeyword = keywordMatcher(state.keyword);
   return (post) =>
     inCollection(post, state.collection) &&
     (state.author === null || sameHandle(post.authorHandle, state.author)) &&
     (since === null || (post.createdAtMs !== null && post.createdAtMs >= since)) &&
     (!state.mediaOnly || post.media.length > 0) &&
-    matchesKeyword(post, state.keyword);
+    matchesKeyword(post);
+}
+
+type Narrowed = { terms: string[]; matched: Post[] };
+
+const NARROWED_SCOPES = 24;
+const narrowedBySnapshot = new WeakMap<Snapshot, Map<string, Narrowed>>();
+
+function narrowedFor(snapshot: Snapshot): Map<string, Narrowed> {
+  let scopes = narrowedBySnapshot.get(snapshot);
+  if (!scopes) {
+    scopes = new Map();
+    narrowedBySnapshot.set(snapshot, scopes);
+  }
+  if (scopes.size > NARROWED_SCOPES) scopes.clear();
+  return scopes;
 }
 
 export function applyFilter(snapshot: Snapshot, state: FilterState, now: number, held: ReadonlySet<string> = new Set()): FilterResult {
@@ -88,13 +104,23 @@ export function applyFilter(snapshot: Snapshot, state: FilterState, now: number,
     return categorySelected ? selectionBand(post) : "confident";
   };
 
+  const terms = keywordTerms(state.keyword);
+  const scope = JSON.stringify([state.collection, state.author, state.timeRange, state.mediaOnly, state.revealHidden, state.unfiled, topicIds, areaIds, now, [...held].sort()]);
+  const scopes = narrowedFor(snapshot);
+  const before = scopes.get(scope);
+  const candidates = before && narrows(before.terms, terms) ? before.matched : snapshot.posts;
+
+  const matched: Post[] = [];
   const confident: Post[] = [];
   const unsure: Post[] = [];
-  for (const post of snapshot.posts) {
+  for (const post of candidates) {
     const band = placement(post) ?? (held.has(post.id) ? "confident" : null);
+    if (band === null) continue;
+    matched.push(post);
     if (band === "confident") confident.push(post);
-    else if (band === "unsure") unsure.push(post);
+    else unsure.push(post);
   }
+  scopes.set(scope, { terms, matched });
 
   const order = ORDER[state.sort];
   confident.sort(order);
