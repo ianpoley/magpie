@@ -17,7 +17,7 @@ function fly(seconds: number, sim: ReturnType<typeof createMurmuration>) {
   for (let i = 0; i < seconds / DT; i++) sim.step(DT);
 }
 
-const cruising = (sim: ReturnType<typeof createMurmuration>) => sim.birds.filter((b) => b.state === 0);
+const cruising = (sim: ReturnType<typeof createMurmuration>) => sim.birds.filter((b) => b.state === "flying");
 const overColumn = (b: Bird) => b.x > SPACE.columnLeft && b.x < SPACE.columnRight;
 const sideOf = (b: Bird) => (b.x < (SPACE.columnLeft + SPACE.columnRight) / 2 ? 0 : 1);
 
@@ -64,7 +64,7 @@ test("the flock follows the count, one bird per post up to the cap", () => {
   sim.resize(SPACE);
   sim.setTarget(120);
   fly(4, sim);
-  assert.equal(sim.birds.filter((b) => b.state === 0 || b.state === 2).length, 120);
+  assert.equal(sim.birds.filter((b) => b.state === "flying" || b.state === "arriving").length, 120);
   sim.setTarget(30);
   fly(4, sim);
   assert.equal(sim.birds.length, 30);
