@@ -11,7 +11,7 @@ import { resourceName, resourcesFor } from "@/lib/resources";
 import type { Post, Snapshot } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { formatCount, plural } from "./format";
+import { formatCount, formatDay, plural } from "./format";
 import { Tip } from "./tip";
 
 const TOOLS = 4;
@@ -102,21 +102,24 @@ function Question({ children }: { children: string }) {
 function Sources({ point, card }: { point: AnswerPoint; card: AnswerCardProps }) {
   const posts = point.postIds.flatMap((id) => card.postsById.get(id) ?? []);
   if (posts.length === 0) return null;
+  const handles = posts.map((post) => post.authorHandle.toLowerCase());
   return (
     <ul aria-label="Sources" className="flex flex-wrap gap-x-1.5 gap-y-3">
       {posts.map((post) => {
         const marked = card.cited.includes(post.id);
+        const day = handles.indexOf(post.authorHandle.toLowerCase()) !== handles.lastIndexOf(post.authorHandle.toLowerCase()) ? formatDay(post.createdAt) : null;
         return (
           <li key={post.id} className="flex">
             <button
               type="button"
               onClick={() => card.onCite(post.id)}
-              aria-label={`${card.listed.has(post.id) ? "Show" : "Open"} the post by ${post.authorName}`}
+              aria-label={`${card.listed.has(post.id) ? "Show" : "Open"} the post by ${post.authorName}${day ? ` from ${day}` : ""}`}
               aria-pressed={marked}
               className={`${CHIP} relative max-w-[11rem] cursor-pointer gap-1.5 pl-1 font-semibold before:absolute before:inset-x-0 before:-inset-y-1.5 ${marked ? "bg-side-ink text-ink" : QUIET_CHIP}`}
             >
               <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} size="xs" ring={false} />
               <span className="truncate">@{post.authorHandle}</span>
+              {day ? <span className="shrink-0 font-medium tabular-nums opacity-75">{day}</span> : null}
             </button>
           </li>
         );

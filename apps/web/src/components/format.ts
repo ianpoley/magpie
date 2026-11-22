@@ -1,5 +1,6 @@
 const NUMBER = new Intl.NumberFormat("en-US");
 const DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const DAY_OF_YEAR = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -15,6 +16,12 @@ export function formatDate(iso: string | null): string | null {
   if (iso === null) return null;
   const ms = Date.parse(iso);
   return Number.isNaN(ms) ? null : DATE.format(ms);
+}
+
+export function formatDay(iso: string | null): string | null {
+  if (iso === null) return null;
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : DAY_OF_YEAR.format(ms);
 }
 
 export function relativeTime(iso: string, now: number): string {
