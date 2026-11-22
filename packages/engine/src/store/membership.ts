@@ -201,6 +201,27 @@ export const MEMBERSHIP_VIEWS_V2 = `
   WHERE l.status IN ('new', 'failed');
 `;
 
+export const MEMBERSHIP_VIEWS_V3 = `
+  DROP VIEW IF EXISTS membership_standing;
+  CREATE VIEW membership_standing AS
+  SELECT post_id, topic_id, area_id, band, probability, strength, hidden, pinned,
+    MAX(band = 'confident') OVER post AS post_filed,
+    (MAX(pinned = 0) OVER post = 1
+     AND MAX(pinned = 0 AND band = 'confident' AND hidden = 0) OVER post = 0
+     AND (MAX(pinned = 0 AND band = 'confident' AND hidden = 1) OVER post = 1
+          OR COALESCE(MAX(CASE WHEN pinned = 0 AND hidden = 1 THEN strength END) OVER post, -1)
+           > COALESCE(MAX(CASE WHEN pinned = 0 AND hidden = 0 THEN strength END) OVER post, -1))) AS post_hidden
+  FROM topic_membership
+  WINDOW post AS (PARTITION BY post_id);
+  DROP VIEW IF EXISTS post_unfiled;
+  CREATE VIEW post_unfiled AS
+  SELECT p.id AS post_id FROM visible_posts p
+  WHERE p.id NOT IN (SELECT post_id FROM membership_standing WHERE post_filed = 1);
+  DROP VIEW IF EXISTS post_hidden;
+  CREATE VIEW post_hidden AS
+  SELECT DISTINCT post_id FROM membership_standing WHERE post_hidden = 1;
+`;
+
 export function syncBands(
   db: DatabaseSync,
   bands: { confident: number; unsure: number } = BANDS,

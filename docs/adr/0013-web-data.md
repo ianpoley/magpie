@@ -167,7 +167,7 @@ The address a resolved link should open: only http(s), and nothing that would sp
 
 #### 0013.23 `readSnapshot`
 
-Everything the screen shows, read in one transaction so a sync writing at the same moment cannot give memberships for topics that were not loaded. Which posts are in which topic comes from the store's membership view, the one place that is defined.
+Everything the screen shows, read in one transaction so a sync writing at the same moment cannot give memberships for topics that were not loaded. Which posts are in which topic, and which are Unfiled or hidden, comes from the store's `membership_standing` view, the one place that is defined.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/read-snapshot.ts#L333-L338)
 
