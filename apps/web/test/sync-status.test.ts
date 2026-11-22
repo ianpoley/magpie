@@ -7,7 +7,7 @@ import { cleanupScratch, connectionPath, freshInstall, holdRunLock, stateDir, re
 import { createSecretStore } from "../../../packages/engine/src/secrets/store.ts";
 import { openStore } from "../../../packages/engine/src/store/db.ts";
 import { writeConnection, writeSyncRequest } from "../../../packages/engine/src/sync/state.ts";
-import type { Run, SyncState } from "../src/lib/types.ts";
+import type { Run, RunStatus, SyncState } from "../src/lib/types.ts";
 
 after(cleanupScratch);
 resolveLikeNext();
@@ -20,7 +20,7 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const at = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
 
-function run(status: string, stages: [stage: string, outcome: string, message?: string][] = []): Run {
+function run(status: RunStatus, stages: [stage: string, outcome: string, message?: string][] = []): Run {
   return {
     id: 7,
     startedAt: at(-10 * MINUTE),
