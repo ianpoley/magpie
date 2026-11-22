@@ -5,7 +5,7 @@ import { Field, FieldLabel } from "@ui-sdk/react/field";
 import { Radio, RadioGroup, RadioIndicator } from "@ui-sdk/react/radio";
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@ui-sdk/react/tabs";
-import { Activity, AtSign, CircleCheck, KeyRound, Sparkles, Tags, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import { Activity, AtSign, Check, CircleCheck, Copy, KeyRound, Sparkles, Tags, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 
 import { loadSettings, saveAnswerModel, saveFocus, saveJevKey } from "@/app/actions";
@@ -19,6 +19,7 @@ import { ResortDialog, type ResortOutcome } from "./resort-dialog";
 import { SecretField } from "./secret-field";
 import type { SyncController } from "./sync-status";
 import { dialogContent, iconButton, pageColors, primaryAnswer, softButton } from "./styles";
+import { useCopied } from "./update-notice";
 
 export const createSettingsController = () => createDialogController();
 export type SettingsController = ReturnType<typeof createSettingsController>;
@@ -37,6 +38,8 @@ const SECTIONS: { id: SectionId; title: string; description: string | null; icon
   { id: "jev", title: "Jev key", description: "Jev sorts each post into topics. For Ask, it checks every saved post against your question.", icon: KeyRound },
   { id: "status", title: "Status", description: null, icon: Activity },
 ];
+
+const SETUP_COMMAND = "bun run setup";
 
 const SKILL_STATUS: Record<SkillLink, { ok: boolean; title: string; hint: string | null }> = {
   linked: { ok: true, title: "The Claude skill is linked", hint: null },
@@ -73,15 +76,31 @@ function needsAttention(id: SectionId, settings: SettingsState, sync: SyncState)
 
 export const settingsNeedAttention = (settings: SettingsState, sync: SyncState): boolean => SECTIONS.some(({ id }) => needsAttention(id, settings, sync));
 
-function StatusRow({ ok, title, hint }: { ok: boolean; title: string; hint: string | null }) {
+function CopyCommand({ command }: { command: string }) {
+  const [copied, copy] = useCopied(command);
+  return (
+    <>
+      <button type="button" onClick={copy} className={`${softButton} bg-surface pointer-coarse:h-10`}>
+        {copied ? <Check className="size-3.5" aria-hidden="true" /> : <Copy className="size-3.5" aria-hidden="true" />}
+        {copied ? "Copied" : "Copy command"}
+      </button>
+      <span className="sr-only" role="status">
+        {copied ? `${command} copied` : ""}
+      </span>
+    </>
+  );
+}
+
+function StatusRow({ ok, title, hint, command }: { ok: boolean; title: string; hint: string | null; command?: string }) {
   const Icon = ok ? CircleCheck : TriangleAlert;
   return (
-    <div className={`flex items-start gap-3 rounded-inner px-3 py-2.5 ${ok ? "bg-success-soft" : "bg-sunken"}`}>
+    <div className={`flex flex-wrap items-start gap-x-3 gap-y-2 rounded-inner px-3 py-2.5 ${ok ? "bg-success-soft" : "bg-sunken"}`}>
       <Icon className={`mt-0.5 size-4 shrink-0 ${ok ? "text-success" : "text-ink-muted"}`} aria-hidden="true" />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[13px] font-medium text-ink">{title}</p>
         {hint ? <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{hint}</p> : null}
       </div>
+      {command ? <CopyCommand command={command} /> : null}
     </div>
   );
 }
@@ -312,8 +331,9 @@ function StatusSection({ settings, sync }: { settings: SettingsState; sync: Sync
         ok={sync.workerAlive}
         title={sync.workerAlive ? "Background sync is running" : "Background sync isn't running"}
         hint={sync.workerAlive ? null : "Start it with bun run setup."}
+        command={sync.workerAlive ? undefined : SETUP_COMMAND}
       />
-      <StatusRow ok={skill.ok} title={skill.title} hint={skill.hint} />
+      <StatusRow ok={skill.ok} title={skill.title} hint={skill.hint} command={skill.ok ? undefined : SETUP_COMMAND} />
     </div>
   );
 }

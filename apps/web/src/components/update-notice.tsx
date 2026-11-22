@@ -89,7 +89,7 @@ function useUpdateState(): { update: UpdateState | null; updated: boolean; dismi
   return { update: hidden ? null : update, updated, dismiss };
 }
 
-function useCopied(text: string): [boolean, () => void] {
+export function useCopied(text: string): [boolean, () => void] {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
