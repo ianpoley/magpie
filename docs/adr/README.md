@@ -13,7 +13,7 @@ Each entry has a heading with its number and the symbol it applies to, then the 
 | [0005](0005-engine-jev.md) | Scoring posts with Jev | 16 |
 | [0006](0006-engine-claude.md) | Headless Claude calls | 8 |
 | [0007](0007-engine-evolve.md) | Growing the category list | 22 |
-| [0008](0008-engine-secrets.md) | Secrets | 27 |
+| [0008](0008-engine-secrets.md) | Secrets | 28 |
 | [0009](0009-engine-service.md) | Background services | 17 |
 | [0010](0010-engine-setup.md) | Setup | 9 |
 | [0011](0011-engine-cli.md) | Command-line entry points | 5 |

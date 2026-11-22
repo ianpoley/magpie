@@ -135,6 +135,9 @@ function DisconnectButton({ sync, onDone }: { sync: SyncController; onDone: () =
         <AlertDialogDescription className="mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
           The saved cookies are deleted from this machine and syncing stops. Posts already synced stay here.
         </AlertDialogDescription>
+        <p className="mt-2 text-[13px] leading-[1.55] text-pretty text-ink-muted">
+          This doesn&apos;t sign the session out of X. If you think the cookies leaked, end it on x.com too: Settings and privacy, Security and account access, Apps and sessions, Sessions.
+        </p>
         <AlertDialogClose
           value="confirm"
           action={async () => {
