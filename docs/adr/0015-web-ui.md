@@ -119,7 +119,7 @@ Back to the control that opened it, or, when connecting replaced it, to the pane
 
 #### 0015.118 `SidebarDeck`
 
-The back card is `inert`, so nothing on it can be reached while it is behind. When a swap would leave focus on the card that just went back, focus moves to the card that came forward; focus anywhere else, such as the search field an Ask was started from, is left alone. Which card held focus is tracked from `focusin`, because by the time the swap has rendered the browser has already dropped focus to the body.
+The back card is `inert`, so nothing on it can be reached while it is behind. When a swap would leave focus on the card that just went back, focus moves to the card that came forward; focus anywhere else, such as the search field an Ask was started from, is left alone. Which card held focus is tracked from `focusin`, because by the time the swap has rendered the browser has already dropped focus to the body. Ask in the filters header, before any Ask, and New chat put focus in the question field of the deck on screen, since the desktop deck stays in the page, hidden, while the phone sheet is open.
 
 The peeking edge is a button of its own, outside both cards, so it stays pressable whichever card is in front.
 

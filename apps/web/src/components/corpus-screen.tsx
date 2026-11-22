@@ -364,9 +364,13 @@ export function CorpusScreen({
   const shownSelection = (current: FilterState): FilterState => ({ ...current, topicIds: applied.topicIds, areaIds: applied.areaIds });
 
   const leaveAsk = () => endAsk("filters");
+  const focusAnswerField = () =>
+    window.requestAnimationFrame(() =>
+      [...document.querySelectorAll<HTMLInputElement>("[data-card=answer]:not([inert]) [data-answer-field]")].find((field) => field.checkVisibility())?.focus({ preventScroll: true }),
+    );
   const newChat = () => {
     endAsk("answer");
-    window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>("[data-card=answer]:not([inert]) [data-answer-field]")?.focus());
+    focusAnswerField();
   };
   const selectTopic = (topicId: number, areaId: number | null | undefined = topicsById.get(topicId)?.areaId) => {
     if (ask) leaveAsk();
@@ -495,7 +499,14 @@ export function CorpusScreen({
     sidebarPanel.close();
   };
   const deckButton = (
-    <button type="button" onClick={() => swapDeck("answer")} className={SIDE_BUTTON}>
+    <button
+      type="button"
+      onClick={() => {
+        swapDeck("answer");
+        if (!ask) focusAnswerField();
+      }}
+      className={SIDE_BUTTON}
+    >
       <Sparkles className="size-3.5" aria-hidden="true" />
       {ask ? "Answer" : "Ask"}
     </button>
