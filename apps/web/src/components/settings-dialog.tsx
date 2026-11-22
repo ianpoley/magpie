@@ -21,10 +21,10 @@ import type { SyncController } from "./sync-status";
 import { dialogContent, iconButton, pageColors, primaryAnswer, softButton } from "./styles";
 import { useCopied } from "./update-notice";
 
-export const createSettingsController = () => createDialogController();
+export const createSettingsController = () => createDialogController<SectionId>();
 export type SettingsController = ReturnType<typeof createSettingsController>;
 
-type SectionId = "categories" | "x" | "answers" | "jev" | "status";
+export type SectionId = "categories" | "x" | "answers" | "jev" | "status";
 
 const SECTIONS: { id: SectionId; title: string; description: string; icon: LucideIcon }[] = [
   { id: "categories", title: "Categories", description: "Choose which categories the sidebar shows when Magpie sorts your posts.", icon: Tags },
@@ -403,7 +403,15 @@ export function SettingsDialog({
   };
 
   return (
-    <Dialog controller={controller} onOpenChange={(open) => open && reload()}>
+    <Dialog
+      controller={controller}
+      onOpenChange={(open) => {
+        if (!open) return;
+        reload();
+        const wanted = controller.getPayload();
+        if (wanted) setTab(wanted);
+      }}
+    >
       <DialogBackdrop />
       <DialogContent className={`${dialogContent} h-[min(40rem,calc(100dvh-2rem))] w-[min(52rem,calc(100%-1.5rem))] max-w-none bg-canvas ${pageColors}`}>
         <Tabs value={tab} onValueChange={(next) => next && setTab(next as SectionId)} orientation="vertical" className="flex h-full min-h-0 flex-col sm:flex-row">

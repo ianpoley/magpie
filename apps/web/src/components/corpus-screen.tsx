@@ -591,6 +591,7 @@ export function CorpusScreen({
     onCite: cite,
     onNew: newChat,
     onFilters: () => swapDeck("filters"),
+    onAnswerSettings: () => void settingsDialog.open({ payload: "answers" }),
   };
   const { eyebrow, title, detail } = heading(snapshot, applied, authorName);
   const allGroups = view === "resources" ? resourcesFor(snapshot, result.posts) : [];

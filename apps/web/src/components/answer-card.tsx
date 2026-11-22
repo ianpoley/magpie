@@ -39,6 +39,7 @@ export type AnswerCardProps = {
   onCite: (postId: string) => void;
   onNew: () => void;
   onFilters: () => void;
+  onAnswerSettings?: () => void;
 };
 
 type Note = { text: string; retry: (() => void) | null };
@@ -127,8 +128,10 @@ function Sources({ ids, card }: { ids: string[]; card: AnswerCardProps }) {
   );
 }
 
-const writtenBy = (answer: Answer, chat: ChatState): string =>
-  `Written by ${answer.model} from ${answer.read === chat.matched ? `all ${matchCount(chat.matched, chat.confident)}` : `the ${formatCount(answer.read)} strongest of ${matchCount(chat.matched, chat.confident)}`}.`;
+const readFrom = (answer: Answer, chat: ChatState): string =>
+  `from ${answer.read === chat.matched ? `all ${matchCount(chat.matched, chat.confident)}` : `the ${formatCount(answer.read)} strongest of ${matchCount(chat.matched, chat.confident)}`}.`;
+
+const writtenBy = (answer: Answer, chat: ChatState): string => `Written by ${answer.model} ${readFrom(answer, chat)}`;
 
 function CopyText({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -200,7 +203,21 @@ function Footer({ turn, first, card, chat }: { turn: Turn & { answer: Answer }; 
         </div>
       ) : null}
       <p className="text-[12px] leading-[1.5] text-pretty text-side-muted tabular-nums">
-        {writtenBy(answer, chat)}
+        {card.onAnswerSettings ? (
+          <>
+            Written by{" "}
+            <button
+              type="button"
+              onClick={card.onAnswerSettings}
+              className="focus-ring-side cursor-pointer rounded-[4px] border-0 bg-transparent p-0 font-[inherit] text-side-ink underline decoration-side-muted underline-offset-2 hover:decoration-side-ink"
+            >
+              {answer.model}
+            </button>{" "}
+            {readFrom(answer, chat)}
+          </>
+        ) : (
+          writtenBy(answer, chat)
+        )}
         {skipped > 0 ? ` ${formatCount(skipped)} ${plural(skipped, "post", "posts")} could not be judged, so the answer may miss some.` : ""}
         {outside > 0 ? ` ${outside} cited ${plural(outside, "post is", "posts are")} outside the filters that are on; ${plural(outside, "its chip opens", "their chips open")} the post.` : ""}
       </p>
