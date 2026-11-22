@@ -101,7 +101,7 @@ A tool that exits before reading its input breaks the pipe; the close handler re
 
 #### 0008.13 `securityBackend`
 
-The macOS login keychain through `/usr/bin/security`. The item's access list trusts the binary that created it, and Apple's `security` keeps a stable signature across upgrades where `node` does not, so a background service reads without a prompt. Writes go on stdin through `security -i`, so the value is never in an argument list. `-A` (any app may read) is never used.
+The macOS login keychain through `/usr/bin/security`. The item's access list trusts the binary that created it, and Apple's `security` keeps a stable signature across upgrades where `node` does not, so a background service reads without a prompt. Writes go on stdin through `security -i`, so the value is never in an argument list. That stdin line is built by interpolation, with the value single-quoted, so `set` itself refuses an account or service that is not letters, digits, `.`, `_` or `-`, and a value holding a quote, a backslash or a control character. It does not depend on its caller having checked them. `-A` (any app may read) is never used.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/src/secrets/backends.ts#L81-L87)
 

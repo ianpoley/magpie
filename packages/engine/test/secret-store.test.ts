@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
 import { createJevClient } from '../src/jev/client.ts';
+import { securityBackend } from '../src/secrets/backends.ts';
 import { createSecretStore } from '../src/secrets/store.ts';
 import { tempDir } from './fixtures/export.ts';
 
@@ -170,6 +171,26 @@ test('cookies with a newline, a quote, a space or over 512 characters are reject
   }
   assert.deepEqual(security.calls(), []);
   assert.equal(existsSync(join(dir, 'secret-backend.json')), false);
+});
+
+test('the keychain backend itself refuses an account, service or value that would break out of its quoted command line', async (t) => {
+  const security = stubTool(t, 'security');
+  const backend = (service: string) => securityBackend({ service, path: security.path, timeoutMs: 5000 });
+
+  for (const value of ["abc'def", 'abc\\def', 'abc\ndef', 'abc\u0007def']) {
+    const written = await backend(SERVICE).set('x-session', value);
+    assert.equal(!written.ok && written.reason, 'invalid', JSON.stringify(value));
+  }
+  for (const account of ['x session', "x'", 'x\n-a y', '']) {
+    const written = await backend(SERVICE).set(account, 'value');
+    assert.equal(!written.ok && written.reason, 'invalid', JSON.stringify(account));
+  }
+  const badService = await backend('magpie -s other').set('x-session', 'value');
+  assert.equal(!badService.ok && badService.reason, 'invalid');
+  assert.deepEqual(security.calls(), []);
+
+  assert.deepEqual(await backend(SERVICE).set('x-session', '{"authToken":"a%2E_-b","ct0":"c d"}'), { ok: true });
+  assert.deepEqual(security.items(), { 'x-session': '{"authToken":"a%2E_-b","ct0":"c d"}' });
 });
 
 test('a deleted secret reads as not set', async (t) => {
