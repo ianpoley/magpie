@@ -4,16 +4,17 @@ import { ArrowLeft, Check, CircleCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition, type FormEvent, type RefObject } from "react";
 
-import { connectX, saveJevKey } from "@/app/actions";
-import type { ActionErrorCode, SyncState } from "@/lib/types";
+import { connectX, saveFocus, saveJevKey } from "@/app/actions";
+import type { ActionErrorCode, FocusMode, SyncState } from "@/lib/types";
 
 import { KEPT } from "./connect-x-dialog";
 import { CHROME_MAC, devToolsFor, type DevTools } from "./dev-tools";
+import { FocusChoice, focusIncomplete } from "./focus-choice";
 import { MagpieMark } from "./magpie";
 import { SecretField } from "./secret-field";
 import { primaryAnswer, quietAnswer } from "./styles";
 
-type Step = "x" | "jev";
+type Step = "x" | "jev" | "focus";
 type Failure = { code: ActionErrorCode | "failed"; message: string };
 
 const FAILED: Failure = { code: "failed", message: "That did not work. Try again." };
@@ -47,10 +48,11 @@ function FormError({ failure }: { failure: Failure | null }) {
   );
 }
 
-function Steps({ step, handle, xDone, jevDone }: { step: Step; handle: string | null; xDone: boolean; jevDone: boolean }) {
+function Steps({ step, handle, xDone, jevDone, focusDone }: { step: Step; handle: string | null; xDone: boolean; jevDone: boolean; focusDone: boolean }) {
   const items = [
     { key: "x", title: "Connect X", detail: xDone ? (handle ? `@${handle}` : "Connected") : "Your bookmarks and likes", done: xDone },
     { key: "jev", title: "Add your Jev key", detail: jevDone ? "Saved" : "Sorts posts into topics", done: jevDone },
+    { key: "focus", title: "Choose what to show", detail: focusDone ? "Chosen" : "Everything, or only your focus", done: focusDone },
   ];
   return (
     <ol aria-label="Setup" className="m-0 flex list-none flex-col gap-1 p-0 max-lg:flex-row max-lg:gap-4">
@@ -65,7 +67,7 @@ function Steps({ step, handle, xDone, jevDone }: { step: Step; handle: string | 
               {item.done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
             </span>
             <span className="flex min-w-0 flex-col">
-              <span className={`text-[14px] font-semibold ${current || item.done ? "text-side-ink" : "text-side-muted"}`}>
+              <span className={`text-[14px] font-semibold ${current || item.done ? "text-side-ink" : "text-side-muted"} ${current ? "" : "max-lg:sr-only"}`}>
                 {item.title}
                 {item.done ? <span className="sr-only"> (done)</span> : null}
               </span>
@@ -92,23 +94,34 @@ function useStepFocus(step: Step, xDone: boolean) {
   return { heading, body };
 }
 
-export function SetupGate({ sync, jevStored }: { sync: SyncState; jevStored: boolean }) {
+function firstStep(xDone: boolean, jevDone: boolean): Step {
+  if (!xDone) return "x";
+  return jevDone ? "focus" : "jev";
+}
+
+export function SetupGate({ sync, jevStored, focusChosen }: { sync: SyncState; jevStored: boolean; focusChosen: boolean }) {
   const router = useRouter();
   const [handle, setHandle] = useState(sync.handle);
   const [xDone, setXDone] = useState(sync.connection !== "not_connected");
-  const [step, setStep] = useState<Step>(xDone ? "jev" : "x");
+  const [jevDone, setJevDone] = useState(jevStored);
+  const [step, setStep] = useState<Step>(() => firstStep(xDone, jevStored));
   const [opening, startOpening] = useTransition();
   const [backend, setBackend] = useState(sync.secretBackend);
   const kept = KEPT[backend ?? "unknown"];
   const { heading, body } = useStepFocus(step, xDone);
 
   const open = () => startOpening(() => router.refresh());
+  const advance = (jevSaved: boolean) => {
+    if (!jevSaved) setStep("jev");
+    else if (focusChosen) open();
+    else setStep("focus");
+  };
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(18rem,4fr)_minmax(0,7fr)]">
       <header className="side-scope bg-side flex flex-col gap-6 px-5 py-5 lg:gap-10 lg:px-8 lg:py-8">
         <MagpieMark />
-        <Steps step={step} handle={handle} xDone={xDone} jevDone={jevStored} />
+        <Steps step={step} handle={handle} xDone={xDone} jevDone={jevDone} focusDone={focusChosen} />
       </header>
 
       <main className="bg-wash flex justify-center px-4 pt-6 pb-16 sm:px-8 lg:pt-[12vh]">
@@ -123,15 +136,25 @@ export function SetupGate({ sync, jevStored }: { sync: SyncState; jevStored: boo
                 setHandle(next);
                 setBackend(saved.secretBackend);
                 setXDone(true);
-                if (jevStored) open();
-                else setStep("jev");
+                advance(jevDone);
               }}
               onChange={() => setXDone(false)}
               onContinue={() => setStep("jev")}
               opening={opening}
             />
+          ) : step === "jev" ? (
+            <JevStep
+              heading={heading}
+              kept={kept}
+              onSaved={() => {
+                setJevDone(true);
+                advance(true);
+              }}
+              onBack={() => setStep("x")}
+              opening={opening}
+            />
           ) : (
-            <JevStep heading={heading} kept={kept} onSaved={open} onBack={() => setStep("x")} opening={opening} />
+            <FocusStep heading={heading} onSaved={open} opening={opening} />
           )}
         </div>
       </main>
@@ -142,7 +165,7 @@ export function SetupGate({ sync, jevStored }: { sync: SyncState; jevStored: boo
 function StepTitle({ heading, n, children }: { heading: RefObject<HTMLHeadingElement | null>; n: number; children: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <p className="text-eyebrow text-ink-muted">Step {n} of 2</p>
+      <p className="text-eyebrow text-ink-muted">Step {n} of 3</p>
       <h1 ref={heading} tabIndex={-1} className="text-display text-[24px] text-ink outline-none">
         {children}
       </h1>
@@ -302,6 +325,48 @@ function JevStep({
           {checking ? "Checking with Jev…" : opening ? "Opening Magpie…" : "Save and start syncing"}
         </button>
       </div>
+    </form>
+  );
+}
+
+function FocusStep({ heading, onSaved, opening }: { heading: RefObject<HTMLHeadingElement | null>; onSaved: () => void; opening: boolean }) {
+  const [mode, setMode] = useState<FocusMode>("all");
+  const [focus, setFocus] = useState("");
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [saving, startSaving] = useTransition();
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setFailure(null);
+    startSaving(async () => {
+      try {
+        const result = await saveFocus(mode, focus);
+        if (!result.ok) return setFailure(result);
+        onSaved();
+      } catch {
+        setFailure(FAILED);
+      }
+    });
+  };
+
+  const busy = saving || opening;
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-5">
+      <StepTitle heading={heading} n={3}>
+        Choose what to show
+      </StepTitle>
+      <p className="-mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
+        The first sync sorts your posts into categories. Show all of them, or only the ones that match what you save posts for. You can change this later in Settings.
+      </p>
+      <FocusChoice mode={mode} focus={focus} onModeChange={setMode} onFocusChange={setFocus} disabled={busy} />
+      {failure ? (
+        <p role="alert" className="rounded-inner bg-like-soft px-3 py-2.5 text-[13px] leading-snug text-like-text">
+          {failure.message}
+        </p>
+      ) : null}
+      <button type="submit" disabled={busy || focusIncomplete(mode, focus)} className={`${primaryAnswer} h-10 self-end px-5`}>
+        {saving ? "Saving…" : opening ? "Opening Magpie…" : "Open Magpie"}
+      </button>
     </form>
   );
 }
