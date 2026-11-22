@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import { expandLinks, usableTarget, withoutTracking } from "./post-links.ts";
-import type { Area, Band, Change, Media, Post, QuotedPost, RemovedPost, Resource, Run, RunStage, Snapshot, Topic } from "./types.ts";
+import type { Area, AreaKind, Band, Change, ChangeKind, ChangeSource, Media, Post, QuotedPost, RemovedPost, Resource, ResourceKind, Run, RunStage, RunStatus, Snapshot, Topic, TopicKind, UpstreamSync } from "./types.ts";
 
 export function emptySnapshot(storeExists: boolean): Snapshot {
   return {
@@ -111,8 +111,8 @@ export function readRuns(db: DatabaseSync): { lastRun: Run | null; lastCompleteR
       id: Number(runRow.id),
       startedAt: String(runRow.started_at),
       finishedAt: text(runRow.finished_at),
-      status: String(runRow.status),
-      upstreamSync: String(runRow.upstream_sync),
+      status: String(runRow.status) as RunStatus,
+      upstreamSync: String(runRow.upstream_sync) as UpstreamSync,
       upstreamSyncDetail: text(runRow.upstream_sync_detail),
       message: text(runRow.message),
       stages,
@@ -201,7 +201,7 @@ function read(db: DatabaseSync): Snapshot {
     .map((row) => ({
       id: Number(row.id),
       name: String(row.name),
-      kind: String(row.kind),
+      kind: String(row.kind) as AreaKind,
       hidden: row.hidden === 1,
       locked: row.locked === 1,
       postCount: 0,
@@ -221,7 +221,7 @@ function read(db: DatabaseSync): Snapshot {
         areaId,
         name: String(row.name),
         definition: String(row.definition),
-        kind: String(row.kind),
+        kind: String(row.kind) as TopicKind,
         hidden: hiddenSelf || (areaId !== null && areasById.get(areaId)?.hidden === true),
         hiddenSelf,
         locked: row.locked === 1,
@@ -310,7 +310,7 @@ function read(db: DatabaseSync): Snapshot {
     .flatMap((row) => {
       const postIds = resourcePosts.get(Number(row.id));
       if (!postIds) return [];
-      return [{ id: Number(row.id), kind: String(row.kind), url: String(row.url), host: text(row.host), title: text(row.title), description: text(row.description), postIds }];
+      return [{ id: Number(row.id), kind: String(row.kind) as ResourceKind, url: String(row.url), host: text(row.host), title: text(row.title), description: text(row.description), postIds }];
     });
 
   const changes: Change[] = db
@@ -318,8 +318,8 @@ function read(db: DatabaseSync): Snapshot {
     .all()
     .map((row) => ({
       id: Number(row.id),
-      kind: String(row.kind),
-      source: String(row.source),
+      kind: String(row.kind) as ChangeKind,
+      source: String(row.source) as ChangeSource,
       summary: String(row.summary),
       postCount: Number(row.post_count),
       createdAt: String(row.created_at),

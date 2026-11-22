@@ -1,3 +1,8 @@
+import type { ResourceKind } from "@magpie/engine/src/links/canonical.ts";
+import type { UpstreamSync } from "@magpie/engine/src/pipeline.ts";
+
+export type { ResourceKind, UpstreamSync };
+
 export type Band = "confident" | "unsure";
 
 export type Membership = { topicId: number; band: Band };
@@ -56,10 +61,16 @@ export type RemovedPost = {
   removedAt: string;
 };
 
+export type AreaKind = "auto" | "system";
+export type TopicKind = "auto" | "pinned";
+export type ChangeKind = "initial" | "new_topic" | "split" | "undo";
+export type ChangeSource = "auto" | "user";
+export type RunStatus = "running" | "complete" | "failed";
+
 export type Area = {
   id: number;
   name: string;
-  kind: string;
+  kind: AreaKind;
   hidden: boolean;
   locked: boolean;
   postCount: number;
@@ -70,7 +81,7 @@ export type Topic = {
   areaId: number | null;
   name: string;
   definition: string;
-  kind: string;
+  kind: TopicKind;
   hidden: boolean;
   hiddenSelf: boolean;
   locked: boolean;
@@ -80,7 +91,7 @@ export type Topic = {
 
 export type Resource = {
   id: number;
-  kind: string;
+  kind: ResourceKind;
   url: string;
   host: string | null;
   title: string | null;
@@ -90,8 +101,8 @@ export type Resource = {
 
 export type Change = {
   id: number;
-  kind: string;
-  source: string;
+  kind: ChangeKind;
+  source: ChangeSource;
   summary: string;
   postCount: number;
   createdAt: string;
@@ -110,8 +121,8 @@ export type Run = {
   id: number;
   startedAt: string;
   finishedAt: string | null;
-  status: string;
-  upstreamSync: string;
+  status: RunStatus;
+  upstreamSync: UpstreamSync;
   upstreamSyncDetail: string | null;
   message: string | null;
   stages: RunStage[];
