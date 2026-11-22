@@ -7,14 +7,14 @@ import { LAYOUT_COOKIE, parseLayout } from "@/components/post-layout";
 import { SetupGate } from "@/components/setup-gate";
 import { parseClosedSections, SECTIONS_COOKIE } from "@/components/sidebar-sections";
 import { parseLinked, type QueryValues } from "@/lib/filter-url";
-import { loadFocus } from "@/lib/settings-state";
+import { readSettings } from "@/lib/settings-state";
 import { loadSnapshot, loadSyncState } from "@/lib/snapshot";
-import { readJevKeyStored } from "@/lib/sync-state";
 
 const requestTime = (): number => Date.now();
 
 async function Corpus({ query }: { query: Promise<QueryValues> }) {
-  const [snapshot, values, jar, jevStored, focus] = await Promise.all([loadSnapshot(), query, cookies(), readJevKeyStored(), loadFocus()]);
+  const [snapshot, values, jar, settings] = await Promise.all([loadSnapshot(), query, cookies(), readSettings()]);
+  const { jevKeyStored: jevStored, focus } = settings;
   const sync = await loadSyncState(snapshot);
   if (sync.connection === "not_connected" || !jevStored || !focus.chosen) return <SetupGate sync={sync} jevStored={jevStored} focusChosen={focus.chosen} />;
   return (
@@ -24,6 +24,7 @@ async function Corpus({ query }: { query: Promise<QueryValues> }) {
       now={requestTime()}
       linked={parseLinked(values)} layout={parseLayout(jar.get(LAYOUT_COOKIE)?.value)}
       closedSections={parseClosedSections(jar.get(SECTIONS_COOKIE)?.value)}
+      settings={settings}
     />
   );
 }

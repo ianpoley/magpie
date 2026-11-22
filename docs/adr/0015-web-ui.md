@@ -828,17 +828,19 @@ The text from a little before the first match, when that match sits more than `a
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/search.ts#L24-L28)
 
-### `apps/web/src/app/settings/page.tsx`
+### `apps/web/src/components/settings-dialog.tsx`
 
-#### 0015.109 `Settings`
+#### 0015.109 `SettingsDialog`
 
-Settings is its own route, `/settings`, opened from a row in the sidebar footer, so the corpus screen's query-param state stays out of it. A back link returns to `/`. It holds the category focus setting, the X connection, the Jev key, and read-only status for background sync and the Claude skill link.
+Settings is a dialog over the corpus screen, opened from the Settings row in the sidebar footer, so the corpus screen's query-param state stays as it is. It replaced the `/settings` route on 2026-11-22, because the page was growing fast (see the settings round in `apps/web/DESIGN.md`). Its tabs are Categories (the focus setting), X, Answers, Jev key and Status (read-only status for background sync and the Claude skill link). A tab that needs attention carries a dot.
 
-Changing the focus saves it first, then asks whether to re-sort existing areas, showing a preview of what would change. Apply writes only the previewed changes, and only to areas still unflagged and active. Choosing not to re-sort keeps the saved setting for new areas. The page is in `apps/web/src/components/settings-screen.tsx`; the preview dialog is `apps/web/src/components/resort-dialog.tsx`.
+The page passes the settings it already read for the setup check, so the window has content on its first open. Each open also calls `loadSettings`, because saves don't refresh the page and Status changes outside the app. The panels remount only when the settings read back differ.
 
-#### 0015.116 `FocusSection / JevSection messages`
+Changing the focus saves it first, then asks whether to re-sort existing areas, showing a preview of what would change. Apply writes only the previewed changes, and only to areas still unflagged and active. Choosing not to re-sort keeps the saved setting for new areas. The preview dialog is `apps/web/src/components/resort-dialog.tsx`.
 
-Cache Components keeps the settings page's state when it is navigated away from (see the Next.js guide on preserving UI state). Saved notes, failures and "New key saved" are cleared when the page is hidden, so coming back does not show the result of an earlier visit. Unsaved drafts are kept.
+#### 0015.116 `CategoriesSection / JevSection messages`
+
+Every panel stays mounted (`keepMounted`), so an unsaved draft survives a switch to another tab. Closing the window unmounts it, so saved notes, failures and "New key saved" don't show on the next open.
 
 ### `apps/web/src/components/update-notice.tsx`
 

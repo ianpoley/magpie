@@ -6,7 +6,6 @@ import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, Sc
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
 import { Bookmark, Eye, Heart, Layers, Search, Settings, Tags, Trash2, X, type LucideIcon } from "lucide-react";
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import type { AuthorCount, Collection, FilterState, Post, Snapshot } from "@/lib/types";
@@ -19,6 +18,7 @@ import { MagpieMark } from "./magpie";
 import { SidebarSection } from "./sidebar-section";
 import type { RemovedPostsController } from "./removed-posts";
 import type { ConnectXController } from "./connect-x-dialog";
+import type { SettingsController } from "./settings-dialog";
 import { SIDE_FOOTER_ROW, SyncStatus, type SyncController } from "./sync-status";
 import { UpdateNotice } from "./update-notice";
 
@@ -35,6 +35,7 @@ export type SidebarProps = {
   snapshot: Snapshot;
   sync: SyncController;
   connectX: ConnectXController;
+  settings: SettingsController;
   filter: FilterState;
   viewed: (post: Post) => boolean;
   totals: { everything: number; bookmarks: number; likes: number };
@@ -57,6 +58,7 @@ export function Sidebar({
   snapshot,
   sync,
   connectX,
+  settings,
   filter,
   viewed,
   totals,
@@ -230,10 +232,10 @@ export function Sidebar({
       <div className="flex flex-col gap-0.5 border-t border-[color-mix(in_oklch,var(--color-side-ink)_12%,transparent)] px-3 pt-2 pb-3">
         <UpdateNotice />
         <SyncStatus sync={sync} connectX={connectX} />
-        <Link href="/settings" className={`${SIDE_FOOTER_ROW} no-underline`}>
+        <DialogTrigger controller={settings} className={SIDE_FOOTER_ROW}>
           <Settings className="size-4 shrink-0 text-side-muted" aria-hidden="true" />
           Settings
-        </Link>
+        </DialogTrigger>
       </div>
     </div>
   );

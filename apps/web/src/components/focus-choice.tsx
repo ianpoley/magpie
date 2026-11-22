@@ -10,8 +10,8 @@ import type { FocusMode } from "@/lib/types";
 const MODE_ITEM = "focus-ring h-8 flex-1 px-3.5 text-[13px] font-semibold whitespace-nowrap";
 
 const MODE_DETAIL: Record<FocusMode, string> = {
-  all: "Every category shows in the sidebar. You can still hide any of them yourself.",
-  focus: "Categories that match your focus show. The rest start hidden, and you can show any of them yourself.",
+  all: "The sidebar shows every category. You can still hide any of them yourself.",
+  focus: "The sidebar shows the categories that match your focus. The rest start hidden, and you can show any of them yourself.",
 };
 
 export const focusIncomplete = (mode: FocusMode, focus: string) => mode === "focus" && focus.trim() === "";

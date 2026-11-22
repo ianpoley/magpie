@@ -27,11 +27,12 @@ import { linkedQuery, parseLinked, type LinkedFilter } from "@/lib/filter-url";
 import { emitMagpie } from "@/lib/magpie-events";
 import { resourcesFor } from "@/lib/resources";
 import { similarPosts } from "@/lib/similar";
-import type { FilterResult, FilterState, Post, Snapshot, SyncState } from "@/lib/types";
+import type { FilterResult, FilterState, Post, SettingsState, Snapshot, SyncState } from "@/lib/types";
 
 import { AnswerCard } from "./answer-card";
 import { CategoryDialogs, createCategoryEdits } from "./category-menu";
 import { ConnectXDialog, createConnectXController } from "./connect-x-dialog";
+import { createSettingsController, SettingsDialog } from "./settings-dialog";
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { Flock } from "./flock";
@@ -229,6 +230,7 @@ export function CorpusScreen({
   linked,
   layout: initialLayout,
   closedSections,
+  settings: initialSettings,
 }: {
   snapshot: Snapshot;
   sync: SyncState;
@@ -236,6 +238,7 @@ export function CorpusScreen({
   linked: LinkedFilter;
   layout: PostLayout;
   closedSections: string[];
+  settings: SettingsState;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
@@ -247,6 +250,7 @@ export function CorpusScreen({
   ]);
   const [postDialog] = useState(() => createDialogController<string>());
   const [connectX] = useState(createConnectXController);
+  const [settingsDialog] = useState(createSettingsController);
   const sync = useSyncStatus(initialSync);
   const [removedPosts] = useState(createRemovedPostsController);
   const [confirmRemove] = useState(createConfirmRemoveController);
@@ -471,6 +475,7 @@ export function CorpusScreen({
     snapshot,
     sync,
     connectX,
+    settings: settingsDialog,
     filter: applied,
     viewed: inView(applied, now),
     totals,
@@ -782,6 +787,7 @@ export function CorpusScreen({
         onSelectTopic={selectTopic}
         onEdit={holdPost}
       />
+      <SettingsDialog controller={settingsDialog} settings={initialSettings} sync={sync} connectX={connectX} />
       <ConnectXDialog controller={connectX} sync={sync} />
       <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} onEmpty={emptyRemoved} />
       <ConfirmRemove controller={confirmRemove} onConfirm={removeConfirmed} />

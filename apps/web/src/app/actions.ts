@@ -20,8 +20,9 @@ import {
 } from "@/lib/engine";
 import { errorName } from "@/lib/error-name";
 import { MAX_FOCUS_CHARS, RESORT_FAILED_MESSAGE } from "@/lib/focus";
+import { readSettings } from "@/lib/settings-state";
 import { readSyncFiles, readSyncState } from "@/lib/sync-state";
-import type { ActionErrorCode, ActionResult, FocusMode, FormField, PlayableMedia, ResortChoice, ResortPreview, SyncState } from "@/lib/types";
+import type { ActionErrorCode, ActionResult, FocusMode, FormField, PlayableMedia, ResortChoice, ResortPreview, SettingsState, SyncState } from "@/lib/types";
 
 type Store = ReturnType<Awaited<ReturnType<typeof engineStore>>["openStore"]>;
 type Edits = Awaited<ReturnType<typeof engineEdits>>;
@@ -335,6 +336,10 @@ export async function saveFocus(mode: FocusMode, focus: string): Promise<ActionR
     if (firstChoice) state.writeSyncRequest(files.syncRequest);
     return { ok: true, areasExist: await autoAreasExist(files.store) };
   });
+}
+
+export async function loadSettings(): Promise<SettingsState> {
+  return readSettings();
 }
 
 export async function saveAnswerModel(model: string, effort: string): Promise<ActionResult<{ model: string; effort: string }>> {
