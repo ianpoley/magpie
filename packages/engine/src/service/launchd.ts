@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
 import { must } from './manager.ts';
@@ -46,14 +47,28 @@ export function renderPlist(spec: ServiceSpec): string {
   ].join('\n');
 }
 
-export function launchd(options: { home: string; uid: number; run: Runner }): ServiceManager {
-  const { home, uid, run } = options;
+export const LAUNCHD_SETTLE = { pollMs: 250, timeoutMs: 30_000, bootstrapAttempts: 5, bootstrapGapMs: 1_000 } as const;
+
+export function launchd(options: { home: string; uid: number; run: Runner; sleep?: (ms: number) => Promise<unknown> }): ServiceManager {
+  const { home, uid, run, sleep = delay } = options;
   const domain = `gui/${uid}`;
   const target = (name: ServiceName) => `${domain}/${name}`;
   const unitPath = (name: ServiceName) => join(home, 'Library', 'LaunchAgents', `${name}.plist`);
   const print = (name: ServiceName) => run('launchctl', ['print', target(name)]);
+  const loaded = async (name: ServiceName) => (await print(name)).code === 0;
   const bootout = async (name: ServiceName) => {
-    if ((await print(name)).code === 0) await must(run, 'launchctl', ['bootout', target(name)]);
+    if (!(await loaded(name))) return;
+    await must(run, 'launchctl', ['bootout', target(name)]);
+    for (let waited = 0; waited < LAUNCHD_SETTLE.timeoutMs && (await loaded(name)); waited += LAUNCHD_SETTLE.pollMs) {
+      await sleep(LAUNCHD_SETTLE.pollMs);
+    }
+  };
+  const bootstrap = async (name: ServiceName) => {
+    for (let attempt = 1; attempt < LAUNCHD_SETTLE.bootstrapAttempts; attempt++) {
+      if ((await run('launchctl', ['bootstrap', domain, unitPath(name)])).code === 0) return;
+      await sleep(LAUNCHD_SETTLE.bootstrapGapMs);
+    }
+    await must(run, 'launchctl', ['bootstrap', domain, unitPath(name)]);
   };
 
   return {
@@ -72,7 +87,7 @@ export function launchd(options: { home: string; uid: number; run: Runner }): Se
       for (const name of names) {
         await bootout(name);
         await must(run, 'launchctl', ['enable', target(name)]);
-        await must(run, 'launchctl', ['bootstrap', domain, unitPath(name)]);
+        await bootstrap(name);
         await must(run, 'launchctl', ['kickstart', '-k', target(name)]);
       }
     },
