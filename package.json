@@ -14,16 +14,16 @@
     "start": "bun --filter @magpie/web start",
     "lint": "bun --filter @magpie/web lint && bun run lint:comments",
     "lint:comments": "eslint --quiet .",
-    "sync": "bun --filter @magpie/engine sync",
+    "sync": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs sync",
     "setup": "bun packages/engine/bin/setup.mjs",
-    "service:install": "node packages/engine/bin/magpie.mjs service install",
-    "service:uninstall": "node packages/engine/bin/magpie.mjs service uninstall",
-    "service:status": "node packages/engine/bin/magpie.mjs service status",
-    "secrets:set-jev": "node packages/engine/bin/magpie.mjs secrets set-jev",
+    "service:install": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs service install",
+    "service:uninstall": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs service uninstall",
+    "service:status": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs service status",
+    "secrets:set-jev": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs secrets set-jev",
     "build:markdown": "bun --filter @magpie/engine build:markdown",
     "test": "node --test 'packages/engine/test/**/*.test.ts' 'packages/skill/test/**/*.test.mjs' 'apps/web/test/**/*.test.ts' 'eslint-rules/**/*.test.mjs'",
     "typecheck": "bun --filter @magpie/engine typecheck && bun --filter @magpie/web typecheck",
-    "categorize": "bun --filter @magpie/engine categorize"
+    "categorize": "bun packages/engine/bin/with-node.mjs packages/engine/bin/categorize.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "8.73.0",
