@@ -99,19 +99,21 @@ async function main() {
 
 export const nodeRange = () => JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).engines.node;
 
-export function chooseNode(range = nodeRange()) {
+export async function chooseNode(range = nodeRange()) {
+  const { err, terminalUi, tildePaths } = await import('../src/terminal.ts');
+  const ui = terminalUi(err);
   const { chosen, first } = pickNode(nodeCandidates(), versionOf, range);
   if (!chosen) {
-    const have = first ? `The node on your PATH is ${first.version} (${first.path}).` : 'No working node was found.';
-    console.error(`\nMagpie needs Node ${range} (.node-version names 26). ${have}`);
-    console.error('Install Node 26, then run the command again:');
-    console.error('  nvm:      nvm install 26   (no nvm yet? https://github.com/nvm-sh/nvm#installing-and-updating)');
-    console.error('  Homebrew: brew install node@26');
-    console.error('  other:    https://nodejs.org/en/download');
+    const have = first ? `The node on your PATH is ${first.version} (${tildePaths(first.path)}).` : 'No working node was found.';
+    console.error(`${ui.mark.fail} ${err.red(`Magpie needs Node ${range} (.node-version names 26).`)} ${have}`);
+    console.error('  Install Node 26, then run the command again:');
+    console.error(`    nvm       ${err.cyan('nvm install 26')}   ${err.dim('no nvm yet? https://github.com/nvm-sh/nvm#installing-and-updating')}`);
+    console.error(`    Homebrew  ${err.cyan('brew install node@26')}`);
+    console.error(`    other     ${err.dim('https://nodejs.org/en/download')}`);
     return null;
   }
   if (first && chosen.path !== first.path) {
-    console.error(`Using Node ${chosen.version} at ${chosen.path}; the node first on your PATH is ${first.version}.`);
+    console.error(err.dim(`Using Node ${chosen.version} at ${tildePaths(chosen.path)}; the node first on your PATH is ${first.version}.`));
   }
   return chosen;
 }
@@ -150,7 +152,7 @@ async function run() {
   }
   if (!afterPull) console.log(ui.rail(`${ui.mark.ok} ${ui.paint.dim('bun install finished')}`));
 
-  const chosen = chooseNode();
+  const chosen = await chooseNode();
   if (!chosen) return 1;
   return runUnderNode(chosen, join('packages', 'engine', 'bin', 'magpie.mjs'), ['setup', ...process.argv.slice(2)]);
 }
