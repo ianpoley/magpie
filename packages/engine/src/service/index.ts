@@ -277,7 +277,10 @@ export async function uninstallService(options: ServiceOptions & { purgeSecrets?
   await manager.afterRemove();
   log('both services are stopped and removed');
   const kept = [files.stateDir, files.dataDir, files.markdownDir, files.logsDir, files.configDir].filter((path) => existsSync(path));
-  if (kept.length > 0) log(`your corpus, edits and settings stay where they are; delete these by hand to remove them too: ${kept.join(', ')}`);
+  if (kept.length > 0) {
+    log('your corpus, edits and settings stay where they are; delete these by hand to remove them too:');
+    for (const path of kept) log(`  ${path}`);
+  }
   if (!options.purgeSecrets) {
     log('the X cookies and the Jev key stay stored; add --purge-secrets to delete them');
     return;

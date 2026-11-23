@@ -300,7 +300,7 @@ for (const platform of ['darwin', 'linux'] as const) {
     await uninstallService({ ...machine.options, log: (line) => said.push(line) });
     assert.deepEqual(readdirSync(machine.unitDir), []);
     assert.deepEqual([...machine.loaded], []);
-    assert.ok(said.some((line) => line.includes('stay where they are') && line.includes(machine.configDir)), said.join('\n'));
+    assert.ok(said.join('\n').includes('stay where they are') && said.includes(`  ${machine.configDir}`), said.join('\n'));
     assert.ok(said.some((line) => line.includes('--purge-secrets')));
     assert.deepEqual(await store.get('x-session'), { ok: true, value: SECRET_SESSION });
     assert.deepEqual(await store.get('typesafe-api-key'), { ok: true, value: JEV_KEY });
