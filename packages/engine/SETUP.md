@@ -11,7 +11,7 @@ One-time setup on macOS or Linux, from a clone anywhere on disk. After that the 
 bun run setup
 ```
 
-Bun runs a small pre-check first. It runs `bun install`, then finds a Node in range: the first `node` on your `PATH` if it fits, otherwise the newest one in the usual places (Homebrew, `/usr/local`, nvm, fnm, Volta, mise, asdf). It names the one it picked. With none, it says how to install Node 26 and stops. Then the walkthrough runs under that Node:
+Bun runs a small pre-check first. It runs `bun install`, then finds a Node in range: the first `node` on your `PATH` if it fits, otherwise the newest one in the usual places (Homebrew, `/usr/local`, nvm, fnm, Volta, mise, asdf). It names the one it picked. With none, it says how to install Node 26 and stops. `bun run service:*`, `secrets:set-jev`, `sync` and `categorize` pick their Node the same way, so they work even when the `node` on your PATH is older. Then the walkthrough runs under that Node:
 
 - **Checks:** the Node range, the pinned Birdclaw and bird, the Claude CLI and the secret store. A failed check stops here with the fix.
 - **Background services:** installs them (step 2 below). If the services belong to another clone, it asks before pointing them here; the default is no.

@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { delimiter, dirname, join } from 'node:path';
+import { basename, delimiter, dirname, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -46,6 +46,8 @@ export function nodeCandidates(env = process.env, home = homedir()) {
   const known = [
     '/opt/homebrew/bin/node',
     '/usr/local/bin/node',
+    '/opt/homebrew/opt/node@26/bin/node',
+    '/usr/local/opt/node@26/bin/node',
     join(home, '.volta', 'bin', 'node'),
     ...versionDirs(join(env.NVM_DIR || join(home, '.nvm'), 'versions', 'node'), ['bin', 'node']),
     ...versionDirs(join(home, '.local', 'share', 'fnm', 'node-versions'), ['installation', 'bin', 'node']),
@@ -95,9 +97,42 @@ async function main() {
   process.exit(status);
 }
 
-function run() {
-  const range = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).engines.node;
+export const nodeRange = () => JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).engines.node;
 
+export function chooseNode(range = nodeRange()) {
+  const { chosen, first } = pickNode(nodeCandidates(), versionOf, range);
+  if (!chosen) {
+    const have = first ? `The node on your PATH is ${first.version} (${first.path}).` : 'No working node was found.';
+    console.error(`\nMagpie needs Node ${range} (.node-version names 26). ${have}`);
+    console.error('Install Node 26, then run the command again:');
+    console.error('  nvm:      nvm install 26   (no nvm yet? https://github.com/nvm-sh/nvm#installing-and-updating)');
+    console.error('  Homebrew: brew install node@26');
+    console.error('  other:    https://nodejs.org/en/download');
+    return null;
+  }
+  if (first && chosen.path !== first.path) {
+    console.error(`Using Node ${chosen.version} at ${chosen.path}; the node first on your PATH is ${first.version}.`);
+  }
+  return chosen;
+}
+
+const isBunRunShim = (path) => basename(dirname(path)).startsWith('bun-node-');
+
+export function bunPath(which = globalThis.Bun?.which('bun'), execPath = process.versions.bun ? process.execPath : '') {
+  return which && !isBunRunShim(which) ? which : execPath;
+}
+
+export function runUnderNode(chosen, script, args) {
+  const env = {
+    ...process.env,
+    MAGPIE_BUN: bunPath(),
+    PATH: [dirname(chosen.path), process.env.PATH].filter(Boolean).join(delimiter),
+  };
+  const ran = spawnSync(chosen.path, [join(ROOT, script), ...args], { cwd: ROOT, env, stdio: 'inherit' });
+  return ran.status ?? 1;
+}
+
+function run() {
   console.log('Installing dependencies (bun install)');
   const bun = process.versions.bun ? process.execPath : 'bun';
   const installed = spawnSync(bun, ['install'], { cwd: ROOT, stdio: 'inherit' });
@@ -106,31 +141,9 @@ function run() {
     return installed.status ?? 1;
   }
 
-  const { chosen, first } = pickNode(nodeCandidates(), versionOf, range);
-  if (!chosen) {
-    const have = first ? `The node on your PATH is ${first.version} (${first.path}).` : 'No node was found.';
-    console.error(`\nMagpie needs Node ${range} (.node-version names 26). ${have}`);
-    console.error('Install Node 26, then run bun run setup again:');
-    console.error('  nvm:      nvm install 26 && nvm use 26');
-    console.error('  Homebrew: brew install node');
-    console.error('  other:    https://nodejs.org');
-    return 1;
-  }
-  if (first && chosen.path !== first.path) {
-    console.log(`Using Node ${chosen.version} at ${chosen.path}; the node first on your PATH is ${first.version}.`);
-  }
-
-  const env = {
-    ...process.env,
-    MAGPIE_BUN: globalThis.Bun?.which('bun') ?? (process.versions.bun ? process.execPath : ''),
-    PATH: [dirname(chosen.path), process.env.PATH].filter(Boolean).join(delimiter),
-  };
-  const ran = spawnSync(chosen.path, [join(ROOT, 'packages', 'engine', 'bin', 'magpie.mjs'), 'setup', ...process.argv.slice(2)], {
-    cwd: ROOT,
-    env,
-    stdio: 'inherit',
-  });
-  return ran.status ?? 1;
+  const chosen = chooseNode();
+  if (!chosen) return 1;
+  return runUnderNode(chosen, join('packages', 'engine', 'bin', 'magpie.mjs'), ['setup', ...process.argv.slice(2)]);
 }
 
 if (import.meta.main) await main();
