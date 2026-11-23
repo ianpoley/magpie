@@ -15,7 +15,7 @@ try {
     process.exit(1);
   }
   console.log(`[categorize] run ${result.runId} complete; upstream X sync: ${result.upstreamSync}`);
-  printStages('[categorize]', result.stages, 9);
+  await printStages('[categorize]', result.stages, 9);
 } catch (error) {
   console.error(`[categorize] the run could not start: ${errorText(error)}`);
   process.exit(1);
