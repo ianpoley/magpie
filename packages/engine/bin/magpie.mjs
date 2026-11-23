@@ -48,7 +48,7 @@ function usage(message) {
 }
 
 const fail = (prefix, error) => {
-  console.error(`${prefix} ${errorText(error)}`);
+  console.error(errPaint.red(`✗ ${prefix} ${errorText(error)}`));
   process.exit(1);
 };
 
@@ -255,7 +255,7 @@ async function status() {
 }
 
 async function serviceCommand(sub, args) {
-  const log = (line) => console.log(`[service] ${line}`);
+  const log = (line) => console.log(`${ui.paint.dim('[service]')} ${tildePaths(line)}`);
   if (sub === 'install' && args.length === 0) {
     await service.installService({ log }).catch((error) => fail('[service] install failed:', error));
   } else if (sub === 'uninstall' && args.every((arg) => arg === '--purge-secrets')) {
@@ -321,7 +321,7 @@ async function setJev() {
     stored.backend === 'keychain'
       ? 'the OS secret store'
       : `${paths().secrets}, an owner-only plaintext file, because no OS secret store was usable`;
-  console.log(`[secrets] the Jev key is stored in ${where}`);
+  console.log(`${ui.mark.ok} The Jev key is stored in ${tildePaths(where)}`);
 }
 
 const [command, sub, ...rest] = process.argv.slice(2);
