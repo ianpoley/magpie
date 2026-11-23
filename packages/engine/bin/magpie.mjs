@@ -27,7 +27,7 @@ try {
   process.exit(1);
 }
 const { errorText } = await import('../src/util.ts');
-const { ui } = await import('../src/terminal.ts');
+const { tildePaths, ui } = await import('../src/terminal.ts');
 
 function usage(message) {
   if (message) console.error(`${message}\n`);
@@ -186,46 +186,52 @@ const ago = (ms) => {
 
 async function status() {
   const report = await service.serviceStatus();
+  const { paint, mark } = ui;
+  const row = (sign, label, value) => console.log(`${sign} ${label.padEnd(16)}  ${value}`);
+  const info = (label, value) => row(' ', paint.dim(label.padEnd(16)), value);
+  const warn = (label, value) => row(mark.warn, paint.dim(label.padEnd(16)), paint.yellow(value));
   for (const unit of report.units) {
     const state = !unit.installed ? 'not installed' : unit.running ? 'running' : unit.loaded ? 'loaded, not running' : 'installed, not loaded';
-    console.log(`[status] ${unit.name.padEnd(16)} ${state}${unit.installed ? `  (${unit.file})` : ''}`);
+    const dot = unit.running ? paint.green('●') : unit.installed ? paint.yellow('●') : paint.red('●');
+    const tint = unit.running ? paint.green : unit.installed ? paint.yellow : paint.red;
+    row(dot, unit.name, `${tint(state)}${unit.installed ? `  ${paint.dim(tildePaths(unit.file))}` : ''}`);
   }
-  if (report.units.some((unit) => unit.name.endsWith('-web') && unit.running)) {
-    console.log(`[status] web app           ${report.appUrl}`);
-  }
+  console.log('');
+  if (report.units.some((unit) => unit.name.endsWith('-web') && unit.running)) info('web app', paint.cyan(report.appUrl));
   const { worker } = report;
-  if (worker === null) console.log('[status] worker heartbeat  none: the worker has not run here');
+  if (worker === null) warn('worker', 'no heartbeat: the worker has not run here');
   else {
     const doing = worker.state === 'running' ? 'syncing' : `idle, ${worker.schedule}${worker.nextRunAt ? `, next run in ${ago(Math.max(0, Date.parse(worker.nextRunAt) - Date.now()))}` : ''}`;
-    const stale = worker.fresh ? '' : ' (stale: the worker is not running)';
-    console.log(`[status] worker heartbeat  ${ago(worker.heartbeatAgeMs)} ago${stale}; ${doing}`);
+    const beat = `heartbeat ${ago(worker.heartbeatAgeMs)} ago; ${doing}`;
+    if (worker.fresh) info('worker', beat);
+    else warn('worker', `${beat} (stale: the worker is not running)`);
     const last = worker.lastAttempt;
-    if (last === null) console.log('[status] last sync         none yet');
+    if (last === null) info('last sync', 'none yet');
     else {
       const when = `finished ${ago(Date.now() - Date.parse(last.finishedAt))} ago (${last.trigger === 'request' ? 'requested' : 'scheduled'})`;
-      console.log(`[status] last sync         ${last.result}, ${when}${last.message ? `: ${last.message}` : ''}`);
+      const text = `${last.result}, ${when}${last.message ? `: ${last.message}` : ''}`;
+      if (last.result === 'ok') info('last sync', text);
+      else warn('last sync', text);
     }
   }
   const backend = {
     keychain: 'the OS secret store',
     file: 'the owner-only secrets file (no OS secret store was usable)',
   }[report.secretBackend] ?? 'none recorded yet (nothing has been stored)';
-  console.log(`[status] secret backend    ${backend}`);
+  info('secrets', backend);
   const { node } = report;
-  if (node.path === null) console.log('[status] node              no service is installed');
-  else if (!node.exists) console.log(`[status] node              ${node.path} is gone: the services cannot start; run bun run setup`);
-  else if (node.inRange === null) console.log(`[status] node              ${node.path} did not report its version`);
-  else {
-    const verdict = node.inRange ? `within ${node.range}` : `outside ${node.range}: run bun run service:install with a Node in range`;
-    console.log(`[status] node              ${node.path} (${node.version}, ${verdict})`);
-  }
+  if (node.path === null) info('node', 'no service is installed');
+  else if (!node.exists) warn('node', `${tildePaths(node.path)} is gone: the services cannot start; run bun run setup`);
+  else if (node.inRange === null) warn('node', `${tildePaths(node.path)} did not report its version`);
+  else if (node.inRange) info('node', `${node.version} ${paint.dim(`at ${tildePaths(node.path)}, within ${node.range}`)}`);
+  else warn('node', `${node.version} at ${tildePaths(node.path)} is outside ${node.range}: run bun run service:install with a Node in range`);
   if (node.upgradeSafePath) {
-    console.log(`[status]                   Homebrew deletes this path when it upgrades Node, and the services stop: run bun run setup to use ${node.upgradeSafePath}`);
+    warn('', `Homebrew deletes this path when it upgrades Node, and the services stop: run bun run setup to use ${node.upgradeSafePath}`);
   }
   if (report.buildBehindCode) {
-    console.log('[status] build             the services run an earlier commit than this checkout (a git pull?): run bun run setup to rebuild and restart them');
+    warn('build', 'the services run an earlier commit than this checkout (a git pull?): run bun run setup to rebuild and restart them');
   }
-  if (report.bootHint) console.log(`[status] boot              ${report.bootHint}`);
+  if (report.bootHint) info('boot', report.bootHint);
   const healthy =
     report.units.every((unit) => unit.running) &&
     worker !== null &&
