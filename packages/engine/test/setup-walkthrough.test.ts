@@ -98,7 +98,7 @@ test('a fresh machine at a terminal: installs, opens the app to connect, stores 
   assert.equal(result.ok, true);
   assert.deepEqual(m.did, ['install', 'open', 'jev', 'skill']);
   assert.deepEqual(result.todo, []);
-  assert.ok(m.lines.includes('All set. Open http://127.0.0.1:3030'));
+  assert.ok(m.lines.join('\n').includes('All set. Open http://127.0.0.1:3030'));
 });
 
 test('a machine that is already set up asks nothing and does nothing', async () => {
@@ -249,5 +249,5 @@ test('with services running, the git hooks that apply updates are offered when m
 
   const notRunning = machine({ interactive: false, hooks: 'missing' });
   await walkthrough(notRunning.deps);
-  assert.ok(!notRunning.lines.includes('Updates after git pull'));
+  assert.ok(!notRunning.lines.join('\n').includes('Updates after git pull'));
 });

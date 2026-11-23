@@ -1,4 +1,5 @@
 import type { SetupCheck } from '../service/index.ts';
+import { tildePaths, ui } from '../terminal.ts';
 import type { UpdateHooksState } from './git-hooks.ts';
 
 export type WalkthroughDeps = {
@@ -48,9 +49,11 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     return deps.yes && options.safe;
   };
 
-  log('Checking this machine');
+  log(ui.intro('Magpie setup'));
+  log(ui.rail());
+  log(ui.step('Checking this machine'));
   const checks = await deps.checks();
-  for (const check of checks) log(`  ${check.level.padEnd(4)}  ${check.name.padEnd(12)}  ${check.detail}`);
+  for (const check of checks) log(ui.rail(ui.check(check.level, check.name, tildePaths(check.detail))));
   const failed = checks.filter((check) => check.level === 'fail');
   if (failed.length > 0) {
     for (const check of failed) todo.push(`Fix ${check.name}: ${check.detail}`);
@@ -63,8 +66,9 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
 
   if (deps.worktreeOf) {
     const main = deps.worktreeOf;
-    log('');
-    log(`This is a git worktree of ${main}. It uses that checkout's corpus, services and connection.`);
+    log(ui.rail());
+    log(ui.step('Git worktree'));
+    log(ui.rail(`This is a git worktree of ${main}. It uses that checkout's corpus, services and connection.`));
     const services = await deps.services();
     if (services.running && services.dataRoot === main) done.push(`Background sync runs from ${main}.`);
     else todo.push(`Background sync is not running for ${main}: run bun run setup there.`);
@@ -82,23 +86,23 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   return finish(true);
 
   async function backgroundSync(): Promise<boolean> {
-    log('');
-    log('Background sync and the web app');
+    log(ui.rail());
+    log(ui.step('Background sync and the web app'));
     const services = await deps.services();
     if (services.dataRoot !== null && services.dataRoot !== services.here) {
-      log(`  The services are installed for another clone, ${services.dataRoot}.`);
-      log('  Installing here points both at this clone and its corpus instead.');
-      if (!(await agree('  Point them at this clone?', { defaultYes: false, safe: false }))) {
+      log(ui.rail(`The services are installed for another clone, ${services.dataRoot}.`));
+      log(ui.rail('Installing here points both at this clone and its corpus instead.'));
+      if (!(await agree('Point them at this clone?', { defaultYes: false, safe: false }))) {
         done.push(`Left the services on ${services.dataRoot}.`);
         return false;
       }
     } else if (services.installed && services.running && (services.upgradeSafeNode || services.buildBehindCode)) {
       if (services.upgradeSafeNode) {
-        log('  The services run a Node path that Homebrew deletes when it upgrades Node, which would stop them.');
-        log(`  Reinstalling points them at ${services.upgradeSafeNode}, the same Node under a path that survives upgrades.`);
+        log(ui.rail('The services run a Node path that Homebrew deletes when it upgrades Node, which would stop them.'));
+        log(ui.rail(`Reinstalling points them at ${services.upgradeSafeNode}, the same Node under a path that survives upgrades.`));
       }
-      if (services.buildBehindCode) log('  The services still run the build from before the last commit here, such as a git pull.');
-      if (!(await agree('  Reinstall them now?', { defaultYes: true, safe: true }))) {
+      if (services.buildBehindCode) log(ui.rail('The services still run the build from before the last commit here, such as a git pull.'));
+      if (!(await agree('Reinstall them now?', { defaultYes: true, safe: true }))) {
         todo.push(
           services.upgradeSafeNode
             ? 'Point the services at a Node path Homebrew keeps across upgrades: bun run setup, and answer yes'
@@ -110,15 +114,15 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       done.push('Background sync and the web app are already running.');
       return true;
     } else if (services.installed) {
-      log('  The services are installed but not running.');
-      if (!(await agree('  Reinstall and start them?', { defaultYes: true, safe: true }))) {
+      log(ui.rail('The services are installed but not running.'));
+      if (!(await agree('Reinstall and start them?', { defaultYes: true, safe: true }))) {
         todo.push('Start the services: bun run setup, and answer yes');
         return false;
       }
     } else {
-      log('  Two background services: a worker that syncs every few hours, and the web app.');
-      log('  Installing builds the web app first, which takes about a minute.');
-      if (!(await agree('  Install them now?', { defaultYes: true, safe: true }))) {
+      log(ui.rail('Two background services: a worker that syncs every few hours, and the web app.'));
+      log(ui.rail('Installing builds the web app first, which takes about a minute.'));
+      if (!(await agree('Install them now?', { defaultYes: true, safe: true }))) {
         todo.push('Install the background services: bun run setup, and answer yes');
         return false;
       }
@@ -136,21 +140,21 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   async function updatesAfterPull() {
     const state = deps.updateHooks();
     if (state === null) return;
-    log('');
-    log('Updates after git pull');
+    log(ui.rail());
+    log(ui.step('Updates after git pull'));
     if (state === 'current') {
       done.push('Updates apply on their own after a git pull.');
       return;
     }
     if (state === 'foreign') {
-      log('  Your clone already has its own git hook, so Magpie leaves it alone.');
+      log(ui.rail('Your clone already has its own git hook, so Magpie leaves it alone.'));
       todo.push(`To apply updates on their own after a git pull, ${deps.foreignHookHelp().join(' ')}`);
       return;
     }
     if (state === 'missing') {
-      log('  After a git pull, Magpie can rebuild the web app and restart the services on its own, in the background.');
-      log('  It does this only on the main branch of this checkout, and the app keeps running until the new build is ready.');
-      if (!(await agree('  Apply updates on their own after git pull?', { defaultYes: true, safe: true }))) {
+      log(ui.rail('After a git pull, Magpie can rebuild the web app and restart the services on its own, in the background.'));
+      log(ui.rail('It does this only on the main branch of this checkout, and the app keeps running until the new build is ready.'));
+      if (!(await agree('Apply updates on their own after git pull?', { defaultYes: true, safe: true }))) {
         todo.push('Optional: apply updates on their own after git pull: run bun run setup again and answer yes.');
         return;
       }
@@ -160,8 +164,8 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   }
 
   async function connectX(appRunning: boolean) {
-    log('');
-    log('Connect X');
+    log(ui.rail());
+    log(ui.step('Connect X'));
     const connection = deps.connection();
     if (connection) {
       done.push(`X is connected${at(connection.handle)}.`);
@@ -176,23 +180,23 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       todo.push(`Connect X: ${howTo} You paste your x.com auth_token and ct0 cookies there; never paste them into an agent chat.`);
       return;
     }
-    log('  Magpie syncs with your X session cookies. X\'s terms do not allow this, and X could limit your account.');
-    log('  In a browser signed in to x.com, open dev tools > Application > Cookies > https://x.com');
-    log('  and copy auth_token and ct0. You paste them into the Connect X dialog in the web app.');
-    if (!(await deps.confirm('  Open the web app to connect now?', true))) {
+    log(ui.rail('Magpie syncs with your X session cookies. X\'s terms do not allow this, and X could limit your account.'));
+    log(ui.rail('In a browser signed in to x.com, open dev tools > Application > Cookies > https://x.com'));
+    log(ui.rail('and copy auth_token and ct0. You paste them into the Connect X dialog in the web app.'));
+    if (!(await deps.confirm('Open the web app to connect now?', true))) {
       todo.push(`Connect X: ${howTo}`);
       return;
     }
     await deps.openApp(deps.appUrl);
-    log(`  Opened ${deps.appUrl}. Waiting for the connection; press Enter to skip.`);
+    log(ui.rail(`Opened ${deps.appUrl}. Waiting for the connection; press Enter to skip.`));
     const connected = await deps.waitForConnection();
     if (connected) done.push(`X is connected${at(connected.handle)}; the first sync has started (watch it in the sidebar).`);
     else todo.push(`Connect X: ${howTo}`);
   }
 
   async function jevKey() {
-    log('');
-    log('Jev key');
+    log(ui.rail());
+    log(ui.step('Jev key'));
     if (await deps.jevStored()) {
       done.push('The Jev key is stored.');
       return;
@@ -202,8 +206,8 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
       todo.push(later);
       return;
     }
-    log('  Magpie needs a Jev (TypeSafe) API key to sort posts into topics. Skip it here and the web app asks for it.');
-    const key = await deps.secret('  Jev key (typing is hidden; press Enter to skip): ');
+    log(ui.rail('Magpie needs a Jev (TypeSafe) API key to sort posts into topics. Skip it here and the web app asks for it.'));
+    const key = await deps.secret('Jev key (typing is hidden; press Enter to skip):');
     if (!key) {
       todo.push(later);
       return;
@@ -216,21 +220,21 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   async function claudeSkill() {
     const state = deps.skill();
     if (state === 'none') return;
-    log('');
-    log('Claude skill (optional)');
+    log(ui.rail());
+    log(ui.step('Claude skill (optional)'));
     if (state === 'linked') {
       done.push('The magpie skill is linked into ~/.claude/skills.');
       return;
     }
     if (state === 'elsewhere') {
-      log('  ~/.claude/skills/magpie already points at another clone or folder.');
-      if (!(await agree('  Link it to this clone instead? (the old one is kept in ~/.claude/skill-backups)', { defaultYes: false, safe: false }))) {
+      log(ui.rail('~/.claude/skills/magpie already points at another clone or folder.'));
+      if (!(await agree('Link it to this clone instead? (the old one is kept in ~/.claude/skill-backups)', { defaultYes: false, safe: false }))) {
         done.push('Left the existing magpie skill as it is.');
         return;
       }
     } else {
-      log('  The skill lets Claude Code search your saved posts from any project.');
-      if (!(await agree('  Link it into ~/.claude/skills?', { defaultYes: true, safe: true }))) {
+      log(ui.rail('The skill lets Claude Code search your saved posts from any project.'));
+      if (!(await agree('Link it into ~/.claude/skills?', { defaultYes: true, safe: true }))) {
         todo.push('Optional: link the Claude skill: bash packages/skill/install.sh');
         return;
       }
@@ -240,17 +244,21 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
   }
 
   function finish(ok: boolean): WalkthroughResult {
-    log('');
+    const { paint } = ui;
     if (done.length > 0) {
-      log('Done:');
-      for (const line of done) log(`  ✓ ${line}`);
+      log(ui.rail());
+      log(ui.step('Done'));
+      for (const line of done) log(ui.rail(`${ui.mark.ok} ${line}`));
     }
     if (todo.length > 0) {
-      log('Still to do:');
-      for (const line of todo) log(`  • ${line}`);
-    } else if (ok) {
-      log(`All set. Open ${deps.appUrl}`);
+      log(ui.rail());
+      log(ui.step('Still to do'));
+      for (const line of todo) log(ui.rail(`${paint.yellow('•')} ${line}`));
     }
+    log(ui.rail());
+    if (!ok) log(ui.outro(paint.red('Setup stopped.')));
+    else if (todo.length > 0) log(ui.outro(`Setup is done for now. ${todo.length === 1 ? 'One step is' : `${todo.length} steps are`} left above.`));
+    else log(ui.outro(paint.green(`All set. Open ${deps.appUrl}`)));
     return { ok, done, todo };
   }
 }

@@ -27,6 +27,7 @@ try {
   process.exit(1);
 }
 const { errorText } = await import('../src/util.ts');
+const { ui } = await import('../src/terminal.ts');
 
 function usage(message) {
   if (message) console.error(`${message}\n`);
@@ -42,7 +43,7 @@ const fail = (prefix, error) => {
 async function confirm(question, defaultYes) {
   const { createInterface } = await import('node:readline/promises');
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = (await rl.question(`${question} ${defaultYes ? '[Y/n]' : '[y/N]'} `)).trim().toLowerCase();
+  const answer = (await rl.question(ui.question(question, defaultYes))).trim().toLowerCase();
   rl.close();
   return answer === '' ? defaultYes : answer.startsWith('y');
 }
@@ -124,7 +125,7 @@ async function setup(args) {
     yes,
     log,
     confirm,
-    secret: (prompt) => readKey(prompt),
+    secret: (prompt) => readKey(ui.prompt(prompt)),
     checks: () => service.setupChecks(),
     worktreeOf: main === code ? null : main,
     async services() {
@@ -138,7 +139,7 @@ async function setup(args) {
         buildBehindCode: status.buildBehindCode,
       };
     },
-    install: () => service.installService({ log: (line) => log(`  ${line}`) }),
+    install: () => service.installService({ log: (line) => log(ui.rail(ui.paint.dim(line))) }),
     connection,
     appUrl: `http://127.0.0.1:${service.webPort()}`,
     async openApp(url) {
@@ -157,7 +158,9 @@ async function setup(args) {
     },
     skill: skillLinkState,
     async linkSkill() {
-      return spawnSync('bash', [join(skillDir, 'install.sh')], { stdio: 'inherit' }).status === 0;
+      const ran = spawnSync('bash', [join(skillDir, 'install.sh')], { encoding: 'utf8' });
+      for (const line of `${ran.stdout}${ran.stderr}`.trim().split('\n').filter(Boolean)) log(ui.rail(ui.paint.dim(line)));
+      return ran.status === 0;
     },
     updateHooks: () => (bun && hooksDir ? hooks.updateHooksState(hooksDir, bun, runner) : null),
     async installUpdateHooks() {
@@ -165,7 +168,7 @@ async function setup(args) {
         hooks.installUpdateHooks(hooksDir, bun, runner);
         return true;
       } catch (error) {
-        log(`  ${errorText(error)}`);
+        log(ui.rail(ui.paint.red(errorText(error))));
         return false;
       }
     },
