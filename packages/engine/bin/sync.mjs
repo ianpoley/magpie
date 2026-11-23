@@ -31,7 +31,7 @@ export async function syncCommand(args) {
     }
     const who = result.auth.handle ? ` as @${result.auth.handle}` : '';
     console.log(`[sync] run ${result.runId} complete; X: ${result.auth.status}${who}; upstream X sync: ${result.upstreamSync}`);
-    printStages('[sync]', result.stages, 11);
+    await printStages('[sync]', result.stages, 11);
   } catch (error) {
     console.error(`[sync] the run could not start: ${errorText(error)}`);
     process.exit(1);

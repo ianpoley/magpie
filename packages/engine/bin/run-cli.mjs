@@ -64,9 +64,14 @@ const summarize = (value) =>
     )
     .join(' ');
 
-export function printStages(prefix, stages, nameWidth) {
+export async function printStages(prefix, stages, nameWidth) {
+  const { ui } = await import('../src/terminal.ts');
+  const { paint, mark } = ui;
+  const look = { ok: [mark.ok, paint.green], skipped: [paint.dim('–'), paint.dim], failed: [mark.fail, paint.red] };
   for (const stage of stages) {
-    const line = [stage.stage.padEnd(nameWidth), stage.outcome.padEnd(7), summarize(stage.counts)].join(' ').trimEnd();
-    console.log(`${prefix}   ${line}${stage.message ? `\n${prefix}     ${stage.message}` : ''}`);
+    const [sign, tint] = look[stage.outcome] ?? [mark.warn, paint.yellow];
+    const counts = summarize(stage.counts);
+    const line = `${sign} ${stage.stage.padEnd(nameWidth)} ${counts ? `${tint(stage.outcome.padEnd(7))} ${paint.dim(counts)}` : tint(stage.outcome)}`;
+    console.log(`${paint.dim(prefix)} ${line}${stage.message ? `\n${paint.dim(prefix)}   ${' '.repeat(nameWidth)} ${tint(stage.message)}` : ''}`);
   }
 }
