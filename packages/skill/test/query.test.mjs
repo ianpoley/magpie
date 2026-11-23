@@ -411,7 +411,7 @@ test('install moves an existing skill directory to a dated backup and leaves its
   assert.ok(!existsSync(join(SKILL_DIR, 'secrets.env')));
   const notices = first.stdout.split('\n').filter((line) => line.includes('secrets.env'));
   assert.equal(notices.length, 1);
-  assert.ok(notices[0].includes(backup));
+  assert.ok(notices[0].includes(`~/.claude/skill-backups/${backups[0]}`));
   assert.doesNotMatch(first.stdout + first.stderr, /not-a-real-secret/);
 
   const second = install(home);
