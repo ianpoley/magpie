@@ -92,7 +92,7 @@ async function holdSetupLock() {
 
 async function main() {
   const release = await holdSetupLock();
-  const status = run();
+  const status = await run();
   release();
   process.exit(status);
 }
@@ -132,14 +132,23 @@ export function runUnderNode(chosen, script, args) {
   return ran.status ?? 1;
 }
 
-function run() {
-  console.log('Installing dependencies (bun install)');
+async function run() {
+  const afterPull = process.argv.includes('--after-pull');
+  const { ui } = await import('../src/terminal.ts');
+  if (!afterPull) {
+    console.log(ui.intro('Magpie setup'));
+    console.log(ui.rail());
+    console.log(ui.step('Installing dependencies'));
+  }
   const bun = process.versions.bun ? process.execPath : 'bun';
-  const installed = spawnSync(bun, ['install'], { cwd: ROOT, stdio: 'inherit' });
+  const installed = spawnSync(bun, ['install'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   if (installed.status !== 0) {
-    console.error('bun install failed; fix the error above, then run bun run setup again.');
+    process.stdout.write(installed.stdout ?? '');
+    process.stderr.write(installed.stderr ?? '');
+    console.error(ui.paint.red('bun install failed; fix the error above, then run bun run setup again.'));
     return installed.status ?? 1;
   }
+  if (!afterPull) console.log(ui.rail(`${ui.mark.ok} ${ui.paint.dim('bun install finished')}`));
 
   const chosen = chooseNode();
   if (!chosen) return 1;
