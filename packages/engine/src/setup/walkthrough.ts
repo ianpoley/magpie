@@ -49,7 +49,6 @@ export async function walkthrough(deps: WalkthroughDeps): Promise<WalkthroughRes
     return deps.yes && options.safe;
   };
 
-  log(ui.intro('Magpie setup'));
   log(ui.rail());
   log(ui.step('Checking this machine'));
   const checks = await deps.checks();
