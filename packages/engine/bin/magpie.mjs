@@ -27,11 +27,23 @@ try {
   process.exit(1);
 }
 const { errorText } = await import('../src/util.ts');
-const { tildePaths, ui } = await import('../src/terminal.ts');
+const { err: errPaint, tildePaths, ui } = await import('../src/terminal.ts');
+
+const COMMAND_WIDTH = USAGE.split('\n').find((line) => line.startsWith('  setup --after-pull')).indexOf('rebuild');
+
+function styledUsage(paint) {
+  return USAGE.split('\n')
+    .map((line) => {
+      if (!line.startsWith('  ')) return paint.bold(line);
+      const command = line.slice(0, COMMAND_WIDTH);
+      return `${command.trim() ? paint.cyan(command) : command}${paint.dim(line.slice(COMMAND_WIDTH))}`;
+    })
+    .join('\n');
+}
 
 function usage(message) {
-  if (message) console.error(`${message}\n`);
-  console.error(USAGE);
+  if (message) console.error(`${errPaint.red(`✗ ${message}`)}\n`);
+  console.error(styledUsage(errPaint));
   process.exit(2);
 }
 
@@ -339,7 +351,7 @@ switch (command) {
   case undefined:
   case '--help':
   case 'help':
-    console.log(USAGE);
+    console.log(styledUsage(ui.paint));
     break;
   default:
     usage(`unknown command: ${command}`);
