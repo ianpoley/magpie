@@ -13,7 +13,7 @@ import { launchd } from './launchd.ts';
 import { SERVICE_NAMES, spawnRunner } from './manager.ts';
 import type { Runner, ServiceManager, ServiceName, ServiceSpec } from './manager.ts';
 import { systemd } from './systemd.ts';
-import { idleWebBuild, liveBuildFile, readBuiltCommit, webDir } from './web-build.ts';
+import { clearGeneratedTypes, idleWebBuild, liveBuildFile, readBuiltCommit, webDir } from './web-build.ts';
 
 export { must, spawnRunner } from './manager.ts';
 export { builtCommitFile, liveWebBuild } from './web-build.ts';
@@ -244,6 +244,7 @@ export async function installService(options: ServiceOptions = {}): Promise<void
   const target = idleWebBuild(codeRoot);
   const head = await run('git', ['-C', codeRoot, 'rev-parse', 'HEAD']);
   log(`building the web app into apps/web/${target}; the running app keeps serving until the build is done`);
+  clearGeneratedTypes(codeRoot);
   const build = await run(nodePath, [nextBin(codeRoot), 'build'], {
     cwd: webDir(codeRoot),
     showOutput: true,

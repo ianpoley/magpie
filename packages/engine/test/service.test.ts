@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createSecretStore } from '../src/secrets/store.ts';
 import type { CommandResult, ServiceOptions } from '../src/service/index.ts';
 import { installService, serviceSpecs, serviceStatus, setupChecks, uninstallService, upgradeSafeNodePath } from '../src/service/index.ts';
-import { renderPlist } from '../src/service/launchd.ts';
+import { launchd, renderPlist } from '../src/service/launchd.ts';
 import { renderUnit } from '../src/service/systemd.ts';
 import { writeConnection, writeWorkerStatus } from '../src/sync/state.ts';
 import { tempDir } from './fixtures/export.ts';
@@ -184,14 +184,18 @@ function fakeMachine(t: TestContext, platform: 'darwin' | 'linux'): Machine {
   return machine;
 }
 
-test('install builds while the old web service keeps serving, writes both plists, then restarts both; installing again builds into the other folder', async (t) => {
+test('install clears route types left by older builds, builds while the old web service keeps serving, writes both plists, then restarts both; installing again builds into the other folder', async (t) => {
   const machine = fakeMachine(t, 'darwin');
   mkdirSync(machine.unitDir, { recursive: true });
   writeFileSync(join(machine.unitDir, 'magpie-web.plist'), 'old web plist');
   machine.loaded.add('magpie-web');
+  const staleTypes = join(machine.root, 'apps', 'web', '.next-b', 'types');
+  mkdirSync(staleTypes, { recursive: true });
+  writeFileSync(join(staleTypes, 'validator.ts'), "import '../../src/app/removed-route/page.js';");
 
   await installService(machine.options);
 
+  assert.equal(existsSync(staleTypes), false, 'route types from an older build would fail the new build type check');
   assert.deepEqual(machine.unitsAtBuild, { 'magpie-web': 'old web plist', 'magpie-worker': null });
   const step = (prefix: string) => machine.calls.findIndex((call) => call.startsWith(prefix));
   assert.ok(step(`${machine.options.nodePath} `) < step('launchctl bootout gui/501/magpie-web'), machine.calls.join('\n'));
@@ -433,4 +437,49 @@ test('status reports when the checkout has moved past the commit the services we
   await installService(machine.options);
   assert.equal(readFileSync(join(machine.root, 'apps', 'web', '.next-b', 'magpie-commit'), 'utf8'), 'bbb222\n');
   assert.equal((await serviceStatus(machine.options)).buildBehindCode, true);
+});
+
+test('restarting a running launchd job waits for bootout to finish before bootstrap, as launchd tears jobs down after bootout returns', async () => {
+  let stopping = 0;
+  let running = true;
+  const calls: string[] = [];
+  const done = (code = 0): CommandResult => ({ code, stdout: code === 0 ? 'state = running\n' : '', stderr: code === 0 ? '' : 'Bootstrap failed: 5: Input/output error' });
+  const manager = launchd({
+    home: '/home/test',
+    uid: 501,
+    sleep: async () => {},
+    run: async (_command, [verb]) => {
+      calls.push(verb);
+      if (verb === 'print') return done(running || stopping-- > 0 ? 0 : 113);
+      if (verb === 'bootout') {
+        running = false;
+        stopping = 3;
+        return done();
+      }
+      if (verb === 'bootstrap') return done(stopping > 0 ? 5 : 0);
+      return done();
+    },
+  });
+
+  await manager.start(['magpie-web']);
+
+  assert.deepEqual(calls, ['print', 'bootout', 'print', 'print', 'print', 'print', 'enable', 'bootstrap', 'kickstart']);
+});
+
+test('a bootstrap launchd keeps refusing is retried, then reported', async () => {
+  const calls: string[] = [];
+  const manager = launchd({
+    home: '/home/test',
+    uid: 501,
+    sleep: async () => {},
+    run: async (_command, [verb]) => {
+      calls.push(verb);
+      if (verb === 'print') return { code: 113, stdout: '', stderr: '' };
+      if (verb === 'bootstrap') return { code: 5, stdout: '', stderr: 'Bootstrap failed: 5: Input/output error' };
+      return { code: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  await assert.rejects(manager.start(['magpie-web']), /bootstrap .* exited 5: Bootstrap failed/);
+  assert.equal(calls.filter((verb) => verb === 'bootstrap').length, 5);
 });

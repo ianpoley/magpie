@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const WEB_BUILDS = ['.next-a', '.next-b'] as const;
@@ -24,5 +24,11 @@ export function readBuiltCommit(codeRoot: string): string | null {
     return readFileSync(builtCommitFile(codeRoot), 'utf8').trim() || null;
   } catch {
     return null;
+  }
+}
+
+export function clearGeneratedTypes(codeRoot: string): void {
+  for (const build of [LEGACY_WEB_BUILD, ...WEB_BUILDS]) {
+    for (const types of [['types'], ['dev', 'types']]) rmSync(join(webDir(codeRoot), build, ...types), { recursive: true, force: true });
   }
 }
