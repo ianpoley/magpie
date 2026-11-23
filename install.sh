@@ -2,6 +2,8 @@
 set -euo pipefail
 
 main() {
+  paint_setup
+  printf '%s  %s\n' "$(dim '┌')" "$(bold 'Magpie installer')"
   local repo="${MAGPIE_REPO:-https://github.com/ianpoley/magpie.git}"
   local dir="${MAGPIE_DIR:-$HOME/magpie}"
 
@@ -25,23 +27,23 @@ main() {
 
   if [ -d "$dir/.git" ]; then
     is_magpie_clone "$dir" ||
-      fail "$dir is a git repository but not Magpie. Set MAGPIE_DIR to another folder."
-    say "Updating Magpie in $dir"
-    git -C "$dir" pull --ff-only
+      fail "$(tilde "$dir") is a git repository but not Magpie. Set MAGPIE_DIR to another folder."
+    say "Updating Magpie in $(tilde "$dir")"
+    git -C "$dir" pull --ff-only --quiet
   elif [ -e "$dir" ]; then
-    fail "$dir already exists and is not a Magpie clone. Set MAGPIE_DIR to another folder."
+    fail "$(tilde "$dir") already exists and is not a Magpie clone. Set MAGPIE_DIR to another folder."
   else
-    say "Downloading Magpie into $dir"
-    git clone "$repo" "$dir"
+    say "Downloading Magpie into $(tilde "$dir")"
+    git clone --quiet "$repo" "$dir"
   fi
 
   cd "$dir"
   local status=0
   if (exec </dev/tty) 2>/dev/null; then
-    say "Starting setup"
+    hand_over "Starting setup"
     bun run setup "$@" </dev/tty || status=$?
   else
-    say "No terminal attached: running setup without prompts"
+    hand_over "No terminal attached, so setup runs without questions"
     bun run setup --yes "$@" || status=$?
   fi
 
@@ -52,22 +54,54 @@ main() {
 bun_path_hint() {
   [ "$(command -v bun)" = "$HOME/.bun/bin/bun" ] || return 0
   grep -qsE '\.bun/bin|BUN_INSTALL' "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc" "$HOME/.config/fish/config.fish" && return 0
-  say "Add Bun to your PATH so new terminals can run bun"
-  printf 'Add these two lines to your shell startup file (~/.zshrc or ~/.bashrc), then open a new terminal:\n\n'
-  printf '  export BUN_INSTALL="$HOME/.bun"\n'
-  printf '  export PATH="$BUN_INSTALL/bin:$PATH"\n'
+  printf '\n%s  %s\n' "$(yellow '▲')" "$(bold 'Add Bun to your PATH so new terminals can run bun')"
+  printf '%s  Add these two lines to ~/.zshrc or ~/.bashrc, then open a new terminal:\n' "$(dim '│')"
+  printf '%s\n' "$(dim '│')"
+  printf '%s    %s\n' "$(dim '│')" "$(cyan 'export BUN_INSTALL="$HOME/.bun"')"
+  printf '%s    %s\n' "$(dim '│')" "$(cyan 'export PATH="$BUN_INSTALL/bin:$PATH"')"
+  printf '%s\n' "$(dim '└')"
 }
 
 is_magpie_clone() {
   [ -f "$1/packages/engine/bin/setup.mjs" ] && grep -q '"name": "magpie"' "$1/package.json" 2>/dev/null
 }
 
+paint_setup() {
+  COLOR=0
+  if [ -z "${NO_COLOR:-}" ] && { [ "${FORCE_COLOR:-0}" != 0 ] || { [ -t 1 ] && [ "${TERM:-}" != dumb ]; }; }; then
+    COLOR=1
+  fi
+}
+
+paint() {
+  if [ "$COLOR" = 1 ]; then printf '\033[%sm%s\033[%sm' "$1" "$2" "$3"; else printf '%s' "$2"; fi
+}
+
+bold() { paint 1 "$1" 22; }
+dim() { paint 2 "$1" 22; }
+red() { paint 31 "$1" 39; }
+yellow() { paint 33 "$1" 39; }
+cyan() { paint 36 "$1" 39; }
+
+tilde() {
+  case "$1" in
+    "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
 say() {
-  printf '\n\033[1m==> %s\033[0m\n' "$*"
+  printf '%s\n%s  %s\n' "$(dim '│')" "$(cyan '◇')" "$(bold "$*")"
+}
+
+hand_over() {
+  printf '%s\n%s  %s\n\n' "$(dim '│')" "$(dim '└')" "$*"
 }
 
 fail() {
-  printf '\nmagpie install: %s\n' "$*" >&2
+  if [ ! -t 2 ] && [ "${FORCE_COLOR:-0}" = 0 ]; then COLOR=0; fi
+  printf '%s\n%s  %s\n' "$(dim '│')" "$(red '✗')" "$(red "$*")" >&2
+  printf '%s  %s\n' "$(dim '└')" "Fix that, then run the installer again." >&2
   exit 1
 }
 
