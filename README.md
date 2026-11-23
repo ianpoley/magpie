@@ -68,7 +68,7 @@ The skill reads the files on your machine and changes nothing. It leaves out the
 | A [Jev (TypeSafe)](https://docs.typesafe.ai) API key | Required | Jev scores each post against each topic and answers **Ask** questions. The web app shows nothing until you save the key. |
 | [Claude Code CLI](https://claude.com/claude-code), installed and logged in | Optional | Claude proposes and updates the categories, and writes the answer to each **Ask**, always with Claude Opus 5.5 at medium effort. The calls count against your Claude plan's usage. Without it, sync and search still work, but Magpie creates no categories and an Ask lists its matches with no written answer. |
 | macOS or Linux | Required | The background services run as LaunchAgents or `systemd --user` units. |
-| git, [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. The installer adds Bun if you don't have it. Setup finds Node 26, or tells you how to install it. |
+| git, [Bun](https://bun.sh) 1.3 and [Node](https://nodejs.org) 26 | Required | Bun runs setup and the scripts. The installer adds Bun if you don't have it; on Linux, Bun's installer needs `unzip`. Setup finds Node 26 even when another Node is first on your PATH, or tells you how to install it. |
 
 Some data leaves your machine. Magpie sends post text to Jev for tagging and Ask, and to Claude through your CLI login for categories and for Ask answers. It requests each page your posts link to once, to read its title. Browsing sends nothing.
 

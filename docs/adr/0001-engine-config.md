@@ -55,4 +55,4 @@ Reading it: the file wins. With no file the focus reads as not chosen, and setup
 
 #### 0001.10 `Paths.claudeCli`
 
-The Claude CLI is spawned by this absolute path, so nothing has to put it on PATH. It defaults to ~/.local/bin/claude, where the CLI's installer puts it; MAGPIE_CLAUDE_BIN names another executable.
+The Claude CLI is spawned by this absolute path, so nothing has to put it on PATH. It is the first that exists of ~/.local/bin/claude (the native installer), ~/.claude/local/claude (the older local install), /opt/homebrew/bin/claude and /usr/local/bin/claude (Homebrew, and npm with a system Node). The services run with a fixed PATH and no shell profile, so they look in a fixed list instead of PATH; a CLI installed elsewhere, such as npm under nvm, needs MAGPIE_CLAUDE_BIN, which names another executable.

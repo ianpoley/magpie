@@ -15,6 +15,8 @@ main() {
 
   if ! command -v bun >/dev/null 2>&1; then
     if [ ! -x "$HOME/.bun/bin/bun" ]; then
+      command -v unzip >/dev/null 2>&1 ||
+        fail "unzip is missing, and the Bun installer needs it. Install it (Debian or Ubuntu: sudo apt install unzip; Fedora: sudo dnf install unzip), then run this again."
       say "Installing Bun into ~/.bun (https://bun.sh)"
       curl -fsSL https://bun.sh/install | bash
     fi
@@ -49,7 +51,7 @@ main() {
 
 bun_path_hint() {
   [ "$(command -v bun)" = "$HOME/.bun/bin/bun" ] || return 0
-  grep -qs '\.bun/bin' "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc" "$HOME/.config/fish/config.fish" && return 0
+  grep -qsE '\.bun/bin|BUN_INSTALL' "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc" "$HOME/.config/fish/config.fish" && return 0
   say "Add Bun to your PATH so new terminals can run bun"
   printf 'Add these two lines to your shell startup file (~/.zshrc or ~/.bashrc), then open a new terminal:\n\n'
   printf '  export BUN_INSTALL="$HOME/.bun"\n'

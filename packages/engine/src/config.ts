@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -198,10 +198,19 @@ export function paths(env: Record<string, string | undefined> = process.env): Pa
     xConnection: join(configDir, 'x-connection.json'),
     categoryFocus: join(configDir, 'category-focus.json'),
     answerModel: join(configDir, 'answer-model.json'),
-    claudeCli: resolve(setting(env, 'CLAUDE_BIN') || join(homedir(), '.local', 'bin', 'claude')),
+    claudeCli: resolve(setting(env, 'CLAUDE_BIN') || claudeCliPath()),
     birdclawHome: resolve(env.BIRDCLAW_HOME || join(homedir(), '.birdclaw')),
   };
 }
+
+const claudeCliPlaces = () => [
+  join(homedir(), '.local', 'bin', 'claude'),
+  join(homedir(), '.claude', 'local', 'claude'),
+  '/opt/homebrew/bin/claude',
+  '/usr/local/bin/claude',
+];
+
+const claudeCliPath = () => claudeCliPlaces().find((place) => existsSync(place)) ?? claudeCliPlaces()[0];
 
 export type XTool = { path: string; pinned: boolean };
 
