@@ -314,6 +314,7 @@ test("records split across network chunks are joined", async () => {
     failed: 0,
     scores: [{ postId: "1", probability: 0.9 }],
     bands: BANDS,
+    refusal: null,
   });
 });
 
@@ -323,7 +324,7 @@ test("the runner shows progress as records arrive and finishes when the stream d
   let changes = 0;
   runner.subscribe(() => changes++);
   runner.ask("  evals for   agents ");
-  assert.deepEqual(runner.getState(), { query: "evals for agents", status: "running", total: null, judged: 0, failed: 0, scores: [], bands: null });
+  assert.deepEqual(runner.getState(), { query: "evals for agents", status: "running", total: null, judged: 0, failed: 0, scores: [], bands: null, refusal: null });
 
   feed.push({ type: "start", total: 3, bands: BANDS });
   feed.push({ type: "scores", scores: [{ postId: "1", probability: 0.9 }] });
@@ -337,6 +338,7 @@ test("the runner shows progress as records arrive and finishes when the stream d
     failed: 2,
     scores: [{ postId: "1", probability: 0.9 }],
     bands: BANDS,
+    refusal: null,
   });
   feed.push({ type: "done" });
   feed.close();
@@ -369,14 +371,20 @@ test("a second query aborts the first, and nothing from the first is shown", asy
   feeds[0].feed.close();
   feeds[1].feed.push({ type: "start", total: 5, bands: BANDS });
   await settle();
-  assert.deepEqual(runner.getState(), { query: "second", status: "running", total: 5, judged: 0, failed: 0, scores: [], bands: BANDS });
+  assert.deepEqual(runner.getState(), { query: "second", status: "running", total: 5, judged: 0, failed: 0, scores: [], bands: BANDS, refusal: null });
 });
 
 test("a refused or broken request ends as failed and keeps what had arrived", async () => {
-  const refused = createAskRunner(async () => Response.json({ message: "no" }, { status: 503 }));
+  const refused = createAskRunner(async () => Response.json({ message: "Nothing has been synced yet." }, { status: 503 }));
   refused.ask("evals");
   await settle();
   assert.equal(refused.getState()?.status, "failed");
+  assert.equal(refused.getState()?.refusal, "Nothing has been synced yet.");
+
+  const unexplained = createAskRunner(async () => new Response("bad gateway", { status: 502 }));
+  unexplained.ask("evals");
+  await settle();
+  assert.equal(unexplained.getState()?.refusal, null);
 
   const feed = handFed();
   const broken = createAskRunner(async () => feed.response);

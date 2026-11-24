@@ -193,7 +193,7 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
   if (ask.scores.length === 0) {
     return (
       <EmptyState title="The search could not be run" action={solidButton("Try again", retry)}>
-        No post could be judged. Check that this computer is online, then try again.
+        {ask.refusal ?? "No post could be judged. Check that this computer is online, then try again."}
       </EmptyState>
     );
   }
