@@ -349,6 +349,10 @@ A fixed square crop of one picture, with a play mark when it stands for a video 
 
 ### `apps/web/src/components/post-card.tsx`
 
+#### 0015.120 `revealPostCard`
+
+The post window steps through the whole result, but the list renders it a page at a time. Each step tells the list to render up to that post, so closing the window can focus it and scroll to it. It is an event and not state, so a step doesn't re-render the screen. Nested windows don't send it, since their posts are not in the list's order.
+
 #### 0015.40 `PostCard`
 
 A post as a card. Its pictures sit in the right margin as a square crop and a filmstrip, out of the reading flow, and its quote and linked page are one line each, so cards stay short and alike in height while nothing is hidden.
