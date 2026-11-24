@@ -114,7 +114,7 @@ function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void,
   if (!snapshot.storeExists) {
     return (
       <EmptyState title="Nothing has synced yet">
-        The sync job has not run on this Mac. After its first run, every bookmark and like shows up here.
+        The sync job has not run on this computer. After its first run, every bookmark and like shows up here.
       </EmptyState>
     );
   }
@@ -193,7 +193,7 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
   if (ask.scores.length === 0) {
     return (
       <EmptyState title="The search could not be run" action={solidButton("Try again", retry)}>
-        No post could be judged. Check that this Mac is online, then try again.
+        No post could be judged. Check that this computer is online, then try again.
       </EmptyState>
     );
   }
