@@ -15,6 +15,8 @@ Commands:
                                        X cookies and Jev key and disconnects X
   service status                       show both services, the worker's heartbeat, the secret backend and the node they run
   open                                 open the web app in your browser
+  doctor                               check this machine and both services; only a test value goes into
+                                       the secret store and back out
   secrets set-jev                      store the Jev (TypeSafe) API key, read from stdin (typed hidden at a terminal)
   sync [options]                       run one whole sync now (sync --help lists the options)`;
 
@@ -273,6 +275,19 @@ async function status() {
   }
 }
 
+async function doctor() {
+  console.log(ui.paint.bold('This machine'));
+  const checks = await service.setupChecks();
+  for (const check of checks) console.log(ui.check(check.level, check.name, tildePaths(check.detail)));
+  console.log('');
+  console.log(ui.paint.bold('Services'));
+  await status();
+  if (checks.some((check) => check.level === 'fail')) {
+    console.log(`${ui.mark.fail} ${ui.paint.red('A check on this machine failed. Fix it, then run bun run setup.')}`);
+    process.exitCode = 1;
+  }
+}
+
 async function serviceCommand(sub, args) {
   const log = (line) => console.log(`${ui.paint.dim('[service]')} ${tildePaths(line)}`);
   if (sub === 'install' && args.length === 0) {
@@ -357,6 +372,10 @@ switch (command) {
   }
   case 'service':
     await serviceCommand(sub, rest);
+    break;
+  case 'doctor':
+    if (sub !== undefined) usage(`unknown doctor argument: ${sub}`);
+    await doctor();
     break;
   case 'open':
     if (sub !== undefined) usage(`unknown open argument: ${sub}`);
