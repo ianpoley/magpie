@@ -63,7 +63,7 @@ export function PostList({
   const hasMore = shown < posts.length;
   useRevealedPostCards((postId) => {
     const at = posts.findIndex((post) => post.id === postId);
-    if (at >= shown) setShown(Math.ceil((at + 1) / PAGE) * PAGE);
+    if (at >= shown && at < shown + 2 * PAGE) setShown(Math.ceil((at + 1) / PAGE) * PAGE);
   });
 
   useEffect(() => {
