@@ -480,17 +480,20 @@ function Composer({ card }: { card: AnswerCardProps }) {
   const talking = chat !== null && ask !== null && chat.root === ask.query;
   const ready = first || (talking && canFollowUp(chat));
   const busy = talking && chat.turns.some((turn) => turn.status === "writing");
+  const judging = !talking && ask?.status === "running";
   const closed = talking && chat.turns.some((turn) => turn.status === "unavailable" || turn.status === "few");
   const blocked = !ready || draft.trim() === "";
   const hint = first
     ? "Jev checks every saved post against your question. Then Claude writes the answer. Each question costs a small amount."
-    : busy
-      ? "Claude is answering…"
-      : closed || !talking
-        ? "A follow-up needs a written answer to build on."
-        : !ready
-          ? "Try the answer again before asking a follow-up."
-          : `Follow-ups are answered from the same ${formatCount(chat?.turns[0]?.answer?.read ?? 0)} posts, with no new search.`;
+    : judging
+      ? "Jev is checking your saved posts. Claude writes the answer next."
+      : busy
+        ? "Claude is answering…"
+        : closed || !talking
+          ? "A follow-up needs a written answer to build on."
+          : !ready
+            ? "Try the answer again before asking a follow-up."
+            : `Follow-ups are answered from the same ${formatCount(chat?.turns[0]?.answer?.read ?? 0)} posts, with no new search.`;
   return (
     <form
       className="flex flex-col gap-2 px-4 pt-2 pb-4"
@@ -513,8 +516,8 @@ function Composer({ card }: { card: AnswerCardProps }) {
           onValueChange={setDraft}
           maxLength={500}
           autoComplete="off"
-          placeholder={first ? "Type a question…" : ready || busy ? "Ask a follow-up…" : "A follow-up needs an answer first"}
-          disabled={!first && !ready && !busy}
+          placeholder={first ? "Type a question…" : ready || busy || judging ? "Ask a follow-up…" : "A follow-up needs an answer first"}
+          disabled={!first && !ready && !busy && !judging}
           className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[16px] text-side-ink shadow-none outline-none placeholder:text-side-muted sm:text-[14px]"
         />
         <button
