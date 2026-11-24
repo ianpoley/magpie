@@ -129,6 +129,10 @@ The selection a URL names. Anything that is not a list of ids is ignored, never 
 
 The search words in a link are cut to 200 characters both when the address is written and when it is read, so a link opens to the same search it was made from. The cut counts whole characters, so an emoji at the limit is kept or dropped whole.
 
+#### 0013.57 `parseLinked`
+
+Time, sort and Media are kept in the address next to the selection, so a reload keeps them and Back undoes them. Only values other than the defaults are written, and a value the app doesn't offer reads as the default.
+
 ### `apps/web/src/lib/filter.ts`
 
 #### 0013.17 `ORDER.added`

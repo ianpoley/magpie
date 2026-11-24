@@ -1,4 +1,4 @@
-import type { Collection, FilterState } from "./types.ts";
+import type { Collection, FilterState, Sort, TimeRange } from "./types.ts";
 
 export type CategorySelection = Pick<FilterState, "topicIds" | "areaIds" | "unfiled">;
 
@@ -36,9 +36,11 @@ export function parseSelection(query: QueryValues): CategorySelection {
   return { topicIds: ids(query.topics), areaIds: ids(query.areas), unfiled: false };
 }
 
-export type LinkedFilter = CategorySelection & Pick<FilterState, "collection" | "author" | "keyword">;
+export type LinkedFilter = CategorySelection & Pick<FilterState, "collection" | "author" | "keyword" | "timeRange" | "sort" | "mediaOnly">;
 
 const LINKED_COLLECTIONS: readonly Collection[] = ["bookmarks", "likes"];
+const LINKED_TIME_RANGES: readonly TimeRange[] = ["week", "month", "year"];
+const LINKED_SORTS: readonly Sort[] = ["added", "oldest", "most_liked"];
 
 const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
 const MAX_KEYWORD_LENGTH = 200;
@@ -51,6 +53,9 @@ export function linkedQuery(filter: LinkedFilter): string {
     filter.collection === "everything" ? "" : `collection=${filter.collection}`,
     selectionQuery(filter),
     filter.author === null ? "" : `author=${filter.author}`,
+    filter.timeRange === "all" ? "" : `time=${filter.timeRange}`,
+    filter.sort === "newest" ? "" : `sort=${filter.sort}`,
+    filter.mediaOnly ? "media=1" : "",
     keyword === "" ? "" : `q=${encodeURIComponent(keyword)}`,
   ]
     .filter(Boolean)
@@ -65,5 +70,8 @@ export function parseLinked(query: QueryValues): LinkedFilter {
     ...parseSelection(query),
     author: HANDLE.test(author) ? author : null,
     keyword: linkedKeyword(first(query.q)),
+    timeRange: LINKED_TIME_RANGES.find((range) => range === first(query.time)) ?? "all",
+    sort: LINKED_SORTS.find((sort) => sort === first(query.sort)) ?? "newest",
+    mediaOnly: first(query.media) === "1",
   };
 }
