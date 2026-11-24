@@ -218,7 +218,7 @@ export function CategoryDialogs({ edits, topics, areas, topicsById, areasById }:
                 <AlertDialogDescription className="mt-2 text-[14px] leading-[1.55] text-pretty text-ink-muted">
                   Its <span className="tabular-nums">{formatCount(current.postCount)}</span> {plural(current.postCount, "post")} stay saved
                   {pinned
-                    ? ", and the pinned search leaves the sidebar. Ask the same question again to bring it back."
+                    ? ", and the pinned search leaves the sidebar. To bring it back, search the same words, press Find topic and pin it again."
                     : ` and fall back to their other topics, or to Unfiled. ${target.kind === "area" ? "These topics are" : "This topic is"} never suggested again. This cannot be undone.`}
                 </AlertDialogDescription>
                 <div className="mt-5 flex justify-end gap-2">
