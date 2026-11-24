@@ -135,7 +135,7 @@ function CountLine({ h }: { h: PageHeaderProps }) {
       <span>
         <span className="font-semibold text-ink tabular-nums">{formatCount(count)}</span> {plural(count, "post")}
       </span>
-      {h.resourceCount !== null ? (
+      {count === 0 && h.resourceCount === null ? null : h.resourceCount !== null ? (
         <>
           {sep}
           <span>
