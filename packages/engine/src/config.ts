@@ -99,6 +99,7 @@ export const RELEASES = {
   syncPollMs: 15_000,
   checkEveryMs: 6 * 60 * 60_000,
   timeoutMs: 10_000,
+  pullTimeoutMs: 120_000,
 } as const;
 
 export const INGEST = {

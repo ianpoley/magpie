@@ -11,7 +11,11 @@ import { formatVersion, isNewer, parseVersion, type Version } from './version.ts
 export type Release = { version: Version; url: string };
 export type UpdateStatus = { installed: string | null; latest: string; url: string; autoApplies: boolean };
 
+export type PullResult = { ok: true } | { ok: false; reason: string };
+
 type Git = (args: string[]) => Promise<string | null>;
+
+const PULL_REASON_CHARS = 400;
 
 const gitIn =
   (dir: string): Git =>
@@ -78,4 +82,36 @@ export async function localUpdateStatus(codeRoot: string, deps: { git?: Git } = 
   const { stateDir, logsDir } = paths();
   const checkout = { toplevel: mainCheckout(codeRoot) === codeRoot ? codeRoot : null, root: codeRoot, branch, built: readBuiltCommit(codeRoot), head };
   return localUpdate(checkout, applyFiles(stateDir, logsDir));
+}
+
+export async function pullBlocker(codeRoot: string, deps: { git?: Git } = {}): Promise<string | null> {
+  const git = deps.git ?? gitIn(codeRoot);
+  if (mainCheckout(codeRoot) !== codeRoot) return 'this is not the main checkout';
+  if ((await git(['symbolic-ref', '--short', '-q', 'HEAD'])) !== RELEASES.branch) return `the checkout is not on ${RELEASES.branch}`;
+  if (!(await autoApplies(codeRoot, git))) return 'the update hooks are not installed, so a pull would not rebuild the app';
+  return null;
+}
+
+export function pullInvocation(codeRoot: string, env: NodeJS.ProcessEnv = process.env): [string, string[]] {
+  const pull = ['-C', codeRoot, 'pull', '--ff-only', '--no-edit', '--quiet'];
+  return env.INVOCATION_ID ? ['systemd-run', ['--user', '--scope', '--quiet', '--collect', 'git', ...pull]] : ['git', pull];
+}
+
+const pullEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => ({ ...env, GIT_TERMINAL_PROMPT: '0', GIT_SSH_COMMAND: env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes' });
+
+const pullReason = (stderr: string, fallback: string) => {
+  const text = stderr.trim() || fallback;
+  return text.length > PULL_REASON_CHARS ? `…${text.slice(-PULL_REASON_CHARS)}` : text;
+};
+
+export async function pullRelease(codeRoot: string): Promise<PullResult> {
+  const blocker = await pullBlocker(codeRoot);
+  if (blocker !== null) return { ok: false, reason: blocker };
+  const [command, args] = pullInvocation(codeRoot);
+  return new Promise((resolve) => {
+    const child = execFile(command, args, { timeout: RELEASES.pullTimeoutMs, encoding: 'utf8', env: pullEnv(process.env) }, (error, _stdout, stderr) =>
+      resolve(error ? { ok: false, reason: pullReason(stderr, error.message) } : { ok: true }),
+    );
+    child.stdin?.end();
+  });
 }

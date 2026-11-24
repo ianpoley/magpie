@@ -147,7 +147,7 @@ The running version is the newest release tag that the live build's `magpie-comm
 
 #### 0009.28 `checkForUpdate`
 
-The notice tells the user to run `git pull && bun run setup` in the clone, not the `curl` installer. That works from a clone in any folder. Setup runs `bun install` and offers to rebuild the services when the build is behind the code. When the clone has the update hooks (0009.31), the notice drops `&& bun run setup`: the pull applies itself. Every hint in the app and in `service:status` names `bun run setup`, never `bun run service:install`. Setup finds a Node in the supported range itself; `service:install` uses the first `node` on PATH, which under nvm is often too old.
+The notice tells the user to run `git pull && bun run setup` in the clone, not the `curl` installer. That works from a clone in any folder. Setup runs `bun install` and offers to rebuild the services when the build is behind the code. When the clone has the update hooks (0009.31), the notice drops `&& bun run setup`: the pull applies itself. When the pull can run from the app (0009.32), the notice offers "Update now" and shows the command only as what it runs. Every hint in the app and in `service:status` names `bun run setup`, never `bun run service:install`. Setup finds a Node in the supported range itself; `service:install` uses the first `node` on PATH, which under nvm is often too old.
 
 Before the release check, the app looks at its own checkout (`localUpdateStatus`): on `RELEASES.branch` in the main checkout, with a service build older than HEAD, it shows *applying* while the update runner holds its lock, *failed* when the last run for this HEAD failed, and *pending* otherwise. These skip the release check's cache and can't be dismissed, so a pull that was never applied, or failed, stays visible. While applying, the app polls every 5 s and offers a reload once the new build serves.
 
@@ -170,4 +170,16 @@ The runner holds `state/update.lock` and runs `bun run setup --after-pull` with 
 Success means the live build's commit equals the HEAD the run started from. Install reads HEAD before it builds, so a pull during the build leaves the build marked with the older commit, and the next round rebuilds. The runner repeats while it applied a commit and the checkout moved on, up to `RELEASES.applyRounds` times. The result goes to `state/update.json` for the app (0009.28).
 
 Only pulls with the git CLI or a git client fire hooks. A clone updated another way, or one without hooks, gets the *pending* notice instead.
+
+### `packages/engine/src/release/update.ts`, `apps/web/src/app/api/update/route.ts`
+
+#### 0009.32 `pullRelease`
+
+The app's "Update now" button runs `git pull --ff-only` in the clone from the web service, so the user never needs a terminal. The pull fires the update hooks, and the existing runner (0009.31) rebuilds and restarts the services. The route then waits up to 3 s for the runner to take its lock and returns the new state, so the sidebar goes straight to *applying*.
+
+`pullBlocker` allows the pull only in the main checkout, on `RELEASES.branch`, with the update hooks installed. A pull anywhere else would not rebuild anything, or would pull a branch the user is working on. Without hooks the notice keeps the copy-command form. Running `bun run setup` from the server was not added, because setup restarts the service that would be running it.
+
+`--ff-only` never makes a merge commit and fails on a diverged or dirty clone; git's own message goes back to the popover, with the command to run by hand. `GIT_TERMINAL_PROMPT=0` and ssh `BatchMode=yes` turn a credentials prompt into a failure instead of a hang, and the pull has its own `RELEASES.pullTimeoutMs`. One pull runs at a time; a second press joins it. The request body is ignored, and the route needs the same same-origin check as Ask.
+
+The runner is a child of the web service it restarts. On macOS it survives: it is detached into its own process group, and launchd kills only the job's group. A systemd user service kills its whole cgroup on restart, so when the service runs under systemd (`INVOCATION_ID` is set) the pull runs through `systemd-run --user --scope`, which moves git, the hook and the runner out of the service's cgroup.
 

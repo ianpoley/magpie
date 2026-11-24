@@ -18,6 +18,19 @@ const APPLYING_POLL_MS = 5_000;
 type Fetched = UpdateState | null | "unreachable";
 type ReleaseUpdate = Extract<UpdateState, { kind: "release" }>;
 type CommandUpdate = Extract<UpdateState, { kind: "failed" | "pending" }>;
+type PullOutcome = { ok: true; state: UpdateState | null } | { ok: false; reason: string };
+
+const NO_ANSWER = "the app did not answer";
+
+async function requestPull(): Promise<PullOutcome> {
+  try {
+    const response = await fetch("/api/update", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store" });
+    const body = (await response.json()) as Partial<{ ok: boolean; state: UpdateState | null; reason: string; message: string }>;
+    return body.ok === true ? { ok: true, state: body.state ?? null } : { ok: false, reason: body.reason ?? body.message ?? NO_ANSWER };
+  } catch {
+    return { ok: false, reason: NO_ANSWER };
+  }
+}
 
 async function fetchUpdateState(): Promise<Fetched> {
   try {
@@ -36,7 +49,7 @@ function readDismissed(): string | null {
   }
 }
 
-function useUpdateState(): { update: UpdateState | null; updated: boolean; dismiss: () => void } {
+function useUpdateState(): { update: UpdateState | null; updated: boolean; dismiss: () => void; accept: (next: UpdateState | null) => void } {
   const [update, setUpdate] = useState<UpdateState | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [updated, setUpdated] = useState(false);
@@ -87,8 +100,13 @@ function useUpdateState(): { update: UpdateState | null; updated: boolean; dismi
     setDismissed(update.latest);
   };
 
+  const accept = (next: UpdateState | null) => {
+    if (next?.kind === "applying") sawApplying.current = true;
+    setUpdate(next);
+  };
+
   const hidden = update?.kind === "release" && update.latest === dismissed;
-  return { update: hidden ? null : update, updated, dismiss };
+  return { update: hidden ? null : update, updated, dismiss, accept };
 }
 
 export function useCopied(text: string): [boolean, () => void] {
@@ -131,10 +149,76 @@ function CommandBlock({ command, children }: { command: string; children?: React
   );
 }
 
-function ReleasePopover({ update, onDismiss }: { update: ReleaseUpdate; onDismiss: () => void }) {
-  const after = update.autoApplies
-    ? "Magpie then rebuilds and restarts itself in the background. The app keeps running until the new version is ready."
-    : "Setup rebuilds the app and restarts it when it finishes.";
+const IN_BACKGROUND = "rebuilds and restarts itself in the background. The app keeps running until the new version is ready.";
+
+function releaseDescription(update: ReleaseUpdate): string {
+  const lead = update.installed ? `You have ${update.installed}. ` : "";
+  if (update.pullable) return `${lead}Magpie downloads it, then ${IN_BACKGROUND}`;
+  return `${lead}Run this in a terminal. ${update.autoApplies ? `Magpie then ${IN_BACKGROUND}` : "Setup rebuilds the app and restarts it when it finishes."}`;
+}
+
+function WhatsNew({ url }: { url: string }) {
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className={`${POPOVER_ACTION} px-3 whitespace-nowrap text-primary-text no-underline hover:bg-wash`}>
+      What&apos;s new
+      <ExternalLink className="size-3.5" aria-hidden="true" />
+    </a>
+  );
+}
+
+function Later({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <PopoverClose onClick={onDismiss} className={`${POPOVER_ACTION} ml-auto border-0 bg-transparent px-3 font-medium text-ink-muted hover:bg-wash hover:text-ink`}>
+      Later
+    </PopoverClose>
+  );
+}
+
+function PullActions({ update, onPulled, onDismiss }: { update: ReleaseUpdate; onPulled: (next: UpdateState | null) => void; onDismiss: () => void }) {
+  const [pulling, setPulling] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const pull = async () => {
+    setPulling(true);
+    setFailure(null);
+    const outcome = await requestPull();
+    setPulling(false);
+    if (outcome.ok) onPulled(outcome.state);
+    else setFailure(outcome.reason);
+  };
+  if (failure !== null) {
+    return (
+      <>
+        <p role="alert" className="text-[13px] leading-snug text-ink">
+          The update didn&apos;t download: <span className="text-ink-muted [overflow-wrap:anywhere]">{failure}</span>. Run this in a terminal instead:
+        </p>
+        <CommandBlock command={update.command}>
+          <WhatsNew url={update.url} />
+          <Later onDismiss={onDismiss} />
+        </CommandBlock>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <Button onClick={pull} disabled={pulling} data-variant="solid" className={`${POPOVER_ACTION} border-0 px-4`}>
+          {pulling ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <CircleArrowUp className="size-4" aria-hidden="true" />}
+          {pulling ? "Downloading…" : "Update now"}
+        </Button>
+        <WhatsNew url={update.url} />
+        <Later onDismiss={onDismiss} />
+      </div>
+      <p className="text-[12px] leading-snug text-ink-muted">
+        This runs <span className="font-mono [overflow-wrap:anywhere]">{update.command}</span> for you.
+      </p>
+      <span className="sr-only" role="status">
+        {pulling ? "Downloading the update" : ""}
+      </span>
+    </>
+  );
+}
+
+function ReleasePopover({ update, onPulled, onDismiss }: { update: ReleaseUpdate; onPulled: (next: UpdateState | null) => void; onDismiss: () => void }) {
   return (
     <Popover>
       <PopoverTrigger className={SIDE_FOOTER_ROW}>
@@ -146,18 +230,17 @@ function ReleasePopover({ update, onDismiss }: { update: ReleaseUpdate; onDismis
         <div>
           <PopoverTitle className="font-display text-[15px] font-semibold text-ink">Magpie {update.latest} is out</PopoverTitle>
           <PopoverDescription className="mt-1 text-[13px] leading-snug text-ink-muted">
-            {update.installed ? `You have ${update.installed}. ` : ""}Run this in a terminal. {after}
+            {releaseDescription(update)}
           </PopoverDescription>
         </div>
-        <CommandBlock command={update.command}>
-          <a href={update.url} target="_blank" rel="noreferrer" className={`${POPOVER_ACTION} px-3 whitespace-nowrap text-primary-text no-underline hover:bg-wash`}>
-            What&apos;s new
-            <ExternalLink className="size-3.5" aria-hidden="true" />
-          </a>
-          <PopoverClose onClick={onDismiss} className={`${POPOVER_ACTION} ml-auto border-0 bg-transparent px-3 font-medium text-ink-muted hover:bg-wash hover:text-ink`}>
-            Later
-          </PopoverClose>
-        </CommandBlock>
+        {update.pullable ? (
+          <PullActions update={update} onPulled={onPulled} onDismiss={onDismiss} />
+        ) : (
+          <CommandBlock command={update.command}>
+            <WhatsNew url={update.url} />
+            <Later onDismiss={onDismiss} />
+          </CommandBlock>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -224,10 +307,10 @@ export function UpdateNotice() {
   useRegisterDebugFlags(updateDebugFlags);
   const real = useUpdateState();
   const { update, updated } = debugUpdate(real, useDebugFlagValue(updateDebugFlags.update, "default"));
-  const { dismiss } = real;
+  const { dismiss, accept } = real;
   if (update?.kind === "applying") return <ApplyingRow />;
   if (update?.kind === "failed" || update?.kind === "pending") return <CommandPopover update={update} />;
   if (updated) return <UpdatedRow />;
-  if (update?.kind === "release") return <ReleasePopover update={update} onDismiss={dismiss} />;
+  if (update?.kind === "release") return <ReleasePopover update={update} onPulled={accept} onDismiss={dismiss} />;
   return null;
 }
