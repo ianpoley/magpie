@@ -72,7 +72,7 @@ export function PostListRow(props: PostCardProps) {
           <div className="flex min-w-0 items-center gap-2">
             <p className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-tight">
               <AuthorButton post={post} keyword={keyword} onSelectAuthor={props.onSelectAuthor} className="shrink text-[14px]" />
-              <span className="min-w-0 shrink-[2] truncate text-ink-muted">
+              <span className={`min-w-0 shrink-[2] truncate text-ink-muted ${hit(post.authorHandle, keyword) ? "" : "max-sm:hidden"}`}>
                 @<Marked text={post.authorHandle} keyword={keyword} />
               </span>
               {date ? <span className="shrink-0 text-ink-muted tabular-nums">· {date}</span> : null}
