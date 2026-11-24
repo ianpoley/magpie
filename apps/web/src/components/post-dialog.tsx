@@ -225,8 +225,8 @@ function PostLayer({
                       </button>
                     </DialogTitle>
                     <DialogDescription className="mt-0.5 flex min-w-0 gap-1 text-[13px] leading-tight whitespace-nowrap text-ink-muted">
-                      <span className="min-w-0 truncate">@{post.authorHandle}</span>
-                      {date ? <span className="shrink-0">· {date}</span> : null}
+                      <span className="min-w-0 truncate max-sm:hidden">@{post.authorHandle}</span>
+                      {date ? <span className="shrink-0"><span className="max-sm:hidden">· </span>{date}</span> : null}
                       <span className="shrink-0 tabular-nums">· {formatLikes(post.likeCount)}</span>
                     </DialogDescription>
                   </div>
