@@ -137,6 +137,7 @@ function PostLayer({
   const [removing, startRemoving] = useTransition();
   const open = useRef(false);
   const stepped = useRef(false);
+  const shown = useRef<Post | null>(null);
   return (
     <Dialog
       controller={controller}
@@ -173,7 +174,10 @@ function PostLayer({
         }}
       >
         {(state) => {
-          const post = typeof state.payload === "string" ? postsById.get(state.payload) : undefined;
+          const found = typeof state.payload === "string" ? postsById.get(state.payload) : undefined;
+          const closing = !state.open && shown.current?.id === state.payload;
+          const post = found ?? (closing ? (shown.current ?? undefined) : undefined);
+          if (found) shown.current = found;
           if (!post) {
             return (
               <div className={`${CARD} items-start gap-2 p-6`}>
