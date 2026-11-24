@@ -28,11 +28,19 @@ export type RemovedPostsController = ReturnType<typeof createRemovedPostsControl
 export const createConfirmRemoveController = () => createAlertDialogController<Post>();
 export type ConfirmRemoveController = ReturnType<typeof createConfirmRemoveController>;
 
-export function ConfirmRemove({ controller, onConfirm }: { controller: ConfirmRemoveController; onConfirm: (post: Post) => Promise<void> }) {
+export function ConfirmRemove({
+  controller,
+  onConfirm,
+  focusAfter,
+}: {
+  controller: ConfirmRemoveController;
+  onConfirm: (post: Post) => Promise<void>;
+  focusAfter: () => HTMLElement | undefined;
+}) {
   return (
     <AlertDialog controller={controller}>
       <AlertDialogBackdrop className={alertBackdrop} />
-      <AlertDialogContent<Post> className={alertContent}>
+      <AlertDialogContent<Post> className={alertContent} finalFocus={focusAfter}>
         {(state) => {
           const post = state.payload;
           if (!post) return <AlertDialogTitle className="sr-only">Remove post</AlertDialogTitle>;

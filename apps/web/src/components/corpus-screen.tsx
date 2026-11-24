@@ -233,6 +233,12 @@ const selectionInAddress = (): LinkedFilter => {
   });
 };
 
+const focusWhenShown = (postId: string, framesLeft: number) => {
+  const card = document.querySelector<HTMLElement>(postCardOpen(postId));
+  if (card && !card.closest("[inert]")) card.focus({ preventScroll: true });
+  else if (framesLeft > 0) requestAnimationFrame(() => focusWhenShown(postId, framesLeft - 1));
+};
+
 const viewInAddress = (): View => parseView({ view: new URLSearchParams(window.location.search).get("view") ?? undefined });
 
 export function CorpusScreen({
@@ -475,7 +481,8 @@ export function CorpusScreen({
     );
   };
   const restore = async (postId: string) => {
-    await runAction(restorePost(postId));
+    if (!(await runAction(restorePost(postId)))) return;
+    focusWhenShown(postId, 60);
   };
   const emptyRemoved = async () => {
     const emptied = await runAction(purgeRemoved());
@@ -486,8 +493,14 @@ export function CorpusScreen({
   const remove = async (post: Post) => {
     void confirmRemove.open({ payload: post });
   };
+  const focusAfterRemove = useRef<string | null>(null);
   const removeConfirmed = async (post: Post) => {
-    if (!(await runAction(removePost(post.id)))) return;
+    const at = result.posts.findIndex((other) => other.id === post.id);
+    focusAfterRemove.current = at === -1 ? null : (result.posts[at + 1]?.id ?? result.posts[at - 1]?.id ?? null);
+    if (!(await runAction(removePost(post.id)))) {
+      focusAfterRemove.current = null;
+      return;
+    }
     postDialog.close();
     emitMagpie("remove");
     toast.success("Removed from corpus", { action: { label: "Undo", onAction: () => restore(post.id) } });
@@ -819,7 +832,15 @@ export function CorpusScreen({
       <SettingsDialog controller={settingsDialog} settings={initialSettings} sync={sync} connectX={connectX} onLoad={setSettings} />
       <ConnectXDialog controller={connectX} sync={sync} />
       <RemovedPosts controller={removedPosts} posts={snapshot.removed} onRestore={restore} onEmpty={emptyRemoved} />
-      <ConfirmRemove controller={confirmRemove} onConfirm={removeConfirmed} />
+      <ConfirmRemove
+        controller={confirmRemove}
+        onConfirm={removeConfirmed}
+        focusAfter={() => {
+          const next = focusAfterRemove.current;
+          focusAfterRemove.current = null;
+          return next === null ? undefined : (document.querySelector<HTMLElement>(postCardOpen(next)) ?? undefined);
+        }}
+      />
       <CategoryDialogs edits={categoryEdits} topics={snapshot.topics} areas={snapshot.areas} topicsById={topicsById} areasById={areasById} />
 
       <ToastRegion side="top" align="center" className="mt-6 w-fit [&_[data-slot=toast-list]]:items-center">
