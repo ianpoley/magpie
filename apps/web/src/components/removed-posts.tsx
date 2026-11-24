@@ -83,7 +83,20 @@ function Row({ post, onRestore }: { post: RemovedPost; onRestore: (postId: strin
       <button
         type="button"
         disabled={restoring}
-        onClick={() => startRestoring(() => onRestore(post.id))}
+        data-restore=""
+        onClick={(event) => {
+          const row = event.currentTarget.closest("li");
+          const neighbor = (row?.nextElementSibling ?? row?.previousElementSibling)?.querySelector<HTMLElement>("[data-restore]");
+          const after = neighbor ?? row?.closest("[role=dialog]")?.querySelector<HTMLElement>("[data-removed-close]");
+          const focusOnceGone = (framesLeft: number) => {
+            if (!row?.isConnected) after?.focus();
+            else if (framesLeft > 0) requestAnimationFrame(() => focusOnceGone(framesLeft - 1));
+          };
+          startRestoring(async () => {
+            await onRestore(post.id);
+            focusOnceGone(60);
+          });
+        }}
         aria-label={`Restore the post by ${post.authorName}`}
         className={softButton}
       >
