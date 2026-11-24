@@ -8,6 +8,7 @@ import { SECRET_NAMES, createSecretStore, osBackend, probe } from '../secrets/st
 import type { BackendName } from '../secrets/store.ts';
 import { readWorkerStatus } from '../sync/state.ts';
 import type { WorkerStatus } from '../sync/state.ts';
+import { tildePaths, ui } from '../terminal.ts';
 import { errorText } from '../util.ts';
 import { launchd } from './launchd.ts';
 import { SERVICE_NAMES, spawnRunner } from './manager.ts';
@@ -175,7 +176,6 @@ export async function setupChecks(options: SetupOptions = {}): Promise<SetupChec
   return checks;
 }
 
-export const formatCheck = (check: SetupCheck) => `${check.level.padEnd(4)}  ${check.name.padEnd(12)}  ${check.detail}`;
 
 export type ServiceOptions = {
   platform?: NodeJS.Platform;
@@ -235,7 +235,7 @@ export async function installService(options: ServiceOptions = {}): Promise<void
   const { platform, env, home, run, manager, files, nodePath, nodeVersion, log } = ctx;
   const codeRoot = options.codeRoot ?? CODE_ROOT;
   const checks = await setupChecks({ env, platform, nodeVersion });
-  for (const check of checks) log(formatCheck(check));
+  for (const check of checks) log(ui.check(check.level, check.name, tildePaths(check.detail)));
   const failed = checks.filter((check) => check.level === 'fail');
   if (failed.length > 0) throw new Error(`setup checks failed: ${failed.map((check) => `${check.name}: ${check.detail}`).join(' ')}`);
 
@@ -243,16 +243,18 @@ export async function installService(options: ServiceOptions = {}): Promise<void
   const specs = serviceSpecs({ nodePath, codeRoot, repoRoot: files.repoRoot, home, port });
   const target = idleWebBuild(codeRoot);
   const head = await run('git', ['-C', codeRoot, 'rev-parse', 'HEAD']);
-  log(`building the web app into apps/web/${target}; the running app keeps serving until the build is done`);
+  log(`building the web app into apps/web/${target} (about a minute); the running app keeps serving until the build is done`);
+  const buildStarted = Date.now();
   clearGeneratedTypes(codeRoot);
   const build = await run(nodePath, [nextBin(codeRoot), 'build'], {
     cwd: webDir(codeRoot),
-    showOutput: true,
     env: { ...env, MAGPIE_NEXT_DIST: target },
   });
   if (build.code !== 0) {
+    for (const line of `${build.stdout}${build.stderr}`.trimEnd().split('\n')) log(line);
     throw new Error(`the web app build failed (exit ${build.code}). The running app and the service files were left as they were.`);
   }
+  log(`built the web app in ${Math.round((Date.now() - buildStarted) / 1000)} s`);
   mkdirSync(join(webDir(codeRoot), target), { recursive: true });
   if (head.code === 0) writeFileSync(join(webDir(codeRoot), target, 'magpie-commit'), `${head.stdout.trim()}\n`);
   writeFileSync(liveBuildFile(codeRoot), `${target}\n`);
@@ -262,7 +264,7 @@ export async function installService(options: ServiceOptions = {}): Promise<void
     const path = manager.unitPath(spec.name);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, manager.render(spec), { mode: 0o644 });
-    log(`wrote ${path}`);
+    log(`wrote ${tildePaths(path)}`);
   }
   await manager.start(SERVICE_NAMES);
   log(`both services are running; the web app is at http://127.0.0.1:${port}`);
