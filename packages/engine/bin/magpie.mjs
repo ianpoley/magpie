@@ -27,7 +27,7 @@ try {
   process.exit(1);
 }
 const { errorText } = await import('../src/util.ts');
-const { err: errPaint, tildePaths, ui } = await import('../src/terminal.ts');
+const { err: errPaint, terminalUi, tildePaths, ui } = await import('../src/terminal.ts');
 
 const COMMAND_WIDTH = USAGE.split('\n').find((line) => line.startsWith('  setup --after-pull')).indexOf('rebuild');
 
@@ -137,7 +137,7 @@ async function setup(args) {
     yes,
     log,
     confirm,
-    secret: (prompt) => readKey(ui.prompt(prompt)),
+    secret: (prompt) => readKey(terminalUi(errPaint).prompt(prompt)),
     checks: () => service.setupChecks(),
     worktreeOf: main === code ? null : main,
     async services() {
