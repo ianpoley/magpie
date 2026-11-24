@@ -22,17 +22,17 @@ function Carries({ post, keyword }: { post: Post; keyword: string }) {
   const marked = "rounded-[4px] bg-mark px-1 text-ink";
   if (post.media.length === 0 && !post.quoted && !page) return null;
   return (
-    <span className="flex min-w-0 flex-1 items-center gap-3 pl-1 text-[12px] font-medium text-ink-muted">
+    <span className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden pl-1 text-[12px] font-medium text-ink-muted max-sm:gap-2">
       {post.media.length > 0 ? (
         <span className="flex shrink-0 items-center gap-1">
           {mediaKind(post.media[0]) === "photo" ? <Images className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}
-          {mediaNoun(post.media)}
+          <span className="max-sm:sr-only">{mediaNoun(post.media)}</span>
         </span>
       ) : null}
       {post.quoted ? (
         <span className={`flex min-w-0 items-center gap-1 ${quoteHit ? marked : ""}`}>
           <Quote className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">
+          <span className="truncate max-sm:sr-only">
             <span className="sr-only">Quotes </span>@{post.quoted.authorHandle ?? "post"}
           </span>
         </span>
@@ -40,7 +40,7 @@ function Carries({ post, keyword }: { post: Post; keyword: string }) {
       {page ? (
         <span className={`flex min-w-0 items-center gap-1 ${linkHit ? marked : ""}`}>
           <Globe className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">{linkHit ? <Marked text={page.title} keyword={keyword} /> : (page.host ?? page.title)}</span>
+          <span className="truncate max-sm:sr-only">{linkHit ? <Marked text={page.title} keyword={keyword} /> : (page.host ?? page.title)}</span>
         </span>
       ) : null}
     </span>
