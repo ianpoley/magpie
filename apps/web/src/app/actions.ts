@@ -100,13 +100,26 @@ async function withStore<A, T extends object>(
       db.close();
     }
   } catch (error) {
-    if (error instanceof edits.EditError) return { ok: false, code: error.code, message: error.message };
+    if (error instanceof edits.EditError) return { ok: false, code: error.code, message: STALE_EDIT[error.code] ?? error.message };
     console.error(error);
     return { ok: false, code: "failed", message: "The change could not be saved." };
   }
   if (options.write) refresh();
   return { ok: true, ...result };
 }
+
+const CATEGORY_CHANGED = "That category changed since this page loaded. Reload the page to see the current categories.";
+
+const STALE_EDIT: Partial<Record<string, string>> = {
+  unknown_topic: CATEGORY_CHANGED,
+  unknown_area: CATEGORY_CHANGED,
+  not_active: CATEGORY_CHANGED,
+  not_pinned: CATEGORY_CHANGED,
+  unknown_post: "That post is no longer in Magpie. Reload the page to see what is saved.",
+  purged: "That post was emptied from Removed, so it can't be restored.",
+  unknown_change: "That change can no longer be undone.",
+  already_undone: "That change was already undone.",
+};
 
 const WRITE = { write: true };
 
