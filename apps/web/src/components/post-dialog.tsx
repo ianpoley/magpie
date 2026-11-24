@@ -208,7 +208,7 @@ function PostLayer({
           return (
             <>
               <div ref={frontHeight(state.open && !state.nestedOpen)} className={CARD}>
-                <header className="flex items-center gap-3 border-b border-line px-5 py-4">
+                <header className="flex items-center gap-3 border-b border-line px-5 py-3">
                   <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} size="lg" />
                   <div className="min-w-0 flex-1">
                     <DialogTitle className="flex text-[17px] leading-tight font-bold" style={{ color: hue.fg }}>
@@ -323,7 +323,7 @@ function PostLayer({
                   ) : null}
                 </div>
 
-                <footer className="flex flex-wrap items-center gap-2 border-t border-line bg-canvas px-5 py-3.5">
+                <footer className="flex flex-wrap items-center gap-2 border-t border-line bg-canvas px-5 py-2.5">
                   <Steps previous={previous} next={next} controller={controller} className="-ml-2 sm:hidden" />
                   <div className="ml-auto flex items-center gap-2">
                     <Button
