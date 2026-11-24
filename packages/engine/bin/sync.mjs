@@ -11,12 +11,15 @@ export async function syncCommand(args) {
   const { createBirdclaw } = await import('../src/x/birdclaw.ts');
   const { errorText } = await import('../src/util.ts');
   const { releaseLock } = await import('../src/lock.ts');
+  const { err, ui } = await import('../src/terminal.ts');
+  const tag = ui.paint.dim('[sync]');
+  const errTag = err.dim('[sync]');
 
   const files = paths();
   const x = createBirdclaw();
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(signal, () => {
-      console.error(`[sync] ${signal}: stopping`);
+      console.error(`${errTag} ${err.yellow(`${signal}: stopping`)}`);
       x.killActive();
       releaseLock(files.lock);
       process.exit(1);
@@ -26,14 +29,14 @@ export async function syncCommand(args) {
   try {
     const result = await runSync(files, { ...deps, x, secrets: createSecretStore() }, options);
     if (result.status === 'locked') {
-      console.error(`[sync] a run is already in progress (pid ${result.pid}); nothing was done`);
+      console.error(`${errTag} ${err.yellow(`▲ a run is already in progress (pid ${result.pid}); nothing was done`)}`);
       process.exit(1);
     }
     const who = result.auth.handle ? ` as @${result.auth.handle}` : '';
-    console.log(`[sync] run ${result.runId} complete; X: ${result.auth.status}${who}; upstream X sync: ${result.upstreamSync}`);
+    console.log(`${tag} ${ui.paint.bold(`run ${result.runId} complete`)}; X: ${result.auth.status}${who}; upstream X sync: ${result.upstreamSync}`);
     await printStages('[sync]', result.stages, 11);
   } catch (error) {
-    console.error(`[sync] the run could not start: ${errorText(error)}`);
+    console.error(`${errTag} ${err.red(`✗ the run could not start: ${errorText(error)}`)}`);
     process.exit(1);
   }
 }
