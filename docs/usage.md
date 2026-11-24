@@ -10,7 +10,7 @@ The installed service runs at http://127.0.0.1:3030. `MAGPIE_PORT` changes the p
 - **Ask** judges every post against a question, then Claude writes an answer from the strongest matches in a card that swaps in over the sidebar. You can ask follow-ups there. **Pin** saves the question as a search, and later syncs keep it up to date.
 - **Resources** lists the repos, packages, videos and pages your posts link to, most saved first.
 - Rename, merge, hide or delete topics. Remove a post from the corpus. This does not change anything on X.
-- Press `/` to search. Press `j` and `k` to move between cards, and Enter to open one.
+- Press `/` to search. Escape clears the search, and a second Escape leaves the field. Press `j` and `k` to move between cards, and Enter to open one.
 
 You can give Magpie its own window and dock icon. In Chrome or Edge, open http://127.0.0.1:3030 and choose **Install Magpie** from the address bar or the menu. In Safari on macOS, choose **File → Add to Dock**.
 
