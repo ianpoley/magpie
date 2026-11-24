@@ -351,6 +351,10 @@ export function PageHeader(h: PageHeaderProps) {
                       h.onAskDraft(askedQuery);
                       return;
                     }
+                    if (event.key === "Escape" && value === "") {
+                      event.currentTarget.blur();
+                      return;
+                    }
                     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                       event.preventDefault();
                       run();
