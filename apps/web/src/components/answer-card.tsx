@@ -423,7 +423,10 @@ function AnswerBody({ turn, first, last, card, chat }: { turn: Turn; first: bool
 function askNote(ask: AskState, onRetry: () => void): Note {
   if (ask.status === "running") return { text: "The answer is written once every post is judged.", retry: null };
   if (ask.status === "failed") {
-    return { text: ask.scores.length === 0 ? "The search could not be run, so there is no answer. Check that this computer is online." : "The search stopped early, so no answer was written.", retry: onRetry };
+    return {
+      text: ask.scores.length === 0 ? `The search could not be run, so there is no answer. ${ask.refusal ?? "Check that this computer is online."}` : "The search stopped early, so no answer was written.",
+      retry: onRetry,
+    };
   }
   return { text: "The answer is on its way.", retry: null };
 }

@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   } catch (error) {
     console.error("ask: could not start:", errorName(error));
-    return refuse(503, "Asking is not available right now.");
+    return refuse(503, "Magpie could not read the Jev key or your saved posts. Check the Jev key in Settings, then try again.");
   }
 
   const abort = new AbortController();

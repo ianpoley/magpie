@@ -184,6 +184,7 @@ export type AskState = {
   failed: number;
   scores: AskScore[];
   bands: Bands | null;
+  refusal: string | null;
 };
 
 export type AskRunner = {
@@ -192,6 +193,16 @@ export type AskRunner = {
   ask: (query: string) => void;
   clear: () => void;
 };
+
+async function refusalMessage(response: Response): Promise<string | null> {
+  try {
+    const body: unknown = await response.json();
+    const message = typeof body === "object" && body !== null ? (body as Record<string, unknown>).message : null;
+    return typeof message === "string" && message.trim() !== "" ? message : null;
+  } catch {
+    return null;
+  }
+}
 
 export function createAskRunner(send: (query: string, signal: AbortSignal) => Promise<Response>): AskRunner {
   let state: AskState | null = null;
@@ -210,7 +221,11 @@ export function createAskRunner(send: (query: string, signal: AbortSignal) => Pr
     try {
       const response = await send(query, abort.signal);
       if (!current()) return;
-      if (!response.ok || !response.body) throw new Error("refused");
+      if (!response.ok || !response.body) {
+        const refusal = await refusalMessage(response);
+        if (current() && state) set({ ...state, refusal });
+        throw new Error("refused");
+      }
       for await (const record of readAskStream(response.body)) {
         if (!current() || !state) return;
         if (record.type === "start") set({ ...state, total: record.total, bands: record.bands });
@@ -239,7 +254,7 @@ export function createAskRunner(send: (query: string, signal: AbortSignal) => Pr
       inFlight?.abort();
       const abort = (inFlight = new AbortController());
       const kept = state?.query === query ? state : null;
-      set({ query, status: "running", total: null, judged: 0, failed: 0, scores: kept?.scores ?? [], bands: kept?.bands ?? null });
+      set({ query, status: "running", total: null, judged: 0, failed: 0, scores: kept?.scores ?? [], bands: kept?.bands ?? null, refusal: null });
       void run(query, abort);
     },
     clear() {
