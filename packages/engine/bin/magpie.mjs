@@ -251,7 +251,12 @@ async function status() {
     node.exists &&
     node.inRange !== false &&
     !report.buildBehindCode;
-  if (!healthy) process.exitCode = 1;
+  console.log('');
+  if (healthy) console.log(`${mark.ok} ${paint.green('Magpie is running.')}`);
+  else {
+    console.log(`${mark.warn} ${paint.yellow('Something above needs attention. bun run setup fixes most of it.')}`);
+    process.exitCode = 1;
+  }
 }
 
 async function serviceCommand(sub, args) {
