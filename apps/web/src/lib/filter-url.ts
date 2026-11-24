@@ -75,3 +75,9 @@ export function parseLinked(query: QueryValues): LinkedFilter {
     mediaOnly: first(query.media) === "1",
   };
 }
+
+export type LinkedView = "posts" | "resources";
+
+export const withView = (query: string, view: LinkedView): string => [view === "resources" ? "view=resources" : "", query].filter(Boolean).join("&");
+
+export const parseView = (query: QueryValues): LinkedView => (first(query.view) === "resources" ? "resources" : "posts");

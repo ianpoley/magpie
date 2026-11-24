@@ -6,7 +6,7 @@ import { CorpusSkeleton } from "@/components/corpus-skeleton";
 import { LAYOUT_COOKIE, parseLayout } from "@/components/post-layout";
 import { SetupGate } from "@/components/setup-gate";
 import { parseClosedSections, SECTIONS_COOKIE } from "@/components/sidebar-sections";
-import { parseLinked, type QueryValues } from "@/lib/filter-url";
+import { parseLinked, parseView, type QueryValues } from "@/lib/filter-url";
 import { readSettings } from "@/lib/settings-state";
 import { loadSnapshot, loadSyncState } from "@/lib/snapshot";
 
@@ -22,7 +22,9 @@ async function Corpus({ query }: { query: Promise<QueryValues> }) {
       snapshot={snapshot}
       sync={sync}
       now={requestTime()}
-      linked={parseLinked(values)} layout={parseLayout(jar.get(LAYOUT_COOKIE)?.value)}
+      linked={parseLinked(values)}
+      view={parseView(values)}
+      layout={parseLayout(jar.get(LAYOUT_COOKIE)?.value)}
       closedSections={parseClosedSections(jar.get(SECTIONS_COOKIE)?.value)}
       settings={settings}
     />
