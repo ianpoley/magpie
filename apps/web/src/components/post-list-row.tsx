@@ -86,7 +86,7 @@ export function PostListRow(props: PostCardProps) {
           {text ? <PostText id={textId} text={text} keyword={keyword} className="line-clamp-2 max-w-none text-[14px] leading-[1.45] whitespace-normal" /> : null}
           <div className="flex min-h-7 min-w-0 items-center gap-3">
             <TopicChips {...props} max={3} oneLine />
-            <div className="pointer-events-auto -my-1 ml-auto flex shrink-0 items-center gap-0.5">
+            <div className="post-actions pointer-events-auto -my-1 ml-auto flex shrink-0 items-center gap-0.5">
               <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
             </div>
           </div>

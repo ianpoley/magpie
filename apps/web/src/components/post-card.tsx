@@ -279,7 +279,7 @@ export function PostCard(props: PostCardProps) {
       </div>
       <footer className="pointer-events-none relative -mt-1.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 px-4 pb-4 sm:-mt-2.5 sm:px-5 sm:pb-5">
         <TopicChips {...props} max={3} />
-        <div className="pointer-events-auto -my-1 -mr-1.5 ml-auto flex shrink-0 items-center gap-0.5">
+        <div className="post-actions pointer-events-auto -my-1 -mr-1.5 ml-auto flex shrink-0 items-center gap-0.5">
           <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
         </div>
       </footer>
