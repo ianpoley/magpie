@@ -847,7 +847,7 @@ export function CorpusScreen({
 
       <ToastRegion side="top" align="center" className="mt-6 w-fit [&_[data-slot=toast-list]]:items-center">
         {(state) => (
-          <Toast className="flex w-fit max-w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
+          <Toast className="flex w-max max-w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
             {state.type === "error" ? (
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-like-soft text-like-text">
                 <CircleAlert className="size-4" aria-hidden="true" />
