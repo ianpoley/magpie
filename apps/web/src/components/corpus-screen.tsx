@@ -481,8 +481,10 @@ export function CorpusScreen({
     );
   };
   const restore = async (postId: string) => {
-    if (!(await runAction(restorePost(postId)))) return;
-    focusWhenShown(postId, 60);
+    await runAction(restorePost(postId));
+  };
+  const undoRemove = async (postId: string) => {
+    if (await runAction(restorePost(postId))) focusWhenShown(postId, 60);
   };
   const emptyRemoved = async () => {
     const emptied = await runAction(purgeRemoved());
@@ -503,7 +505,7 @@ export function CorpusScreen({
     }
     postDialog.close();
     emitMagpie("remove");
-    toast.success("Removed from corpus", { action: { label: "Undo", onAction: () => restore(post.id) } });
+    toast.success("Removed from corpus", { action: { label: "Undo", onAction: () => undoRemove(post.id) } });
   };
   const surprise = () => {
     if (result.posts.length === 0) return;
