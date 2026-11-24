@@ -311,7 +311,7 @@ export function PageHeader(h: PageHeaderProps) {
       <header className="@container flex flex-col gap-3 px-4 sm:px-8">
         <Announce message={announcement(h)} />
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3 @max-2xl:basis-full">
+          <div className="flex min-w-0 flex-1 items-center gap-3 @max-xl:basis-full">
             {h.menuButton}
             <div className="min-w-0 flex-1">
               {h.eyebrow ? <p className="text-eyebrow mb-1 text-ink-muted">{h.eyebrow}</p> : null}
