@@ -125,6 +125,7 @@ export function PostList({
   const propsFor = (post: Post): PostCardProps => ({
     post,
     cited: cited.includes(post.id),
+    collection: filter.collection,
     chips: postChips(post, filter),
     topicsById,
     activeTopicIds: filter.topicIds,

@@ -80,7 +80,7 @@ export function PostListRow(props: PostCardProps) {
             </p>
             <Carries post={post} keyword={keyword} />
             <span className="ml-auto">
-              <CollectionMarks post={post} />
+              <CollectionMarks post={post} collection={props.collection} />
             </span>
           </div>
           {text ? <PostText id={textId} text={text} keyword={keyword} className="line-clamp-2 max-w-none text-[14px] leading-[1.45] whitespace-normal" /> : null}
