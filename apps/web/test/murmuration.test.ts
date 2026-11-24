@@ -10,7 +10,7 @@ const seeded = (seed: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-const SPACE: Space = { width: 640, height: 450, columnLeft: 120, columnRight: 520 };
+const SPACE: Space = { width: 640, height: 450 };
 const DT = 1 / 60;
 
 function fly(seconds: number, sim: ReturnType<typeof createMurmuration>) {
@@ -18,8 +18,6 @@ function fly(seconds: number, sim: ReturnType<typeof createMurmuration>) {
 }
 
 const cruising = (sim: ReturnType<typeof createMurmuration>) => sim.birds.filter((b) => b.state === "flying");
-const overColumn = (b: Bird) => b.x > SPACE.columnLeft && b.x < SPACE.columnRight;
-const sideOf = (b: Bird) => (b.x < (SPACE.columnLeft + SPACE.columnRight) / 2 ? 0 : 1);
 
 function largestGroup(birds: Bird[]): number {
   const parent = birds.map((_, i) => i);
@@ -31,32 +29,32 @@ function largestGroup(birds: Bird[]): number {
   return Math.max(...sizes.values()) / birds.length;
 }
 
-test("the flock settles as one body per gutter, clear of the column", () => {
+test("the flock settles as one body", () => {
   const sim = createMurmuration(seeded(1));
   sim.resize(SPACE);
   sim.setTarget(200);
   fly(20, sim);
   const birds = cruising(sim);
   assert.equal(birds.length, 200);
-  assert.equal(birds.filter(overColumn).length, 0);
-  for (const side of [0, 1]) assert.ok(largestGroup(birds.filter((b) => b.home === side)) >= 0.8, `gutter ${side} has split up`);
+  assert.ok(largestGroup(birds) >= 0.8, "the flock has split up");
 });
 
-test("after an ask's swirl the birds split evenly and none is left following the other gutter", () => {
+test("the flock wanders from one side of the page to the other", () => {
   const sim = createMurmuration(seeded(2));
   sim.resize(SPACE);
-  sim.setTarget(320);
-  fly(10, sim);
-  sim.setVortex({ x: 270, y: 48, rx: 150, ry: 40 });
-  sim.setAsking(true);
+  sim.setTarget(200);
   fly(5, sim);
-  sim.setAsking(false);
-  fly(8, sim);
-  const birds = cruising(sim);
-  assert.equal(birds.filter(overColumn).length, 0);
-  assert.equal(birds.filter((b) => b.home !== sideOf(b)).length, 0);
-  const left = birds.filter((b) => b.home === 0).length;
-  assert.ok(Math.abs(left - birds.length / 2) <= 2, `split ${left}/${birds.length - left}`);
+  let leftmost = SPACE.width;
+  let rightmost = 0;
+  for (let i = 0; i < 60 / DT; i++) {
+    sim.step(DT);
+    const birds = cruising(sim);
+    const x = birds.reduce((sum, b) => sum + b.x, 0) / birds.length;
+    leftmost = Math.min(leftmost, x);
+    rightmost = Math.max(rightmost, x);
+  }
+  assert.ok(leftmost < SPACE.width * 0.25, `the flock got no further left than ${leftmost.toFixed(0)}`);
+  assert.ok(rightmost > SPACE.width * 0.75, `the flock got no further right than ${rightmost.toFixed(0)}`);
 });
 
 test("the flock follows the count, one bird per post up to the cap", () => {
@@ -73,34 +71,31 @@ test("the flock follows the count, one bird per post up to the cap", () => {
   assert.equal(sim.birds.length, 320);
 });
 
-test("a flock sweeps past the screen's edge now and then, and still keeps off the column", () => {
+test("a flock sweeps past the screen's edge now and then", () => {
   const sim = createMurmuration(seeded(4));
   sim.resize(SPACE);
   sim.setTarget(200);
   fly(10, sim);
   let off = 0;
-  let over = 0;
   let seen = 0;
-  for (let i = 0; i < 30 / DT; i++) {
+  for (let i = 0; i < 60 / DT; i++) {
     sim.step(DT);
     for (const b of cruising(sim)) {
       seen++;
       if (b.x < 0 || b.x > SPACE.width || b.y < 0 || b.y > SPACE.height) off++;
-      if (overColumn(b)) over++;
     }
   }
-  assert.ok(off / seen > 0.03, `only ${((off / seen) * 100).toFixed(1)}% of the flight went off screen`);
-  assert.ok(over / seen < 0.001, `${((over / seen) * 100).toFixed(2)}% of the flight was over the column`);
+  assert.ok(off / seen > 0.005, `only ${((off / seen) * 100).toFixed(1)}% of the flight went off screen`);
 });
 
-test("birds bank away from a pointer held in a gutter", () => {
+test("birds bank away from a held pointer", () => {
   const crowdAround = (withPointer: boolean) => {
     const sim = createMurmuration(seeded(5));
     sim.resize(SPACE);
     sim.setTarget(200);
     fly(10, sim);
-    const left = cruising(sim).filter((b) => b.home === 0);
-    const at = { x: left.reduce((s, b) => s + b.x, 0) / left.length, y: left.reduce((s, b) => s + b.y, 0) / left.length };
+    const flock = cruising(sim);
+    const at = { x: flock.reduce((s, b) => s + b.x, 0) / flock.length, y: flock.reduce((s, b) => s + b.y, 0) / flock.length };
     if (withPointer) sim.pointAt(at);
     let crowd = 0;
     for (let i = 0; i < 2 / DT; i++) {

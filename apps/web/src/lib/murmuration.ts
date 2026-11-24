@@ -1,6 +1,6 @@
 export const MAX_BIRDS = 320;
 
-export type Space = { width: number; height: number; columnLeft: number; columnRight: number };
+export type Space = { width: number; height: number };
 export type Vortex = { x: number; y: number; rx: number; ry: number };
 export type Point = { x: number; y: number };
 
@@ -14,7 +14,6 @@ export type Bird = {
   phase: number;
   state: BirdState;
   t: number;
-  home: 0 | 1;
   gold: number;
   alpha: number;
   pace: number;
@@ -31,10 +30,8 @@ const SPACING = 7;
 const CRUISE = 19;
 const TURN = 1.6;
 const MARGIN = 16;
-const NARROW = 28;
 const RELEASE_SECONDS = 0.9;
 const OFFSCREEN = 48;
-const LEASH = 0.4;
 const SHY = 14;
 
 const W_ALIGN = 1.6;
@@ -48,8 +45,7 @@ type Box = { x0: number; x1: number; y0: number; y1: number };
 export function createMurmuration(random: () => number = Math.random) {
   const rand = (a: number, b: number) => a + random() * (b - a);
 
-  let space: Space = { width: 0, height: 0, columnLeft: 0, columnRight: 0 };
-  let narrow = false;
+  let space: Space = { width: 0, height: 0 };
   const birds: Bird[] = [];
   let target = 0;
   let arriveQueue = 0;
@@ -63,64 +59,49 @@ export function createMurmuration(random: () => number = Math.random) {
   let pointer: Point | null = null;
   let t = 0;
   let nextScare = 6;
-  const sides = [0, 0];
-  const phase = [rand(0, 100), rand(0, 100)];
+  const phase = rand(0, 100);
 
-  const box = (home: 0 | 1): Box => {
-    const { width, height, columnLeft, columnRight } = space;
-    if (narrow) return { x0: 0, x1: width, y0: 0, y1: height };
-    return home === 0 ? { x0: 0, x1: columnLeft, y0: 0, y1: height } : { x0: columnRight, x1: width, y0: 0, y1: height };
-  };
-  const roam = (home: 0 | 1): Box => {
-    const b = box(home);
-    const reach = Math.min(OFFSCREEN, (b.x1 - b.x0) * LEASH);
-    const left = narrow || home === 0 ? reach : 0;
-    const right = narrow || home === 1 ? reach : 0;
-    return { x0: b.x0 - left, x1: b.x1 + right, y0: b.y0 - reach, y1: b.y1 + reach };
-  };
-  const sideOf = (b: Bird): 0 | 1 => (narrow ? 0 : b.x < (space.columnLeft + space.columnRight) / 2 ? 0 : 1);
-  const overColumn = (b: Bird) => !narrow && b.x > space.columnLeft && b.x < space.columnRight;
+  const box = (): Box => ({ x0: 0, x1: space.width, y0: 0, y1: space.height });
+  const roam = (): Box => ({ x0: -OFFSCREEN, x1: space.width + OFFSCREEN, y0: -OFFSCREEN, y1: space.height + OFFSCREEN });
   const flying = (b: Bird) => !b.dead && (b.state === "flying" || b.state === "arriving");
   const flyers = () => birds.filter(flying);
 
-  function goal(home: 0 | 1): Point {
-    const b = box(home);
-    const p = phase[home] + t;
-    const ix = Math.min(MARGIN * 1.5, (b.x1 - b.x0) / 3);
+  function goal(): Point {
+    const b = box();
+    const p = phase + t;
     const iy = Math.min(MARGIN * 2, (b.y1 - b.y0) / 3);
-    const ux = 0.5 + 0.32 * Math.sin(p * 0.21) + 0.18 * Math.sin(p * 0.53 + 1.3);
+    const ux = Math.min(1, Math.max(0, 0.5 + 0.48 * Math.sin(p * 0.11) + 0.12 * Math.sin(p * 0.53 + 1.3)));
     const uy = 0.5 + 0.3 * Math.sin(p * 0.13 + 0.7) + 0.2 * Math.sin(p * 0.37 + 2.1);
-    return { x: b.x0 + ix + ux * Math.max(0, b.x1 - b.x0 - 2 * ix), y: b.y0 + iy + uy * Math.max(0, b.y1 - b.y0 - 2 * iy) };
+    return { x: b.x0 + ux * (b.x1 - b.x0), y: b.y0 + iy + uy * Math.max(0, b.y1 - b.y0 - 2 * iy) };
   }
 
-  function onScreen(p: Point, home: 0 | 1): Point {
-    const b = box(home);
+  function onScreen(p: Point): Point {
+    const b = box();
     const clamp = (v: number, lo: number, hi: number) => (hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
     return { x: clamp(p.x, b.x0 + MARGIN, b.x1 - MARGIN), y: clamp(p.y, b.y0 + MARGIN, b.y1 - MARGIN) };
   }
 
-  function makeBird(x: number, y: number, home: 0 | 1, state: BirdState): Bird {
-    const g = goal(home);
+  function makeBird(x: number, y: number, state: BirdState): Bird {
+    const g = goal();
     const d = Math.hypot(g.x - x, g.y - y) || 1;
     const pace = rand(0.9, 1.1);
-    return { x, y, vx: ((g.x - x) / d) * CRUISE * 1.6, vy: ((g.y - y) / d) * CRUISE * 1.6, phase: rand(0, 2), state, t: 0, home, gold: 0, alpha: 1, pace, startle: 0, sx: 0, sy: 0, dead: false };
+    return { x, y, vx: ((g.x - x) / d) * CRUISE * 1.6, vy: ((g.y - y) / d) * CRUISE * 1.6, phase: rand(0, 2), state, t: 0, gold: 0, alpha: 1, pace, startle: 0, sx: 0, sy: 0, dead: false };
   }
 
   function spawn() {
-    const home: 0 | 1 = narrow ? 0 : sides[0] === sides[1] ? (random() < 0.5 ? 0 : 1) : sides[0] < sides[1] ? 0 : 1;
-    sides[home]++;
-    const b = box(home);
+    const g = goal();
     const fromTop = random() < 0.3;
-    const x = fromTop ? rand(b.x0, b.x1) : narrow ? (random() < 0.5 ? -4 : space.width + 4) : home === 0 ? -4 : space.width + 4;
+    const x = fromTop ? g.x + rand(-60, 60) : g.x < space.width / 2 ? -4 : space.width + 4;
     const y = fromTop ? -4 : rand(space.height * 0.1, space.height * 0.9);
-    birds.push(makeBird(x, y, home, "arriving"));
+    birds.push(makeBird(x, y, "arriving"));
   }
 
   function sendHome(b: Bird) {
     b.state = "leaving";
     b.t = 0;
-    b.sx = narrow ? (b.x < space.width / 2 ? -1 : 1) : sideOf(b) === 0 ? -1 : 1;
-    b.sy = -0.5;
+    const toTop = b.y < Math.min(b.x, space.width - b.x);
+    b.sx = (b.x < space.width / 2 ? -1 : 1) * (toTop ? 0.3 : 1);
+    b.sy = toTop ? -1.5 : -0.5;
   }
 
   function startle(b: Bird, from: Point, reach: number) {
@@ -139,11 +120,10 @@ export function createMurmuration(random: () => number = Math.random) {
     const list = flyers();
     if (list.length < 12) return;
     const at = list[Math.floor(random() * list.length)];
-    for (const b of list) if (b.home === at.home) startle(b, at, 12);
+    for (const b of list) startle(b, at, 12);
   }
 
   function shy(from: Point) {
-    if (!narrow && from.x > space.columnLeft && from.x < space.columnRight) return;
     for (const b of birds) if (flying(b) && b.startle <= 0) startle(b, from, SHY);
   }
 
@@ -161,22 +141,10 @@ export function createMurmuration(random: () => number = Math.random) {
     const budget = Math.max(1, Math.round(releaseRate * dt));
     for (let k = 0; k < budget && arriveQueue > 0; k++, arriveQueue--) spawn();
 
-    sides[0] = 0;
-    sides[1] = 0;
-    for (const b of birds) {
-      if (!flying(b)) continue;
-      if (!asking && b.gold <= 0.6 && !overColumn(b)) b.home = sideOf(b);
-      sides[b.home]++;
-    }
     if (leaveQueue > 0) {
       const list = flyers();
       for (let k = 0; k < budget && leaveQueue > 0 && list.length; k++, leaveQueue--) {
-        const fuller: 0 | 1 = sides[0] > sides[1] ? 0 : 1;
-        const pool = list.filter((b) => b.home === fuller);
-        const from = pool.length ? pool : list;
-        const b = from[Math.floor(random() * from.length)];
-        list.splice(list.indexOf(b), 1);
-        sides[b.home]--;
+        const b = list.splice(Math.floor(random() * list.length), 1)[0];
         sendHome(b);
       }
     }
@@ -201,7 +169,7 @@ export function createMurmuration(random: () => number = Math.random) {
       head[c] = i;
     }
 
-    const goals = [goal(0), goal(1)];
+    const home = goal();
     const dispersing = !asking && t < disperseUntil;
 
     for (let i = 0; i < birds.length; i++) {
@@ -225,7 +193,6 @@ export function createMurmuration(random: () => number = Math.random) {
             for (let j = head[X + Y * cols]; j !== -1; j = next[j]) {
               if (j === i) continue;
               const o = birds[j];
-              if (o.home !== b.home && !asking) continue;
               const d2 = (b.x - o.x) ** 2 + (b.y - o.y) ** 2;
               if (d2 > NEAR * NEAR) continue;
               if (found < K) {
@@ -287,7 +254,7 @@ export function createMurmuration(random: () => number = Math.random) {
           ay += (ty - b.y) * 2.2 - b.vy * 0.9;
           maxV = 70;
         } else {
-          const g = b.gold > 0.6 ? pinPoint : goals[b.home];
+          const g = b.gold > 0.6 ? pinPoint : home;
           const gdx = g.x - b.x;
           const gdy = g.y - b.y;
           const gd = Math.hypot(gdx, gdy) || 1;
@@ -301,7 +268,7 @@ export function createMurmuration(random: () => number = Math.random) {
           }
 
           if (b.state === "flying" || b.t > 1.2) {
-            const bx = roam(b.home);
+            const bx = roam();
             const edge = (gap: number) => (gap >= MARGIN ? 0 : ((MARGIN - Math.max(gap, -MARGIN)) / MARGIN) ** 2);
             const left = edge(b.x - bx.x0);
             const right = edge(bx.x1 - b.x);
@@ -335,10 +302,6 @@ export function createMurmuration(random: () => number = Math.random) {
             ay += ((hy / h) * want - b.vy) * TURN;
           }
 
-          if (overColumn(b)) {
-            ax += b.home === 0 ? -90 - (b.x - space.columnLeft) * 2 : 90 + (space.columnRight - b.x) * 2;
-            maxV = CRUISE * 5;
-          }
           minV = speed * 0.6;
         }
         if (b.state === "arriving" && b.t > 2.5) b.state = "flying";
@@ -384,12 +347,8 @@ export function createMurmuration(random: () => number = Math.random) {
 
   return {
     birds: birds as readonly Bird[],
-    get narrow() {
-      return narrow;
-    },
     resize(next: Space) {
       space = next;
-      narrow = next.columnLeft < NARROW || next.width - next.columnRight < NARROW;
     },
     setTarget(count: number) {
       target = Math.min(Math.max(0, count), MAX_BIRDS);
@@ -410,7 +369,6 @@ export function createMurmuration(random: () => number = Math.random) {
       asking = on;
       if (on) return;
       disperseUntil = t + 1.1;
-      if (!narrow) flyers().sort((a, b) => a.x - b.x).forEach((b, i, all) => (b.home = i < all.length / 2 ? 0 : 1));
     },
     pointAt(at: Point | null) {
       pointer = at;
@@ -428,8 +386,7 @@ export function createMurmuration(random: () => number = Math.random) {
       }
     },
     pin() {
-      const home: 0 | 1 = narrow ? 0 : random() < 0.5 ? 0 : 1;
-      pinPoint = onScreen(goal(home), home);
+      pinPoint = onScreen(goal());
       flyers()
         .sort((a, b) => Math.hypot(a.x - pinPoint.x, a.y - pinPoint.y) - Math.hypot(b.x - pinPoint.x, b.y - pinPoint.y))
         .slice(0, 28)
@@ -446,15 +403,14 @@ export function createMurmuration(random: () => number = Math.random) {
       birds.length = 0;
       arriveQueue = 0;
       leaveQueue = 0;
+      const g = onScreen(goal());
+      const bx = box();
       for (let i = 0; i < target; i++) {
-        const home: 0 | 1 = narrow ? 0 : i % 2 === 0 ? 0 : 1;
-        const g = onScreen(goal(home), home);
-        const bx = box(home);
         const a = random() * Math.PI * 2;
         const r = Math.sqrt(random());
         const x = Math.min(bx.x1 - 4, Math.max(bx.x0 + 4, g.x + Math.cos(a) * r * Math.min(40, (bx.x1 - bx.x0) / 2.2)));
         const y = Math.min(bx.y1 - 6, Math.max(bx.y0 + 6, g.y + Math.sin(a) * r * 70));
-        const b = makeBird(x, y, home, "flying");
+        const b = makeBird(x, y, "flying");
         b.vx = random() < 0.5 ? -1 : 1;
         b.vy = 0;
         b.phase = 1;

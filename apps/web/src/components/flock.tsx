@@ -12,6 +12,8 @@ const P = 2;
 const GAP = 6;
 const MIN_FRAME_MS = 10;
 const ONE_BIRD_EACH = 100;
+const GUTTER_ALPHA = 0.42;
+const UNDER_COLUMN_ALPHA = 0.24;
 
 type Sky = { setTarget: (n: number) => void; setAsking: (on: boolean) => void; surprise: () => void; pin: () => void; fall: () => void; destroy: () => void };
 const NOOP: Sky = { setTarget: () => {}, setAsking: () => {}, surprise: () => {}, pin: () => {}, fall: () => {}, destroy: () => {} };
@@ -49,6 +51,8 @@ function createSky(canvas: HTMLCanvasElement, column: RefObject<HTMLElement | nu
   let last = 0;
   let frame = 0;
   let asking = false;
+  let columnLeft = 0;
+  let columnRight = 0;
 
   function measure() {
     if (!main) return;
@@ -69,15 +73,15 @@ function createSky(canvas: HTMLCanvasElement, column: RefObject<HTMLElement | nu
       ctx!.imageSmoothingEnabled = false;
     }
     const col = column.current;
-    let columnLeft = aw * 0.2;
-    let columnRight = aw * 0.8;
+    columnLeft = aw * 0.2;
+    columnRight = aw * 0.8;
     if (col) {
       const cr = col.getBoundingClientRect();
       const cs = getComputedStyle(col);
       columnLeft = (cr.left + parseFloat(cs.paddingLeft) - left) / P - GAP;
       columnRight = (cr.right - parseFloat(cs.paddingRight) - left) / P + GAP;
     }
-    sim.resize({ width: aw, height: ah, columnLeft, columnRight });
+    sim.resize({ width: aw, height: ah });
     if (reduced) {
       sim.scatter();
       draw();
@@ -96,8 +100,8 @@ function createSky(canvas: HTMLCanvasElement, column: RefObject<HTMLElement | nu
 
   function draw() {
     ctx!.clearRect(0, 0, aw, ah);
-    const base = sim.narrow ? 0.24 : 0.42;
     for (const b of sim.birds) {
+      const base = b.x > columnLeft && b.x < columnRight ? UNDER_COLUMN_ALPHA : GUTTER_ALPHA;
       const goldOn = b.gold > 0 && (b.gold < 1.2 || Math.floor(b.gold * 8) % 2 === 0);
       const s = sprites[goldOn ? 1 : 0][Math.floor(b.phase) & 1][b.vx < 0 ? 1 : 0];
       ctx!.globalAlpha = base * Math.max(0, Math.min(1, b.alpha)) * (goldOn ? 1.6 : 1);
