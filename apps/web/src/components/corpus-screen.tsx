@@ -5,7 +5,7 @@ import { createDialogController, Dialog, DialogBackdrop, DialogClose, DialogCont
 import { Toast, ToastAction, ToastRegion, ToastTitle, toast } from "@ui-sdk/react/toast";
 import { CircleAlert, CircleCheck, Menu as MenuIcon, ScanSearch, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { pinQuery, purgeRemoved, removePost, restorePost } from "@/app/actions";
 import { createChatRunner, type AnswerRequest } from "@/lib/answer";
@@ -36,7 +36,7 @@ import { createSettingsController, SettingsDialog, settingsNeedAttention } from 
 import { areaNode } from "./category-tree";
 import { EmptyState } from "./empty-state";
 import { Flock } from "./flock";
-import { formatCount, plural } from "./format";
+import { formatCount, plural, relativeTime } from "./format";
 import { PageHeader, SEARCH_INPUT_ID, type SearchMode, type View } from "./page-header";
 import { postCardOpen } from "./post-card";
 import { PostDialog } from "./post-dialog";
@@ -50,7 +50,13 @@ import { Sidebar, type SidebarProps } from "./sidebar";
 import { SidebarDeck, type DeckFront, type DeckState } from "./sidebar-deck";
 import { useSettledKeyword } from "./settled-keyword";
 import { SidebarResizer } from "./sidebar-resizer";
-import { useSyncStatus } from "./sync-status";
+import { describeSync } from "./sync-panel";
+import { syncProgress } from "./sync-progress";
+import { useMinuteClock, useSyncStatus } from "./sync-status";
+import { SyncStepsList } from "./sync-steps";
+import { joinQuery, useDebugFlagActive, useDebugFlagQuery, useDebugFlagValue } from "./debug-flags/client";
+import { debugSnapshot, debugSyncState, homeDebugFlags } from "./home-debug-flags";
+import { updateDebugFlags } from "./update-debug-flags";
 import { iconButton, quietAnswer } from "./styles";
 import { TipProvider } from "./tip";
 
@@ -65,6 +71,7 @@ const COLLECTION_TITLES = { everything: "Everything", bookmarks: "Bookmarks", li
 const RESOURCE_ROWS = 100;
 const SIMILAR_POSTS = 4;
 const REFRESH_GAP_MS = 2000;
+const DEBUG_FLAG_SETS = [homeDebugFlags, updateDebugFlags];
 
 const postAsk = (query: string, signal: AbortSignal): Promise<Response> =>
   fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), signal });
@@ -109,8 +116,48 @@ const solidButton = (label: string, action: () => void) => (
   </Button>
 );
 
-function emptyPosts(snapshot: Snapshot, result: FilterResult, clear: () => void, clearCategories: () => void, find: (query: string) => void) {
+function SyncingPosts({ sync }: { sync: SyncState }) {
+  const clock = useMinuteClock();
+  const now = clock === null ? sync.readAt : Math.max(clock, sync.readAt);
+  const firstSync = sync.lastCompleteRunAt === null;
+  if (describeSync(sync, sync.readAt).kind === "requested") {
+    return (
+      <EmptyState title="Syncing your saved posts">
+        The sync starts within half a minute. Your bookmarks and likes show up here when it finishes.
+      </EmptyState>
+    );
+  }
+  const progress = syncProgress(sync);
+  const step = progress.phases.findIndex((phase) => phase.status === "current") + 1;
+  return (
+    <EmptyState
+      title={firstSync ? "Your first sync is running" : "Syncing your saved posts"}
+      details={
+        <div className="w-[min(22rem,calc(100vw-5rem))] rounded-[14px] bg-sunken p-4">
+          <p className="mb-3 flex items-baseline justify-between gap-3 text-[12px] font-medium text-ink-muted tabular-nums">
+            <span>
+              Step {step} of {progress.phases.length}
+            </span>
+            {progress.startedAt ? <span>Started {relativeTime(progress.startedAt, now)}</span> : null}
+          </p>
+          <SyncStepsList progress={progress} tone="page" />
+        </div>
+      }
+    >
+      {firstSync ? "Magpie is pulling in your whole history. " : null}
+      Your bookmarks and likes show up here when the sync finishes.
+    </EmptyState>
+  );
+}
+
+const syncing = (sync: SyncState): boolean => {
+  const kind = describeSync(sync, sync.readAt).kind;
+  return kind === "running" || kind === "requested";
+};
+
+function emptyPosts(snapshot: Snapshot, sync: SyncState, result: FilterResult, clear: () => void, clearCategories: () => void, find: (query: string) => void) {
   const filter = result.state;
+  if ((!snapshot.storeExists || snapshot.posts.length === 0) && syncing(sync)) return <SyncingPosts sync={sync} />;
   if (!snapshot.storeExists) {
     return (
       <EmptyState title="Nothing has synced yet">
@@ -242,7 +289,7 @@ const focusWhenShown = (postId: string, framesLeft: number) => {
 const viewInAddress = (): View => parseView({ view: new URLSearchParams(window.location.search).get("view") ?? undefined });
 
 export function CorpusScreen({
-  snapshot,
+  snapshot: storedSnapshot,
   sync: initialSync,
   now,
   linked,
@@ -261,6 +308,8 @@ export function CorpusScreen({
   settings: SettingsState;
 }) {
   const router = useRouter();
+  const fakePosts = useDebugFlagValue(homeDebugFlags.posts, "default");
+  const snapshot = useMemo(() => debugSnapshot(storedSnapshot, fakePosts), [storedSnapshot, fakePosts]);
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
   const [view, setView] = useState<View>(initialView);
   const [layout, setLayout] = useState(initialLayout);
@@ -272,7 +321,14 @@ export function CorpusScreen({
   const [connectX] = useState(createConnectXController);
   const [settingsDialog] = useState(createSettingsController);
   const [settings, setSettings] = useState(initialSettings);
-  const sync = useSyncStatus(initialSync);
+  const { state: liveSyncState, update: updateSync } = useSyncStatus(initialSync);
+  const fakeSync = useDebugFlagValue(homeDebugFlags.sync, "default");
+  const fakeStage = useDebugFlagValue(homeDebugFlags.syncStage, "default");
+  const fakeKeyFile = useDebugFlagActive(homeDebugFlags.keyFile);
+  const sync = useMemo(
+    () => ({ state: debugSyncState(liveSyncState, fakeSync, fakeStage, fakeKeyFile), update: updateSync }),
+    [liveSyncState, updateSync, fakeSync, fakeStage, fakeKeyFile],
+  );
   const [removedPosts] = useState(createRemovedPostsController);
   const [confirmRemove] = useState(createConfirmRemoveController);
   const [sidebarPanel] = useState(() => createDialogController());
@@ -365,7 +421,7 @@ export function CorpusScreen({
   const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
 
-  const shownQuery = withView(linkedQuery(browsed.state), view);
+  const shownQuery = joinQuery(withView(linkedQuery(browsed.state), view), useDebugFlagQuery(DEBUG_FLAG_SETS));
   const heldSelection = withView(linkedQuery({ ...filter, keyword: "" }), view);
   const appliedSelection = withView(linkedQuery({ ...browsed.state, keyword: "" }), view);
   useEffect(() => {
@@ -706,7 +762,7 @@ export function CorpusScreen({
                 emptyAsk(ask, ask.scores.some((score) => score.probability >= (ask.bands?.unsure ?? 1)), () => askRunner.ask(ask.query), clearAll)
               ) : view === "posts" ? (
                 result.posts.length === 0 ? (
-                  emptyPosts(snapshot, result, clearAll, clearCategories, startFind)
+                  emptyPosts(snapshot, sync.state, result, clearAll, clearCategories, startFind)
                 ) : (
                   <PostList
                     key={listKey}
@@ -728,7 +784,7 @@ export function CorpusScreen({
                 )
               ) : groups.length === 0 ? (
                 result.posts.length === 0 ? (
-                  emptyPosts(snapshot, result, clearAll, clearCategories, startFind)
+                  emptyPosts(snapshot, sync.state, result, clearAll, clearCategories, startFind)
                 ) : shownKind && allGroups.length > 0 ? (
                   <EmptyState title={shownKind.none} action={solidButton("Show all kinds", () => setResourceKind("all"))}>
                     These posts link to other kinds of resources.

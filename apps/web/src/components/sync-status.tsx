@@ -11,6 +11,8 @@ import type { SyncState } from "@/lib/types";
 
 import type { ConnectXController } from "./connect-x-dialog";
 import { describeSync, type PanelIcon } from "./sync-panel";
+import { syncProgress } from "./sync-progress";
+import { SidebarSyncSteps } from "./sync-steps";
 import { Tip } from "./tip";
 
 const ICONS: Record<PanelIcon, LucideIcon> = { ok: CircleCheck, warning: TriangleAlert, syncing: RefreshCw, offline: CloudOff };
@@ -85,7 +87,7 @@ const SIDE_TEXT_BUTTON =
 export const SIDE_FOOTER_ROW =
   "focus-ring-side pressable flex h-8 w-full cursor-pointer items-center justify-start gap-2.5 rounded-[10px] border-0 bg-transparent px-2.5 text-left text-[13px] font-medium text-side-ink hover:bg-side-hover pointer-coarse:h-10";
 
-function useMinuteClock(): number | null {
+export function useMinuteClock(): number | null {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -107,6 +109,7 @@ export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX:
   const refusal = refused !== null && refused.readAt === readAt ? refused.message : null;
   const Icon = ICONS[panel.icon];
   const compact = !panel.warning && panel.action.label === "Sync now";
+  const firstSyncSteps = panel.kind === "running" && sync.state.lastCompleteRunAt === null;
 
   const syncNow = async () => {
     setRefused(null);
@@ -119,68 +122,72 @@ export function SyncStatus({ sync, connectX }: { sync: SyncController; connectX:
     }
   };
 
-  return (
-    <>
-      <div className={compact ? "flex items-center gap-1 py-0.5 pl-2.5" : `flex flex-col gap-2 rounded-[12px] px-2.5 py-2 ${panel.warning ? "bg-side-wash" : ""}`}>
-        <div role="status" className="flex min-w-0 flex-1 items-start gap-2.5">
-          <Icon
-            className={`mt-0.5 size-4 shrink-0 ${panel.warning ? "text-side-ink" : "text-side-muted"} ${panel.icon === "syncing" ? "animate-spin [animation-duration:2.4s] motion-reduce:animate-none" : ""}`}
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <p className={`text-[13px] leading-tight font-semibold text-side-ink ${compact ? "truncate" : ""}`}>{panel.title}</p>
-            {compact ? (
-              <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-side-muted">{panel.detail ?? panel.nextRun ?? panel.synced}</p>
-            ) : (
-              <>
-                {panel.detail ? (
-                  <p className={`mt-1 text-[12px] leading-snug ${panel.clamp ? "line-clamp-2" : ""} ${panel.warning ? "text-side-ink" : "text-side-muted"}`}>
-                    {panel.detail}
-                  </p>
-                ) : null}
-                {panel.synced ? <p className="mt-1 text-[12px] leading-snug text-side-ink">{panel.synced}</p> : null}
-                {panel.nextRun ? <p className="mt-1 text-[12px] leading-snug text-side-muted">{panel.nextRun}</p> : null}
-              </>
-            )}
-          </div>
+  const panelBlock = (
+    <div className={compact ? "flex items-center gap-1 py-0.5 pl-2.5" : `flex flex-col gap-2 rounded-[12px] px-2.5 py-2 ${panel.warning ? "bg-side-wash" : ""}`}>
+      <div role="status" className="flex min-w-0 flex-1 items-start gap-2.5">
+        <Icon
+          className={`mt-0.5 size-4 shrink-0 ${panel.warning ? "text-side-ink" : "text-side-muted"} ${panel.icon === "syncing" ? "animate-spin [animation-duration:2.4s] motion-reduce:animate-none" : ""}`}
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <p className={`text-[13px] leading-tight font-semibold text-side-ink ${compact ? "truncate" : ""}`}>{panel.title}</p>
+          {compact ? (
+            <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-side-muted">{panel.detail ?? panel.nextRun ?? panel.synced}</p>
+          ) : (
+            <>
+              {panel.detail ? (
+                <p className={`mt-1 text-[12px] leading-snug ${panel.clamp ? "line-clamp-2" : ""} ${panel.warning ? "text-side-ink" : "text-side-muted"}`}>
+                  {panel.detail}
+                </p>
+              ) : null}
+              {panel.synced ? <p className="mt-1 text-[12px] leading-snug text-side-ink">{panel.synced}</p> : null}
+              {panel.nextRun ? <p className="mt-1 text-[12px] leading-snug text-side-muted">{panel.nextRun}</p> : null}
+            </>
+          )}
         </div>
+      </div>
 
-        {compact ? (
-          <Tip label={panel.action.disabled ? "Syncing" : "Sync now"}>
+      {compact ? (
+        <Tip label={panel.action.disabled ? "Syncing" : "Sync now"}>
+          <Button
+            data-sync-action=""
+            aria-label="Sync now"
+            disabled={panel.action.disabled}
+            focusableWhenDisabled
+            pendingAnnouncement="Asking for a sync"
+            onClick={syncNow}
+            className="focus-ring-side pressable flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-muted hover:bg-side-hover hover:text-side-ink data-disabled:cursor-default data-disabled:opacity-60 data-disabled:hover:bg-transparent data-pending:cursor-progress pointer-coarse:size-11"
+          >
+            <RefreshCw className="size-4" aria-hidden="true" />
+          </Button>
+        </Tip>
+      ) : (
+        <div className="pl-6">
+          {panel.action.label === "Sync now" ? (
             <Button
               data-sync-action=""
-              aria-label="Sync now"
               disabled={panel.action.disabled}
               focusableWhenDisabled
               pendingAnnouncement="Asking for a sync"
               onClick={syncNow}
-              className="focus-ring-side pressable flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-side-muted hover:bg-side-hover hover:text-side-ink data-disabled:cursor-default data-disabled:opacity-60 data-disabled:hover:bg-transparent data-pending:cursor-progress pointer-coarse:size-11"
+              className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover data-disabled:cursor-default data-disabled:opacity-60 data-pending:cursor-progress`}
             >
-              <RefreshCw className="size-4" aria-hidden="true" />
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+              Sync now
             </Button>
-          </Tip>
-        ) : (
-          <div className="pl-6">
-            {panel.action.label === "Sync now" ? (
-              <Button
-                data-sync-action=""
-                disabled={panel.action.disabled}
-                focusableWhenDisabled
-                pendingAnnouncement="Asking for a sync"
-                onClick={syncNow}
-                className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover data-disabled:cursor-default data-disabled:opacity-60 data-pending:cursor-progress`}
-              >
-                <RefreshCw className="size-3.5" aria-hidden="true" />
-                Sync now
-              </Button>
-            ) : (
-              <DialogTrigger data-sync-action="" controller={connectX} className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover`}>
-                {panel.action.label}
-              </DialogTrigger>
-            )}
-          </div>
-        )}
-      </div>
+          ) : (
+            <DialogTrigger data-sync-action="" controller={connectX} className={`${SIDE_TEXT_BUTTON} bg-side-wash hover:bg-side-hover`}>
+              {panel.action.label}
+            </DialogTrigger>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {firstSyncSteps ? <SidebarSyncSteps progress={syncProgress(sync.state)} now={clock === null ? readAt : Math.max(clock, readAt)} /> : panelBlock}
 
       {panel.fallbackWarning ? (
         <p className="flex items-start gap-2.5 px-2.5 py-1 text-[12px] leading-snug text-side-ink">

@@ -7,7 +7,9 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import type { UpdateState } from "@/lib/update-status";
 
+import { useDebugFlagValue, useRegisterDebugFlags } from "./debug-flags/client";
 import { SIDE_FOOTER_ROW } from "./sync-status";
+import { debugUpdate, updateDebugFlags } from "./update-debug-flags";
 
 const DISMISSED_KEY = "magpie:update-dismissed";
 const COPIED_MS = 1_500;
@@ -219,7 +221,10 @@ function UpdatedRow() {
 }
 
 export function UpdateNotice() {
-  const { update, updated, dismiss } = useUpdateState();
+  useRegisterDebugFlags(updateDebugFlags);
+  const real = useUpdateState();
+  const { update, updated } = debugUpdate(real, useDebugFlagValue(updateDebugFlags.update, "default"));
+  const { dismiss } = real;
   if (update?.kind === "applying") return <ApplyingRow />;
   if (update?.kind === "failed" || update?.kind === "pending") return <CommandPopover update={update} />;
   if (updated) return <UpdatedRow />;
