@@ -17,8 +17,8 @@ const COMMAND = "cd ~/magpie && bun run setup";
 const LOG = "error: bun install failed\n  lockfile had changes, but lockfile is frozen";
 
 const FAKE_UPDATES: Record<Exclude<UpdateKind, "default" | "updated">, UpdateState> = {
-  release: { kind: "release", installed: "0.4.0", latest: "debug-0.5.0", url: "https://github.com", autoApplies: true, command: "cd ~/magpie && git pull" },
-  "manual-release": { kind: "release", installed: "0.4.0", latest: "debug-0.5.0", url: "https://github.com", autoApplies: false, command: `cd ~/magpie && git pull && bun run setup` },
+  release: { kind: "release", installed: "0.4.0", latest: "debug-0.5.0", url: "https://github.com", autoApplies: true, pullable: true, command: "cd ~/magpie && git pull" },
+  "manual-release": { kind: "release", installed: "0.4.0", latest: "debug-0.5.0", url: "https://github.com", autoApplies: false, pullable: false, command: `cd ~/magpie && git pull && bun run setup` },
   applying: { kind: "applying", startedAt: "2026-01-01T00:00:00.000Z" },
   failed: { kind: "failed", log: LOG, command: COMMAND },
   pending: { kind: "pending", command: COMMAND },

@@ -866,6 +866,8 @@ Every panel stays mounted (`keepMounted`), so an unsaved draft survives a switch
 
 The update notice is one sidebar footer row, "Update to vX.Y.Z", above the sync status. It has the same height and type as the rows below it and a small primary-colored dot. Pressing it opens a popover to the right with the version you have, the full command (wrapped, never cut off), "Copy command", which shows "Copied" for 1.5 seconds, a "What's new" link to the release, and "Later". "Later" hides the row until a newer version comes out. The popover scales in from its trigger over 150ms, the same as the post topics editor.
 
+When the app can pull the update itself (0009.32), the popover's main button is "Update now" instead of "Copy command". The command stays visible under the buttons as a line of small print ("This runs … for you"), so nothing runs that the user can't read. While the pull runs, the button shows a spinner and "Downloading…". On success the row turns into "Updating Magpie…" and later "Magpie updated · Reload", the same rows a terminal pull gives. On failure the popover says why in git's own words and falls back to the command with "Copy command".
+
 Picked on 2026-11-21 from a live prototype in the real sidebar, against two other versions:
 
 - An inline card that showed the command with small copy and hide buttons. Rejected: it was the biggest thing in the footer, the long command got cut off so you couldn't read what you would run, and its 28px buttons were under the 40px desktop minimum.
