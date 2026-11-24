@@ -218,10 +218,10 @@ function PostLayer({
                         <span className="block truncate">{post.authorName}</span>
                       </button>
                     </DialogTitle>
-                    <DialogDescription className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">
-                      @{post.authorHandle}
-                      {date ? ` · ${date}` : ""}
-                      {` · ${formatLikes(post.likeCount)}`}
+                    <DialogDescription className="mt-0.5 flex min-w-0 gap-1 text-[13px] leading-tight whitespace-nowrap text-ink-muted">
+                      <span className="min-w-0 truncate">@{post.authorHandle}</span>
+                      {date ? <span className="shrink-0">· {date}</span> : null}
+                      <span className="shrink-0 tabular-nums">· {formatLikes(post.likeCount)}</span>
                     </DialogDescription>
                   </div>
                   <CollectionMarks post={post} />

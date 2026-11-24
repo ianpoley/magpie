@@ -186,10 +186,21 @@ export function PostCard(props: PostCardProps) {
               <p className="flex text-[15px] leading-tight">
                 <AuthorButton post={post} keyword={keyword} onSelectAuthor={props.onSelectAuthor} className="max-w-full" />
               </p>
-              <p className="mt-0.5 truncate text-[13px] leading-tight text-ink-muted">
-                @<Marked text={post.authorHandle} keyword={keyword} />
-                {date ? <span> · {date}</span> : null}
-                {props.showLikes ? <span className="tabular-nums"> · {formatLikes(post.likeCount)}</span> : null}
+              <p className="mt-0.5 flex min-w-0 gap-x-1 text-[13px] leading-tight whitespace-nowrap text-ink-muted max-sm:flex-col">
+                <span className="min-w-0 truncate">
+                  @<Marked text={post.authorHandle} keyword={keyword} />
+                </span>
+                {date || props.showLikes ? (
+                  <span className="flex shrink-0 gap-1 max-sm:mt-0.5">
+                    {date ? (
+                      <span>
+                        <span className="max-sm:hidden">· </span>
+                        {date}
+                      </span>
+                    ) : null}
+                    {props.showLikes ? <span className="tabular-nums">· {formatLikes(post.likeCount)}</span> : null}
+                  </span>
+                ) : null}
               </p>
             </div>
             <CollectionMarks post={post} />
