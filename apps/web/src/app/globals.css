@@ -526,6 +526,28 @@ body {
   .post-li:not(:hover, :focus-within) .post-actions:not(:has([data-open])) {
     opacity: 0;
   }
+  .row-tools:not(:has(li)) {
+    min-height: 0;
+    margin-top: -0.25rem;
+  }
+  .row-actions {
+    position: absolute;
+    top: -7px;
+    right: 0;
+    margin: 0;
+    padding-left: 24px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, color-mix(in oklch, var(--color-sunken) 55%, var(--color-surface)) 20px);
+  }
+  [data-cited] .row-actions {
+    background: linear-gradient(to right, transparent, var(--color-primary-soft) 20px);
+  }
+  .row-actions > * {
+    pointer-events: auto;
+  }
+  .post-li:is(:focus-within, :has(.row-actions [data-open])) > article:has(.row-actions):not([data-cited]) {
+    background: color-mix(in oklch, var(--color-sunken) 55%, var(--color-surface));
+  }
 }
 .answer-rise {
   animation: post-rise-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;

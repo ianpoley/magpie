@@ -68,7 +68,7 @@ export function PostListRow(props: PostCardProps) {
         <div className="pt-0.5">
           <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center gap-2">
             <p className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-tight">
               <AuthorButton post={post} keyword={keyword} onSelectAuthor={props.onSelectAuthor} className="shrink text-[14px]" />
@@ -84,9 +84,9 @@ export function PostListRow(props: PostCardProps) {
             </span>
           </div>
           {text ? <PostText id={textId} text={text} keyword={keyword} className="line-clamp-2 max-w-none text-[14px] leading-[1.45] whitespace-normal" /> : null}
-          <div className="flex min-h-7 min-w-0 items-center gap-3">
+          <div className="row-tools flex min-h-7 min-w-0 items-center gap-3">
             <TopicChips {...props} max={3} oneLine />
-            <div className="post-actions pointer-events-auto -my-1 ml-auto flex shrink-0 items-center gap-0.5">
+            <div className="post-actions row-actions pointer-events-auto -my-1 ml-auto flex shrink-0 items-center gap-0.5">
               <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
             </div>
           </div>
