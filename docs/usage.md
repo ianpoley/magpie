@@ -6,8 +6,9 @@
 
 The installed service runs at http://127.0.0.1:3030. `MAGPIE_PORT` changes the port.
 
-- Filter by area and topic, collection, author, keyword, time range and media. The filters are in the URL, so you can bookmark a view.
-- **Ask** judges every post against a question, then Claude writes an answer from the strongest matches in a card that swaps in over the sidebar. You can ask follow-ups there. **Pin** saves the question as a search, and later syncs keep it up to date.
+- Filter by area and topic, collection, author, keyword, time range and media, and sort the list. The filters, the sort and the Resources view are in the URL, so you can bookmark a view.
+- **Find topic** (⌘↵, or Ctrl+Enter, in the search field) reads every saved post for what the words mean. **Pin as topic** saves the search in the sidebar, and later syncs keep it up to date.
+- **Ask** judges every post against a question, then Claude writes an answer from the strongest matches in a card that swaps in over the sidebar. You can ask follow-ups there.
 - **Resources** lists the repos, packages, videos and pages your posts link to, most saved first.
 - Rename, merge, hide or delete topics. Remove a post from the corpus. This does not change anything on X.
 - Press `/` to search. Escape clears the search, and a second Escape leaves the field. Press `j` and `k` to move between cards, and Enter to open one.
