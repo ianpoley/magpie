@@ -141,6 +141,11 @@ Setup round (2026-11-20, `/proto/setup`): **Gate** ✅ was chosen, then split in
 - **Checklist:** setup inside the app shell as a two-item checklist, done in any order. The shell made it look as if Magpie already worked.
 - Gate as one form, with all three fields and one button, became the two-step Gate.
 
+Sync progress round (2026-11-24, in place in the real sidebar, driven by the debug flags): **Steps** ✅ was chosen for the first sync, and the main card got the same step list. No reason was given for passing on the others. The costs below were seen in the prototype and are not the user's reasons.
+- **Current:** one line, "Syncing now" over the stage. No sense of progress or what is left.
+- **Meter:** "Step 3 of 4" with a segmented bar. It sits on "4 of 4" for most of a first sync.
+- **Story:** a sentence that grows with what is done, steps behind a toggle. Four or five lines in the footer.
+
 Post density round (2026-11-20, `/proto/density`, on the real list): **Margin ⇄ Index** ✅ was chosen. It's Margin's cards with a switch to Index's rows. No reason was given for passing on the others. The costs below were measured in the prototype and are not the user's reasons.
 - **Current:** a full-width media grid in every card. About 570px a post.
 - **Margin alone** (about 244px a post) and **Index alone** (about 122px a post): taken together instead.

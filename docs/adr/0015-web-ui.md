@@ -645,6 +645,20 @@ One element tree for both shapes, so the live region stays mounted and announces
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/components/sync-status.tsx#L120)
 
+#### 0015.126 `SyncStatus first sync steps`
+
+While the first sync runs (running, and no sync has ever completed), the panel becomes a "First sync" card listing four phases: Fetch from X, Import posts, Read links, Find topics. Done phases get a check and what they produced, the current one spins with what it is doing, the rest are numbered and muted, and Find topics says it is the longest step. A later sync keeps the one-line panel, so a routine run every half hour doesn't push the footer up about 150px. Entering and leaving the first sync swaps to a different tree once, which breaks 0015.82 for that one change; the card is its own `role="status"`, so each phase change inside it is announced.
+
+While a sync runs and the corpus is empty, the main card (`SyncingPosts` in `corpus-screen.tsx`) shows the same phases at page size, inside a sunken panel the width of the text with "Step N of 4" and the start time on top, so the copy and the steps read as one block. The copy says the first sync pulls in the whole history and that posts appear when it finishes; the time note lives only on the Find topics step.
+
+The phases group the engine's stages (`components/sync-progress.ts`). The engine writes a stage only when it finishes and records no progress inside one, so a phase can't show a percentage, and the slowest phase (finding topics, then sorting every post into them: about 13 of 14 minutes on the first real sync) shows only what it is doing now. Only top-level numeric counts reach the web app, so "links checked" and "topics found" can be shown but the number of posts imported cannot.
+
+Picked on 2026-11-24 from a live prototype in the real sidebar, against three other versions:
+
+- Current: one line, "Syncing now" over the stage. Rejected: no sense of how far along a 15-minute sync is or what is left.
+- Meter: "Step 3 of 4" with a segmented bar and the next step. Rejected in the prototype's terms: it sits on "4 of 4" for most of a first sync, because the last phase is the longest.
+- Story: a sentence that grows with what is done, with the steps behind a toggle. Rejected in the prototype's terms: four or five lines of prose in the footer, and the steps one click away.
+
 ### `apps/web/src/components/tip.tsx`
 
 #### 0015.83 `TipProvider`
@@ -856,3 +870,25 @@ Picked on 2026-11-21 from a live prototype in the real sidebar, against two othe
 
 - An inline card that showed the command with small copy and hide buttons. Rejected: it was the biggest thing in the footer, the long command got cut off so you couldn't read what you would run, and its 28px buttons were under the 40px desktop minimum.
 - An orange callout with one large "Copy update command" button and the command hidden. Rejected: it was the loudest thing in the sidebar, it competed with the orange used for selections, and it hid what runs in the user's terminal.
+
+### `apps/web/src/lib/debug-flags/` and `apps/web/src/components/debug-flags/`
+
+#### 0015.121 `debugFlagsEnabled`
+
+Debug flags fake a hard-to-reach state on a page from the querystring (`?sync=first-sync`, `?posts=none`) without touching real data. They were ported on 2026-11-24 from SteelEngine's system of the same name. Everything is gated on `NODE_ENV === "development"`: in a production build each read returns the real value, the provider mounts no registry or launcher, and the client read hooks are bound at module scope to no-op functions that call no hooks, so nothing subscribes to `useSearchParams`. The binding is fixed for the life of the process, so a component always calls the same variant and the rules of hooks hold.
+
+#### 0015.122 `readFlagValueIn`
+
+The URL is the only state. The client hooks (`components/debug-flags/client.ts`) and the server functions (`lib/debug-flags/server.ts`) both read through `parse.ts`, so a flag means the same thing in a client component and in a server page. Parsing never throws: an absent key, a number that does not parse, or an enum value outside its options returns the caller's real value. A boolean flag is on when its key is present (`?key-file`), whatever its value. The fallback may be a value outside the flag's own type (`"default"`), so a consumer can tell "no override" from any option.
+
+#### 0015.123 `homeDebugFlags / debugSyncState`
+
+A flag substitutes a value that an existing render path already reads, instead of adding a branch. The sync flags replace the sync controller's `state` after `useSyncStatus`, so the sidebar panel, the dialogs and the empty state all agree, and real polling keeps running underneath. The posts flag replaces the snapshot. The setup flag is read on the server in `page.tsx`, because the page picks `SetupGate` before `CorpusScreen` mounts, and the set is registered in both branches so the launcher can turn it off again. Each substituted value is memoized, so a faked snapshot or sync state keeps its identity across renders and no effect re-runs on it.
+
+#### 0015.124 `CorpusScreen shownQuery`
+
+The filter effect rebuilds the whole querystring from filter state. It appends the flags of `DEBUG_FLAG_SETS` that are in the address, so changing a filter keeps the faked state. It names the sets itself rather than reading the registry, because registrations land in an effect, after the first run of the filter effect.
+
+#### 0015.125 `DebugFlagsLauncher`
+
+The launcher is a round button at the bottom right, clear of the sidebar footer and the top-center toasts, with a count of the flags that are on. It renders nothing on a route with no registered flags, and nothing until hydration, because a route can register its flags before the launcher's Suspense boundary hydrates, and the server always renders an empty registry. The dialog lists every registered flag with a switch for a boolean, a select for an enum (Off clears it), an input for a number or text, and a button that copies a link with only that flag.

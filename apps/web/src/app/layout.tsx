@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
+import { DebugFlagsProvider } from "@/components/debug-flags/provider";
 import { SIDEBAR_LIMITS_CSS, SIDEBAR_WIDTH_SCRIPT } from "@/components/sidebar-width";
 
 import "./globals.css";
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <style dangerouslySetInnerHTML={{ __html: SIDEBAR_LIMITS_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_WIDTH_SCRIPT }} />
       </head>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <DebugFlagsProvider>{children}</DebugFlagsProvider>
+      </body>
     </html>
   );
 }
