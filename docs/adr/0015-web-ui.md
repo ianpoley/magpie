@@ -351,7 +351,7 @@ A fixed square crop of one picture, with a play mark when it stands for a video 
 
 #### 0015.120 `revealPostCard`
 
-The post window steps through the whole result, but the list renders it a page at a time. Each step tells the list to render up to that post, so closing the window can focus it and scroll to it. It is an event and not state, so a step doesn't re-render the screen. Nested windows don't send it, since their posts are not in the list's order.
+The post window steps through the whole result, but the list renders it a page at a time. Each step tells the list to render up to that post, so closing the window can focus it and scroll to it. Only a post within two pages of the end is rendered this way. A far jump, such as Surprise or a source chip, would render hundreds of cards at once, so it closes as before. It is an event and not state, so a step doesn't re-render the screen. Nested windows don't send it, since their posts are not in the list's order.
 
 #### 0015.40 `PostCard`
 
