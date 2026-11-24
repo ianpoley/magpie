@@ -523,7 +523,7 @@ body {
   .post-actions {
     transition: opacity 150ms ease-out;
   }
-  .post-li:not(:hover, :focus-within) .post-actions:not(:has([data-open])) {
+  .post-li:not(:hover, :has(:focus-visible)) .post-actions:not(:has([data-open])) {
     opacity: 0;
   }
   .row-tools:not(:has(li)) {
@@ -545,7 +545,7 @@ body {
   .row-actions > * {
     pointer-events: auto;
   }
-  .post-li:is(:focus-within, :has(.row-actions [data-open])) > article:has(.row-actions):not([data-cited]) {
+  .post-li:is(:has(:focus-visible), :has(.row-actions [data-open])) > article:has(.row-actions):not([data-cited]) {
     background: color-mix(in oklch, var(--color-sunken) 55%, var(--color-surface));
   }
 }
