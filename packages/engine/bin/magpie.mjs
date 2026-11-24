@@ -14,6 +14,7 @@ Commands:
   service uninstall [--purge-secrets]  stop and remove both services; --purge-secrets also deletes the stored
                                        X cookies and Jev key and disconnects X
   service status                       show both services, the worker's heartbeat, the secret backend and the node they run
+  open                                 open the web app in your browser
   secrets set-jev                      store the Jev (TypeSafe) API key, read from stdin (typed hidden at a terminal)
   sync [options]                       run one whole sync now (sync --help lists the options)`;
 
@@ -79,6 +80,22 @@ function waitForConnection(readConnection) {
   });
 }
 
+async function openUrl(url) {
+  const { spawn } = await import('node:child_process');
+  const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+  spawn(opener, [url], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+}
+
+async function openWebApp() {
+  const report = await service.serviceStatus();
+  if (!report.units.some((unit) => unit.name.endsWith('-web') && unit.running)) {
+    console.error(`${errPaint.yellow('▲')} The web app is not running. Start it with ${errPaint.cyan('bun run setup')}.`);
+    process.exit(1);
+  }
+  await openUrl(report.appUrl);
+  console.log(`${ui.mark.ok} Opened ${ui.paint.cyan(report.appUrl)}`);
+}
+
 async function gitHooksDir(code) {
   const { spawnSync } = await import('node:child_process');
   const { resolve } = await import('node:path');
@@ -110,7 +127,7 @@ async function afterPull() {
 
 async function setup(args) {
   const yes = args.includes('--yes');
-  const { spawn, spawnSync } = await import('node:child_process');
+  const { spawnSync } = await import('node:child_process');
   const { join } = await import('node:path');
   const { codeRoot, mainCheckout, paths } = await import('../src/config.ts');
   const { createSecretStore } = await import('../src/secrets/store.ts');
@@ -154,10 +171,7 @@ async function setup(args) {
     install: () => service.installService({ log: (line) => log(ui.rail(ui.paint.dim(line))) }),
     connection,
     appUrl: `http://127.0.0.1:${service.webPort()}`,
-    async openApp(url) {
-      const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
-      spawn(opener, [url], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
-    },
+    openApp: openUrl,
     waitForConnection: () => waitForConnection(connection),
     async jevStored() {
       const read = await createSecretStore().get('typesafe-api-key');
@@ -343,6 +357,10 @@ switch (command) {
   }
   case 'service':
     await serviceCommand(sub, rest);
+    break;
+  case 'open':
+    if (sub !== undefined) usage(`unknown open argument: ${sub}`);
+    await openWebApp();
     break;
   case 'secrets':
     if (sub !== 'set-jev' || rest.length > 0) usage(`unknown secrets command: ${[sub, ...rest].join(' ')}`);
