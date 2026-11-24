@@ -48,3 +48,17 @@ Built on first use: a missing API key then fails the tagging stage, not the whol
 Exits 0 when the run reached its end, even if a stage failed (the summary and the run row say which). Exits 1 when a run is already in progress, the run could not start, or it was stopped by SIGINT, SIGTERM or SIGHUP, and 2 for a bad argument. On one of those signals it does what the worker does on shutdown (0003.4): it kills any bird or Birdclaw process the run started and releases the run lock, so Ctrl-C leaves no tool running and the worker cannot start a second sync beside one.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/engine/bin/sync.mjs#L5-L7)
+
+### `packages/engine/src/terminal.ts`
+
+#### 0011.6 `terminal output style`
+
+Every command a person runs at a terminal (install.sh, setup, service, secrets, sync, categorize and the skill installer) uses one look: a dim rail (`┌ │ └`), a cyan `◇` per step and `◆` per question, and a green `✓`, yellow `▲` or red `✗` per result. `terminalUi` builds it and `install.sh` and `packages/skill/install.sh` repeat it in bash, since they run before Node is chosen.
+
+Colour is decided per stream: `out` for stdout and `err` for stderr. A stream gets colour when it is a TTY and `TERM` is not `dumb`, or when `FORCE_COLOR` is set to anything but `0`. `NO_COLOR` always wins. So the after-pull log, the worker log, CI and anything piped get plain text with no escape codes.
+
+Output is static lines only. A spinner or cursor move would corrupt those same log files. The `[sync]`, `[categorize]`, `[service]` and `[update]` prefixes stay for the same reason: they say which command wrote a line in a shared log.
+
+Long-running children (bun install in setup, next build in service install) run with their output captured, and print it only when they fail.
+
+`bunfig.toml` sets `[run] silent = true`, so `bun run <script>` does not echo the expanded script before its output.
