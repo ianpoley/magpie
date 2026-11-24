@@ -12,7 +12,7 @@ import { aroundHit, highlightRanges } from "@/lib/search";
 import type { Chip, Collection, Media, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
-import { formatDate, formatLikes } from "./format";
+import { formatLikes, formatPostDate } from "./format";
 import { requestMediaFocus } from "./media-focus";
 import { MediaPreview } from "./media-preview";
 import { Marked, PostText, Thumb } from "./post-body";
@@ -42,24 +42,55 @@ export function useRevealedPostCards(onReveal: (postId: string) => void) {
   }, []);
 }
 
-export function CollectionMarks({ post, collection = "everything" }: { post: Post; collection?: Collection }) {
+export const hasMarks = (post: Post, collection: Collection): boolean =>
+  (post.bookmarked && collection !== "bookmarks") || (post.liked && collection !== "likes");
+
+const DISC =
+  "rounded-full bg-surface shadow-[0_0_0_1px_color-mix(in_oklch,var(--color-ink)_10%,transparent),0_1px_2px_color-mix(in_oklch,var(--color-ink)_12%,transparent)]";
+
+export function CollectionMarks({
+  post,
+  collection = "everything",
+  large = false,
+  discs = false,
+  className = "",
+}: {
+  post: Post;
+  collection?: Collection;
+  large?: boolean;
+  discs?: boolean;
+  className?: string;
+}) {
+  if (!hasMarks(post, collection)) return null;
+  const glyph = `${large ? "size-3.5" : "size-3"} fill-current`;
+  const slot = (filled: boolean) => `flex items-center justify-center ${discs ? "size-4 sm:size-5" : "size-5"} ${filled && discs ? DISC : ""}`;
   return (
-    <span className="flex shrink-0 items-center gap-1.5 empty:hidden">
-      {post.bookmarked && collection !== "bookmarks" ? (
-        <span className="flex size-6 items-center justify-center rounded-full bg-bm-soft text-bm-text">
-          <Bookmark className="size-3.5 fill-current" aria-hidden="true" />
-          <span className="sr-only">Bookmarked</span>
+    <span className={`flex shrink-0 items-center ${discs ? "gap-1" : ""} ${className}`}>
+      {collection !== "bookmarks" ? (
+        <span className={`${slot(post.bookmarked)} text-bm`}>
+          {post.bookmarked ? (
+            <>
+              <Bookmark className={glyph} aria-hidden="true" />
+              <span className="sr-only">Bookmarked</span>
+            </>
+          ) : null}
         </span>
       ) : null}
-      {post.liked && collection !== "likes" ? (
-        <span className="flex size-6 items-center justify-center rounded-full bg-like-soft text-like-text">
-          <Heart className="size-3.5 fill-current" aria-hidden="true" />
-          <span className="sr-only">Liked</span>
+      {collection !== "likes" ? (
+        <span className={`${slot(post.liked)} text-like`}>
+          {post.liked ? (
+            <>
+              <Heart className={glyph} aria-hidden="true" />
+              <span className="sr-only">Liked</span>
+            </>
+          ) : null}
         </span>
       ) : null}
     </span>
   );
 }
+
+const ACTION_HIT = "relative before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] pointer-coarse:before:-inset-x-[5px]";
 
 export function PostActions({
   post,
@@ -76,24 +107,24 @@ export function PostActions({
   return (
     <>
       <Tip label="Edit topics">
-        <PopoverTrigger controller={topicsEditor} payload={post.id} aria-label="Edit topics" className={`${iconButton} data-open:bg-sunken data-open:text-ink`}>
+        <PopoverTrigger controller={topicsEditor} payload={post.id} aria-label="Edit topics" className={`${iconButton} ${ACTION_HIT} data-open:bg-sunken data-open:text-ink`}>
           <Tags aria-hidden="true" />
         </PopoverTrigger>
       </Tip>
-      <Tip label="Remove from corpus">
-        <button type="button" aria-label="Remove from corpus" disabled={removing} onClick={() => startRemoving(() => onRemove(post))} className={dangerIconButton}>
-          <Trash2 aria-hidden="true" />
-        </button>
-      </Tip>
       <Tip label="Copy link">
-        <button type="button" aria-label="Copy link" onClick={() => onCopyLink(post)} className={iconButton}>
+        <button type="button" aria-label="Copy link" onClick={() => onCopyLink(post)} className={`${iconButton} ${ACTION_HIT}`}>
           <Link2 aria-hidden="true" />
         </button>
       </Tip>
       <Tip label="Open on X">
-        <a href={post.url} target="_blank" rel="noreferrer" aria-label="Open on X" className={iconButton}>
+        <a href={post.url} target="_blank" rel="noreferrer" aria-label="Open on X" className={`${iconButton} ${ACTION_HIT}`}>
           <ExternalLink aria-hidden="true" />
         </a>
+      </Tip>
+      <Tip label="Remove post">
+        <button type="button" aria-label="Remove post" disabled={removing} onClick={() => startRemoving(() => onRemove(post))} className={`${dangerIconButton} ${ACTION_HIT} ml-1.5`}>
+          <Trash2 aria-hidden="true" />
+        </button>
       </Tip>
     </>
   );
@@ -108,6 +139,7 @@ export type PostCardProps = {
   activeTopicIds: number[];
   keyword: string;
   showLikes: boolean;
+  bandYear: number | null;
   dialog: PostDialogController;
   topicsEditor: PostTopicsController;
   onSelectTopic: (topicId: number) => void;
@@ -136,7 +168,9 @@ export function TopicChips({
     { value: more + shown.length - touchShown, className: "hidden max-sm:pointer-coarse:flex" },
   ].slice(0, phone ? 3 : 1);
   return (
-    <ul className={`pointer-events-auto flex min-w-0 gap-1.5 empty:hidden ${oneLine ? "shrink flex-nowrap overflow-hidden" : "flex-wrap"}`}>
+    <ul
+      className={`pointer-events-auto flex min-w-0 gap-1.5 empty:hidden ${oneLine ? "shrink flex-nowrap overflow-hidden" : "flex-wrap"} ${oneLine && phone ? "max-sm:pointer-coarse:max-w-full max-sm:pointer-coarse:shrink-0" : ""}`}
+    >
       {shown.map((chip, index) => {
         const topic = topicsById.get(chip.topicId)!;
         const hidden = index >= mouseShown ? "max-sm:hidden" : index >= touchShown ? "max-sm:pointer-coarse:hidden" : "";
@@ -193,7 +227,7 @@ export function MediaTrigger({ post, dialog, item, index, className, children }:
 
 export function PostCard(props: PostCardProps) {
   const { post, keyword, dialog } = props;
-  const date = formatDate(post.createdAt);
+  const date = formatPostDate(post.createdAt, props.bandYear);
   const page = post.linkedPages[0] ?? null;
   const text = withoutTrailingUrl(post.text, page?.url ?? null).replace(/\n\s*\n+/g, "\n");
   const textId = `post-text-${post.id}`;
@@ -208,12 +242,18 @@ export function PostCard(props: PostCardProps) {
         aria-label={`Open post by ${post.authorName}`}
         aria-describedby={text ? textId : undefined}
         data-post-card-open={post.id}
-        className="focus-ring absolute inset-0 size-full cursor-pointer rounded-card border-0 bg-transparent p-0 hover:bg-transparent"
+        className="focus-ring absolute inset-0 size-full cursor-pointer rounded-card border-0 bg-transparent p-0 -outline-offset-2 hover:bg-transparent"
       />
-      <div className="pointer-events-none relative flex gap-4 p-4 sm:gap-5 sm:p-5">
+      <CollectionMarks
+        post={post}
+        collection={props.collection}
+        discs
+        className={`pointer-events-none absolute right-5 z-[1] ${lead ? "top-5" : "top-[24px] sm:top-[26px]"}`}
+      />
+      <div className="pointer-events-none relative flex gap-4 p-4">
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-          <header className="flex items-center gap-3">
-            <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} />
+          <header className={`relative flex items-center gap-3 ${!lead && hasMarks(post, props.collection) ? "pr-16" : ""}`}>
+            <AuthorAvatar handle={post.authorHandle} name={post.authorName} url={post.authorAvatarUrl} size="list" />
             <div className="min-w-0 flex-1">
               <p className="flex text-[15px] leading-tight">
                 <AuthorButton post={post} keyword={keyword} onSelectAuthor={props.onSelectAuthor} className="max-w-full" />
@@ -230,12 +270,14 @@ export function PostCard(props: PostCardProps) {
                         {date}
                       </span>
                     ) : null}
-                    {props.showLikes ? <span className="tabular-nums">· {formatLikes(post.likeCount)}</span> : null}
+                    {props.showLikes ? <span className="tabular-nums">· <span className="font-semibold text-ink">{formatLikes(post.likeCount)}</span></span> : null}
                   </span>
                 ) : null}
               </p>
             </div>
-            <CollectionMarks post={post} collection={props.collection} />
+            <div className={`post-actions card-head-actions pointer-events-auto absolute inset-y-0 -mr-1.5 hidden items-center gap-0.5 ${!lead && hasMarks(post, props.collection) ? "right-16" : "right-0"}`}>
+              <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
+            </div>
           </header>
 
           {text ? <PostText id={textId} text={aroundHit(text, keyword, 200)} keyword={keyword} className="line-clamp-4 text-pretty" /> : null}
@@ -269,17 +311,17 @@ export function PostCard(props: PostCardProps) {
         </div>
 
         {lead ? (
-          <div className="flex w-20 shrink-0 flex-col gap-1.5 sm:w-[120px]">
+          <div className="flex w-16 shrink-0 flex-col gap-1.5 sm:w-24">
             <MediaTrigger post={post} dialog={dialog} item={lead.media[0]} index={0} className="block rounded-inner">
-              <Thumb item={lead.media[0]} className="size-20 sm:size-[120px]" />
+              <Thumb item={lead.media[0]} className="size-16 sm:size-24" play="size-5 sm:size-7" />
             </MediaTrigger>
             {minis.length > 0 ? (
               <div className="grid grid-cols-3 gap-1.5 max-sm:hidden">
                 {minis.map((item, i) => (
                   <MediaTrigger key={item.url} post={post} dialog={dialog} item={item} index={i + 1} className="relative block rounded-inner">
-                    <Thumb item={item} className="size-9" small />
+                    <Thumb item={item} className="size-7" small />
                     {i === minis.length - 1 && more > 0 ? (
-                      <span className="absolute inset-0 flex items-center justify-center rounded-inner bg-[color-mix(in_oklch,var(--color-ink)_55%,transparent)] text-[11px] font-semibold text-surface tabular-nums">
+                      <span className="absolute inset-0 flex items-center justify-center rounded-inner bg-[color-mix(in_oklch,var(--color-ink)_68%,transparent)] text-[11px] font-semibold text-surface tabular-nums">
                         +{more}
                       </span>
                     ) : null}
@@ -292,9 +334,9 @@ export function PostCard(props: PostCardProps) {
           </div>
         ) : null}
       </div>
-      <footer className="pointer-events-none relative -mt-1.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 px-4 pb-4 sm:-mt-2.5 sm:px-5 sm:pb-5">
-        <TopicChips {...props} max={3} />
-        <div className="post-actions pointer-events-auto -my-1 -mr-1.5 ml-auto flex shrink-0 items-center gap-0.5">
+      <footer className="card-foot pointer-events-none relative -mt-1.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 px-4 pb-4">
+        <TopicChips {...props} max={3} phone />
+        <div className="post-actions card-foot-actions pointer-events-auto -my-1 -mr-1.5 ml-auto flex shrink-0 items-center gap-0.5 pointer-coarse:gap-2.5">
           <PostActions post={post} topicsEditor={props.topicsEditor} onCopyLink={props.onCopyLink} onRemove={props.onRemove} />
         </div>
       </footer>

@@ -60,6 +60,7 @@ export function PostText({
   links = false,
   mentions,
   id,
+  size = "body",
   className = "",
 }: {
   text: string;
@@ -67,6 +68,7 @@ export function PostText({
   links?: boolean;
   mentions?: Mentions;
   id?: string;
+  size?: "body" | "small";
   className?: string;
 }) {
   const parts: React.ReactNode[] = [];
@@ -93,7 +95,7 @@ export function PostText({
     at = match.index + url.length;
   }
   if (at < text.length) parts.push(<Words key={`t${at}`} text={text.slice(at)} keyword={keyword} mentions={mentions} />);
-  return <p id={id} className={`max-w-[65ch] text-[15px] leading-[1.55] break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
+  return <p id={id} className={`max-w-[65ch] ${size === "small" ? "text-[14px] leading-[1.45]" : "text-[15px] leading-[1.55]"} break-words whitespace-pre-wrap text-ink ${className}`}>{parts}</p>;
 }
 
 export function LinkedPages({ pages, keyword }: { pages: LinkedPage[]; keyword: string }) {
@@ -155,13 +157,26 @@ export function MediaGrid({ media, postId }: { media: Media[]; postId: string })
   );
 }
 
-export function Thumb({ item, className, small = false }: { item: Media; className: string; small?: boolean }) {
+const THUMB_HOST = "pbs.twimg.com";
+
+export function thumbSrc(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== THUMB_HOST || parsed.searchParams.has("name")) return url;
+    parsed.searchParams.set("name", "small");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+export function Thumb({ item, className, small = false, play = "size-7" }: { item: Media; className: string; small?: boolean; play?: string }) {
   return (
     <span className={`relative block shrink-0 overflow-hidden rounded-inner bg-sunken ${className}`}>
-      <FadeImg src={item.url} className="img-outline size-full rounded-[inherit] object-cover" />
+      <FadeImg src={thumbSrc(item.url)} className="img-outline size-full rounded-[inherit] object-cover" />
       {mediaKind(item) === "photo" ? null : (
         <span className="absolute inset-0 flex items-center justify-center">
-          <span className={`flex items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-ink)_62%,transparent)] text-surface ${small ? "size-4" : "size-7"}`}>
+          <span className={`flex items-center justify-center rounded-full bg-[color-mix(in_oklch,var(--color-ink)_62%,transparent)] text-surface ${small ? "size-4" : play}`}>
             <Play className={`translate-x-px fill-current ${small ? "size-2" : "size-3.5"}`} aria-hidden="true" />
           </span>
         </span>
@@ -205,7 +220,7 @@ export function Quoted({
         {handle ? <span className="truncate text-ink-muted">@{handle}</span> : null}
         {action ? <span className="ml-auto flex shrink-0">{action}</span> : null}
       </div>
-      {quoted.text ? <PostText text={quoted.text} keyword={keyword} links mentions={mentions} className="text-[14px]" /> : null}
+      {quoted.text ? <PostText text={quoted.text} keyword={keyword} links mentions={mentions} size="small" /> : null}
       <MediaGrid media={quoted.media} postId={quoted.id ?? parentId} />
     </blockquote>
   );

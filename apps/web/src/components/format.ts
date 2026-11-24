@@ -18,6 +18,13 @@ export function formatDate(iso: string | null): string | null {
   return Number.isNaN(ms) ? null : DATE.format(ms);
 }
 
+export function formatPostDate(iso: string | null, bandYear: number | null): string | null {
+  if (iso === null) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  return new Date(ms).getUTCFullYear() === bandYear ? DAY_OF_YEAR.format(ms) : DATE.format(ms);
+}
+
 export function formatDay(iso: string | null): string | null {
   if (iso === null) return null;
   const ms = Date.parse(iso);
