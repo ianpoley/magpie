@@ -8,7 +8,7 @@ import { useEffect, useRef, useTransition } from "react";
 import { authorHue } from "@/lib/author-hues";
 import { leadMedia, mediaKind, mediaNoun } from "@/lib/media";
 import { withoutTrailingUrl } from "@/lib/post-links";
-import { aroundHit } from "@/lib/search";
+import { aroundHit, highlightRanges } from "@/lib/search";
 import type { Chip, Collection, Media, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
@@ -204,7 +204,7 @@ export function PostCard(props: PostCardProps) {
                 <AuthorButton post={post} keyword={keyword} onSelectAuthor={props.onSelectAuthor} className="max-w-full" />
               </p>
               <p className="mt-0.5 flex min-w-0 gap-x-1 text-[13px] leading-tight whitespace-nowrap text-ink-muted max-sm:flex-col">
-                <span className="min-w-0 truncate">
+                <span className={`min-w-0 truncate ${highlightRanges(post.authorHandle, keyword).length > 0 ? "" : "max-sm:hidden"}`}>
                   @<Marked text={post.authorHandle} keyword={keyword} />
                 </span>
                 {date || props.showLikes ? (
