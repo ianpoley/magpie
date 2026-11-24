@@ -11,6 +11,7 @@ import { MAX_QUERY_CHARS, type AskState } from "@/lib/ask";
 import type { Area, FilterState, Post, Sort, TimeRange, Topic } from "@/lib/types";
 
 import { formatCount, plural } from "./format";
+import { BAND_H } from "./list-scroll";
 import type { PostLayout } from "./post-layout";
 import { Announce, FindLine, KBD, RunAgain, RunLine, SearchProgress } from "./search-status";
 import { menuContent, menuItem } from "./styles";
@@ -247,9 +248,22 @@ function useStuck() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting), { threshold: 0 });
-    io.observe(el);
-    return () => io.disconnect();
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      setStuck(el.getBoundingClientRect().top < 0);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(check);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
   }, []);
   return { ref, stuck };
 }
@@ -261,7 +275,7 @@ function usePinnedPadding() {
     if (!el) return;
     const root = document.documentElement;
     const ro = new ResizeObserver(() => {
-      root.style.scrollPaddingTop = `${el.offsetHeight + 8}px`;
+      root.style.scrollPaddingTop = `${el.offsetHeight + BAND_H}px`;
       root.style.setProperty("--pinned-h", `${el.offsetHeight}px`);
     });
     ro.observe(el);

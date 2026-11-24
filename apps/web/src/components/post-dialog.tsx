@@ -230,7 +230,7 @@ function PostLayer({
                       <span className="shrink-0 tabular-nums">· {formatLikes(post.likeCount)}</span>
                     </DialogDescription>
                   </div>
-                  <CollectionMarks post={post} />
+                  <CollectionMarks post={post} large />
                   <Steps previous={previous} next={next} controller={controller} className="max-sm:hidden" />
                   <DialogClose aria-label="Close" className={iconButton}>
                     <X aria-hidden="true" />
@@ -327,7 +327,7 @@ function PostLayer({
                   <Steps previous={previous} next={next} controller={controller} className="-ml-2 sm:hidden" />
                   <div className="ml-auto flex items-center gap-2">
                     <Button
-                      aria-label="Remove from corpus"
+                      aria-label="Remove post"
                       disabled={removing}
                       onClick={() => {
                         stepped.current = false;
@@ -336,7 +336,7 @@ function PostLayer({
                       className={`${dangerButton} max-sm:px-2.5`}
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
-                      <span className="max-sm:hidden">Remove from corpus</span>
+                      <span className="max-sm:hidden">Remove post</span>
                     </Button>
                     <Button aria-label="Copy link" onClick={() => onCopyLink(post)} className="pressable focus-ring h-9 gap-1.5 border-0 px-3.5 shadow-card max-sm:px-2.5">
                       <Link2 className="size-4 text-ink-muted" aria-hidden="true" />
