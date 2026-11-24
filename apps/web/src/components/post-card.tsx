@@ -9,7 +9,7 @@ import { authorHue } from "@/lib/author-hues";
 import { leadMedia, mediaKind, mediaNoun } from "@/lib/media";
 import { withoutTrailingUrl } from "@/lib/post-links";
 import { aroundHit } from "@/lib/search";
-import type { Chip, Media, Post, Topic } from "@/lib/types";
+import type { Chip, Collection, Media, Post, Topic } from "@/lib/types";
 
 import { AuthorAvatar } from "./author-avatar";
 import { formatDate, formatLikes } from "./format";
@@ -42,16 +42,16 @@ export function useRevealedPostCards(onReveal: (postId: string) => void) {
   }, []);
 }
 
-export function CollectionMarks({ post }: { post: Post }) {
+export function CollectionMarks({ post, collection = "everything" }: { post: Post; collection?: Collection }) {
   return (
-    <span className="flex shrink-0 items-center gap-1.5">
-      {post.bookmarked ? (
+    <span className="flex shrink-0 items-center gap-1.5 empty:hidden">
+      {post.bookmarked && collection !== "bookmarks" ? (
         <span className="flex size-6 items-center justify-center rounded-full bg-bm-soft text-bm-text">
           <Bookmark className="size-3.5 fill-current" aria-hidden="true" />
           <span className="sr-only">Bookmarked</span>
         </span>
       ) : null}
-      {post.liked ? (
+      {post.liked && collection !== "likes" ? (
         <span className="flex size-6 items-center justify-center rounded-full bg-like-soft text-like-text">
           <Heart className="size-3.5 fill-current" aria-hidden="true" />
           <span className="sr-only">Liked</span>
@@ -102,6 +102,7 @@ export function PostActions({
 export type PostCardProps = {
   post: Post;
   cited: boolean;
+  collection: Collection;
   chips: Chip[];
   topicsById: Map<number, Topic>;
   activeTopicIds: number[];
@@ -219,7 +220,7 @@ export function PostCard(props: PostCardProps) {
                 ) : null}
               </p>
             </div>
-            <CollectionMarks post={post} />
+            <CollectionMarks post={post} collection={props.collection} />
           </header>
 
           {text ? <PostText id={textId} text={aroundHit(text, keyword, 200)} keyword={keyword} className="line-clamp-4 text-pretty" /> : null}

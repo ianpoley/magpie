@@ -144,14 +144,22 @@ function CountLine({ h }: { h: PageHeaderProps }) {
         </>
       ) : (
         <>
-          {sep}
-          <span>
-            <span className="tabular-nums">{formatCount(h.bookmarked)}</span> bookmarked
-          </span>
-          {sep}
-          <span>
-            <span className="tabular-nums">{formatCount(h.liked)}</span> liked
-          </span>
+          {h.filter.collection === "bookmarks" ? null : (
+            <>
+              {sep}
+              <span>
+                <span className="tabular-nums">{formatCount(h.bookmarked)}</span> bookmarked
+              </span>
+            </>
+          )}
+          {h.filter.collection === "likes" ? null : (
+            <>
+              {sep}
+              <span>
+                <span className="tabular-nums">{formatCount(h.liked)}</span> liked
+              </span>
+            </>
+          )}
         </>
       )}
     </p>
