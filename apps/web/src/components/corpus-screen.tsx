@@ -220,6 +220,9 @@ const selectionInAddress = (): LinkedFilter => {
     unfiled: params.get("unfiled") ?? undefined,
     author: params.get("author") ?? undefined,
     q: params.get("q") ?? undefined,
+    time: params.get("time") ?? undefined,
+    sort: params.get("sort") ?? undefined,
+    media: params.get("media") ?? undefined,
   });
 };
 

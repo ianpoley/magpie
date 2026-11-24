@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import { DEFAULT_FILTER, applyFilter } from "../src/lib/filter.ts";
 import { linkedQuery, parseLinked, parseSelection, selectionQuery } from "../src/lib/filter-url.ts";
+
+const plain = { timeRange: "all", sort: "newest", mediaOnly: false } as const;
 import { AGENTS, AI, AREAS, EVALS, FRONTEND, NOW, TOPICS, snapshot } from "./fixtures/snapshot.ts";
 
 const fromQuery = (query: string) => parseSelection(Object.fromEntries(new URLSearchParams(query)));
@@ -90,11 +92,11 @@ test("a repeated parameter is read from its first value without an error", () =>
 });
 
 test("an author round-trips after the category selection", () => {
-  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" });
+  const query = linkedQuery({ ...plain, topicIds: [12], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" });
   assert.equal(query, "topics=12&author=ada_l");
-  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { topicIds: [12], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" });
-  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" }), "author=ada_l");
-  assert.equal(linkedQuery({ topicIds: [], areaIds: [], unfiled: false, collection: "everything", author: null, keyword: "" }), "");
+  assert.deepEqual(parseLinked(Object.fromEntries(new URLSearchParams(query))), { ...plain, topicIds: [12], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" });
+  assert.equal(linkedQuery({ ...plain, topicIds: [], areaIds: [], unfiled: false, collection: "everything", author: "ada_l", keyword: "" }), "author=ada_l");
+  assert.equal(linkedQuery({ ...plain, topicIds: [], areaIds: [], unfiled: false, collection: "everything", author: null, keyword: "" }), "");
 });
 
 test("an author that is not an X handle is ignored", () => {
@@ -105,7 +107,7 @@ test("an author that is not an X handle is ignored", () => {
 });
 
 test("search words round-trip last, encoded, and trimmed", () => {
-  const query = linkedQuery({ topicIds: [], areaIds: [3], unfiled: false, collection: "everything", author: null, keyword: "  evals & agents " });
+  const query = linkedQuery({ ...plain, topicIds: [], areaIds: [3], unfiled: false, collection: "everything", author: null, keyword: "  evals & agents " });
   assert.equal(query, "areas=3&q=evals%20%26%20agents");
   assert.equal(parseLinked(Object.fromEntries(new URLSearchParams(query))).keyword, "evals & agents");
   assert.equal(parseLinked({ q: "x".repeat(500) }).keyword.length, 200);
@@ -113,7 +115,7 @@ test("search words round-trip last, encoded, and trimmed", () => {
 });
 
 test("Bookmarks or Likes round-trips first, and anything else means Everything", () => {
-  const query = linkedQuery({ topicIds: [12], areaIds: [], unfiled: false, collection: "likes", author: null, keyword: "" });
+  const query = linkedQuery({ ...plain, topicIds: [12], areaIds: [], unfiled: false, collection: "likes", author: null, keyword: "" });
   assert.equal(query, "collection=likes&topics=12");
   assert.equal(parseLinked(Object.fromEntries(new URLSearchParams(query))).collection, "likes");
   assert.equal(parseLinked({ collection: "bookmarks" }).collection, "bookmarks");
@@ -123,11 +125,22 @@ test("Bookmarks or Likes round-trips first, and anything else means Everything",
 });
 
 test("long search words are cut to the same 200 characters when written as when read, without splitting an emoji", () => {
-  const linked = { topicIds: [], areaIds: [], unfiled: false, collection: "everything" as const, author: null };
+  const linked = { ...plain, topicIds: [], areaIds: [], unfiled: false, collection: "everything" as const, author: null };
   const long = `${"x".repeat(199)}🐦 tail`;
   const query = linkedQuery({ ...linked, keyword: long });
   const read = parseLinked(Object.fromEntries(new URLSearchParams(query))).keyword;
   assert.equal(read, `${"x".repeat(199)}🐦`);
   assert.equal(linkedQuery({ ...linked, keyword: read }), query);
   assert.equal(parseLinked({ q: `${"y".repeat(199)} z` }).keyword, "y".repeat(199));
+});
+
+test("time, sort and Media round-trip before the search words, and anything else means the defaults", () => {
+  const query = linkedQuery({ ...plain, topicIds: [], areaIds: [], unfiled: false, collection: "bookmarks", author: null, keyword: "evals", timeRange: "month", sort: "most_liked", mediaOnly: true });
+  assert.equal(query, "collection=bookmarks&time=month&sort=most_liked&media=1&q=evals");
+  const read = parseLinked(Object.fromEntries(new URLSearchParams(query)));
+  assert.deepEqual([read.timeRange, read.sort, read.mediaOnly], ["month", "most_liked", true]);
+  for (const value of [undefined, "", "all", "newest", "Week", "toString"]) {
+    const ignored = parseLinked({ time: value, sort: value, media: value });
+    assert.deepEqual([ignored.timeRange, ignored.sort, ignored.mediaOnly], ["all", "newest", false], String(value));
+  }
 });
