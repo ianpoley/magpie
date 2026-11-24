@@ -3,7 +3,7 @@
 import { DialogTrigger, type createDialogController } from "@ui-sdk/react/dialog";
 import { PopoverTrigger } from "@ui-sdk/react/popover";
 import { Bookmark, ExternalLink, Globe, Heart, Link2, Quote, Tags, Trash2 } from "lucide-react";
-import { useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 
 import { authorHue } from "@/lib/author-hues";
 import { leadMedia, mediaKind, mediaNoun } from "@/lib/media";
@@ -25,6 +25,22 @@ export type PostDialogController = ReturnType<typeof createDialogController<stri
 
 export const postCardOpen = (postId?: string): string =>
   postId === undefined ? "[data-post-card-open]" : `[data-post-card-open="${CSS.escape(postId)}"]`;
+
+const REVEAL_POST = "magpie-reveal-post";
+
+export const revealPostCard = (postId: string) => window.dispatchEvent(new CustomEvent<string>(REVEAL_POST, { detail: postId }));
+
+export function useRevealedPostCards(onReveal: (postId: string) => void) {
+  const handler = useRef(onReveal);
+  useEffect(() => {
+    handler.current = onReveal;
+  });
+  useEffect(() => {
+    const on = (event: Event) => handler.current((event as CustomEvent<string>).detail);
+    window.addEventListener(REVEAL_POST, on);
+    return () => window.removeEventListener(REVEAL_POST, on);
+  }, []);
+}
 
 export function CollectionMarks({ post }: { post: Post }) {
   return (

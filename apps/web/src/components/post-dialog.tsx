@@ -14,7 +14,7 @@ import { AuthorAvatar } from "./author-avatar";
 import { formatDate, formatLikes } from "./format";
 import { focusRequestedMedia } from "./media-focus";
 import { LinkedPages, MediaGrid, PostText, Quoted } from "./post-body";
-import { CollectionMarks, postCardOpen, type PostDialogController } from "./post-card";
+import { CollectionMarks, postCardOpen, type PostDialogController, revealPostCard } from "./post-card";
 import { PostRow } from "./resources-view";
 import { createPostTopicsController, PostTopicsEditor } from "./post-topics-editor";
 import { dangerButton, iconButton } from "./styles";
@@ -144,8 +144,10 @@ function PostLayer({
         open.current = next;
         if (next) stepped.current = false;
       }}
-      onPayloadChange={() => {
-        if (open.current) stepped.current = true;
+      onPayloadChange={(payload) => {
+        if (!open.current) return;
+        stepped.current = true;
+        if (depth === 0 && typeof payload === "string") revealPostCard(payload);
       }}
     >
       <DialogBackdrop className={depth > 0 ? "bg-transparent" : undefined} />

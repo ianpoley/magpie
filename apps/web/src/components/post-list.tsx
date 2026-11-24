@@ -8,7 +8,7 @@ import { monthRuns } from "@/lib/month-runs";
 import type { FilterState, Post, Topic } from "@/lib/types";
 
 import { formatCount } from "./format";
-import { PostCard, type PostCardProps, type PostDialogController } from "./post-card";
+import { PostCard, type PostCardProps, type PostDialogController, useRevealedPostCards } from "./post-card";
 import type { PostLayout } from "./post-layout";
 import { PostListRow } from "./post-list-row";
 import type { PostTopicsController } from "./post-topics-editor";
@@ -61,6 +61,10 @@ export function PostList({
   const [shown, setShown] = useState(PAGE);
   const sentinel = useRef<HTMLDivElement>(null);
   const hasMore = shown < posts.length;
+  useRevealedPostCards((postId) => {
+    const at = posts.findIndex((post) => post.id === postId);
+    if (at >= shown) setShown(Math.ceil((at + 1) / PAGE) * PAGE);
+  });
 
   useEffect(() => {
     const node = sentinel.current;
