@@ -204,6 +204,13 @@ function emptyAsk(ask: AskState, anyMatch: boolean, retry: () => void, clearFilt
       </EmptyState>
     );
   }
+  if (ask.failed > 0) {
+    return (
+      <EmptyState title="Some posts could not be read" action={solidButton("Try again", retry)}>
+        <span className="tabular-nums">{formatCount(ask.failed)}</span> {plural(ask.failed, "post")} could not be read, so matches may be missing. Check that this computer is online, then try again.
+      </EmptyState>
+    );
+  }
   return (
     <EmptyState title="Nothing matches">
       No saved post is about “{ask.query}”. Try describing the topic in other words.
