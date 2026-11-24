@@ -18,6 +18,7 @@
     "setup": "bun packages/engine/bin/setup.mjs",
     "service:install": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs service install",
     "service:uninstall": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs service uninstall",
+    "open": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs open",
     "service:status": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs service status",
     "secrets:set-jev": "bun packages/engine/bin/with-node.mjs packages/engine/bin/magpie.mjs secrets set-jev",
     "build:markdown": "bun --filter @magpie/engine build:markdown",
