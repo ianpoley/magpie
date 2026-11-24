@@ -845,7 +845,7 @@ export function CorpusScreen({
 
       <ToastRegion side="top" align="center" className="mt-6 w-fit [&_[data-slot=toast-list]]:items-center">
         {(state) => (
-          <Toast className="flex w-fit flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
+          <Toast className="flex w-fit max-w-[calc(100vw-2rem)] flex-nowrap items-center gap-2 rounded-full border-0 bg-surface py-1.5 pr-4 pl-1.5 text-ink has-data-[slot=toast-action]:pr-1.5 shadow-(--ui-shadow) transition-[opacity,translate] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:-translate-y-2 data-starting-style:opacity-0 motion-reduce:transition-none">
             {state.type === "error" ? (
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-like-soft text-like-text">
                 <CircleAlert className="size-4" aria-hidden="true" />
@@ -855,7 +855,7 @@ export function CorpusScreen({
                 <CircleCheck className="size-4" aria-hidden="true" />
               </span>
             )}
-            <ToastTitle className="flex-none text-[13px] font-semibold whitespace-nowrap" />
+            <ToastTitle className="min-w-0 text-[13px] leading-snug font-semibold text-pretty" />
             {state.action ? (
               <ToastAction className="focus-ring pressable ml-1 h-7 flex-none cursor-pointer rounded-full border-0 bg-sunken px-3 text-[13px] font-semibold text-ink hover:bg-primary-soft hover:text-primary-text data-pending:cursor-progress data-pending:opacity-60" />
             ) : null}
