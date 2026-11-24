@@ -122,22 +122,37 @@ export function TopicChips({
   activeTopicIds,
   onSelectTopic,
   max,
+  phone = false,
   oneLine = false,
-}: Pick<PostCardProps, "chips" | "topicsById" | "activeTopicIds" | "onSelectTopic"> & { max?: number; oneLine?: boolean }) {
-  const shown = max === undefined ? chips : chips.slice(0, max);
-  const more = chips.length - shown.length;
+}: Pick<PostCardProps, "chips" | "topicsById" | "activeTopicIds" | "onSelectTopic"> & { max?: number; phone?: boolean; oneLine?: boolean }) {
+  const sliced = max === undefined ? chips : chips.slice(0, max);
+  const shown = sliced.filter((chip) => topicsById.has(chip.topicId));
+  const more = chips.length - sliced.length;
+  const mouseShown = phone ? Math.min(2, shown.length) : shown.length;
+  const touchShown = phone ? Math.min(1, shown.length) : shown.length;
+  const counts = [
+    { value: more, className: phone ? "flex max-sm:hidden" : "flex" },
+    { value: more + shown.length - mouseShown, className: "hidden max-sm:flex max-sm:pointer-coarse:hidden" },
+    { value: more + shown.length - touchShown, className: "hidden max-sm:pointer-coarse:flex" },
+  ].slice(0, phone ? 3 : 1);
   return (
     <ul className={`pointer-events-auto flex min-w-0 gap-1.5 empty:hidden ${oneLine ? "shrink flex-nowrap overflow-hidden" : "flex-wrap"}`}>
-      {shown.map((chip) => {
-        const topic = topicsById.get(chip.topicId);
-        if (!topic) return null;
+      {shown.map((chip, index) => {
+        const topic = topicsById.get(chip.topicId)!;
+        const hidden = index >= mouseShown ? "max-sm:hidden" : index >= touchShown ? "max-sm:pointer-coarse:hidden" : "";
         return (
-          <li key={chip.topicId} className="flex min-w-0">
+          <li key={chip.topicId} className={`flex min-w-0 ${hidden}`}>
             <TopicChip name={topic.name} possible={chip.possible} active={activeTopicIds.includes(chip.topicId)} onSelect={() => onSelectTopic(chip.topicId)} />
           </li>
         );
       })}
-      {more > 0 ? <li className="flex h-6 shrink-0 items-center px-1 text-[12px] font-semibold text-ink-muted tabular-nums">+{more}</li> : null}
+      {counts.map((count, index) =>
+        count.value > 0 ? (
+          <li key={index} className={`${count.className} h-6 shrink-0 items-center px-1 text-[12px] font-semibold text-ink-muted tabular-nums`}>
+            +{count.value}
+          </li>
+        ) : null,
+      )}
     </ul>
   );
 }
