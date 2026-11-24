@@ -23,7 +23,7 @@ import {
   toggleTopic,
   toggleUnfiled,
 } from "@/lib/filter";
-import { linkedQuery, parseLinked, type LinkedFilter } from "@/lib/filter-url";
+import { linkedQuery, parseLinked, parseView, withView, type LinkedFilter } from "@/lib/filter-url";
 import { emitMagpie } from "@/lib/magpie-events";
 import { resourcesFor } from "@/lib/resources";
 import { similarPosts } from "@/lib/similar";
@@ -226,11 +226,14 @@ const selectionInAddress = (): LinkedFilter => {
   });
 };
 
+const viewInAddress = (): View => parseView({ view: new URLSearchParams(window.location.search).get("view") ?? undefined });
+
 export function CorpusScreen({
   snapshot,
   sync: initialSync,
   now,
   linked,
+  view: initialView,
   layout: initialLayout,
   closedSections,
   settings: initialSettings,
@@ -239,13 +242,14 @@ export function CorpusScreen({
   sync: SyncState;
   now: number;
   linked: LinkedFilter;
+  view: View;
   layout: PostLayout;
   closedSections: string[];
   settings: SettingsState;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterState>(() => ({ ...DEFAULT_FILTER, ...linked }));
-  const [view, setView] = useState<View>("posts");
+  const [view, setView] = useState<View>(initialView);
   const [layout, setLayout] = useState(initialLayout);
   const [resourceKind, setResourceKind] = useState("all");
   const [expanded, setExpanded] = useState<string[]>(() => [
@@ -348,13 +352,13 @@ export function CorpusScreen({
   const result = ask ? rankAsk(snapshot, browsed.state, ask.scores, ask.bands ?? { confident: 1, unsure: 1 }, now) : browsed;
   const applied = result.state;
 
-  const shownQuery = linkedQuery(browsed.state);
-  const heldSelection = linkedQuery({ ...filter, keyword: "" });
-  const appliedSelection = linkedQuery({ ...browsed.state, keyword: "" });
+  const shownQuery = withView(linkedQuery(browsed.state), view);
+  const heldSelection = withView(linkedQuery({ ...filter, keyword: "" }), view);
+  const appliedSelection = withView(linkedQuery({ ...browsed.state, keyword: "" }), view);
   useEffect(() => {
     const search = shownQuery === "" ? "" : `?${shownQuery}`;
     if (window.location.search === search) return;
-    const addressed = linkedQuery({ ...selectionInAddress(), keyword: "" });
+    const addressed = withView(linkedQuery({ ...selectionInAddress(), keyword: "" }), viewInAddress());
     const step = addressed === heldSelection || addressed === appliedSelection ? "replaceState" : "pushState";
     window.history[step](null, "", `${window.location.pathname}${search}${window.location.hash}`);
   }, [shownQuery, heldSelection, appliedSelection]);
@@ -370,6 +374,7 @@ export function CorpusScreen({
         setDeck((current) => (current.front === "filters" ? current : { front: "filters" }));
       }
       setFilter((current) => ({ ...current, ...selectionInAddress() }));
+      setView(viewInAddress());
     };
     window.addEventListener("popstate", follow);
     return () => window.removeEventListener("popstate", follow);

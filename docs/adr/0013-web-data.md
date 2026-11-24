@@ -133,6 +133,10 @@ The search words in a link are cut to 200 characters both when the address is wr
 
 Time, sort and Media are kept in the address next to the selection, so a reload keeps them and Back undoes them. Only values other than the defaults are written, and a value the app doesn't offer reads as the default.
 
+#### 0013.58 `withView`
+
+The Resources view is kept in the address as `view=resources`, first, so a reload keeps it and Back returns to Posts. Posts is the default and is never written.
+
 ### `apps/web/src/lib/filter.ts`
 
 #### 0013.17 `ORDER.added`
