@@ -74,6 +74,7 @@ function versionOf(path) {
 async function holdSetupLock() {
   const { paths } = await import('../src/config.ts');
   const { acquireLock } = await import('../src/lock.ts');
+  const { err, out } = await import('../src/terminal.ts');
   const path = join(paths().stateDir, 'setup.lock');
   const deadline = Date.now() + SETUP_WAIT_MS;
   let told = false;
@@ -81,10 +82,10 @@ async function holdSetupLock() {
     const attempt = acquireLock(path);
     if (attempt.held) return attempt.release;
     if (Date.now() > deadline) {
-      console.error(`Another Magpie setup (pid ${attempt.pid}) is still running after ${SETUP_WAIT_MS / 60_000} minutes. Stop it or wait, then run bun run setup again.`);
+      console.error(err.red(`✗ Another Magpie setup (pid ${attempt.pid}) is still running after ${SETUP_WAIT_MS / 60_000} minutes. Stop it or wait, then run bun run setup again.`));
       process.exit(1);
     }
-    if (!told) console.log(`Another Magpie setup is running (pid ${attempt.pid}), such as the update that follows a git pull. Waiting for it to finish.`);
+    if (!told) console.log(out.yellow(`▲ Another Magpie setup is running (pid ${attempt.pid}), such as the update that follows a git pull. Waiting for it to finish.`));
     told = true;
     await sleep(SETUP_POLL_MS);
   }
