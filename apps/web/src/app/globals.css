@@ -519,6 +519,14 @@ body {
   48% { transform: none; z-index: 2; }
   100% { transform: translateX(var(--deck-peek)) scale(var(--deck-lift)); z-index: 1; }
 }
+@media (hover: hover) and (pointer: fine) {
+  .post-actions {
+    transition: opacity 150ms ease-out;
+  }
+  .post-li:not(:hover, :focus-within) .post-actions:not(:has([data-open])) {
+    opacity: 0;
+  }
+}
 .answer-rise {
   animation: post-rise-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
