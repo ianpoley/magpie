@@ -13,6 +13,7 @@ import {
   topicPosts,
   topicResources,
   withLinks,
+  withTopics,
 } from '@magpie/skill/corpus.mjs';
 import { McpServer, createMcpHandler } from '@modelcontextprotocol/server';
 import { loadSkills } from '@modelcontextprotocol/server/ext/skills/node';
@@ -103,7 +104,7 @@ function registerTools(mcp, locate) {
 
   mcp.registerTool('search_posts', {
     title: 'Search posts',
-    description: 'Keyword search over the saved posts. Posts hitting more distinct terms rank first, then by term frequency, then recency. Give 2–4 focused keywords; with none, returns the most recent posts.',
+    description: 'Keyword search over the saved posts. Posts hitting more distinct terms rank first, then by term frequency, then recency. Give 2–4 focused keywords; with none, returns the most recent posts. Each post names the topics it is confidently in, for topic_posts.',
     inputSchema: z.object({
       terms: z.string().max(500).describe('Space-separated keywords.'),
       source: z.enum(['all', 'bookmarks', 'likes']).optional().describe('Default all.'),
@@ -124,7 +125,7 @@ function registerTools(mcp, locate) {
       since: args.since ?? null,
       includeHidden: args.include_hidden ?? false,
     });
-    return [text({ total, posts: shapePosts(db, posts, args.full) })];
+    return [text({ total, posts: withTopics(db, shapePosts(db, posts, args.full), { includeHidden: args.include_hidden ?? false }) })];
   }));
 }
 

@@ -185,6 +185,20 @@ function resolveCategory(db, name, includeHidden) {
   return { label, hiddenOnly, best };
 }
 
+export function withTopics(db, posts, { includeHidden = false } = {}) {
+  const { topics, members } = readCategories(db, includeHidden);
+  const byPost = new Map();
+  for (const t of topics) {
+    if (!includeHidden && t.hidden) continue;
+    for (const m of members.get(t.id)) {
+      if (m.band !== 'confident') continue;
+      const id = String(m.post_id);
+      byPost.set(id, [...(byPost.get(id) ?? []), t.name]);
+    }
+  }
+  return posts.map(p => ({ ...p, topics: byPost.get(String(p.id)) ?? [] }));
+}
+
 export function withLinks(db, posts) {
   const wanted = new Set(posts.map(p => String(p.id)));
   const byPost = new Map();
