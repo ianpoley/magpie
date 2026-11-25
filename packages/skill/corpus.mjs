@@ -185,6 +185,23 @@ function resolveCategory(db, name, includeHidden) {
   return { label, hiddenOnly, best };
 }
 
+export function withLinks(db, posts) {
+  const wanted = new Set(posts.map(p => String(p.id)));
+  const byPost = new Map();
+  const rows = db.prepare(
+    `SELECT pl.post_id, COALESCE(l.final_url, l.expanded_url, l.url) AS url, l.title
+     FROM post_links pl JOIN links l ON l.url = pl.link_url
+     WHERE l.status = 'resolved'
+     ORDER BY pl.position`,
+  ).all();
+  for (const row of rows) {
+    const id = String(row.post_id);
+    if (!wanted.has(id)) continue;
+    byPost.set(id, [...(byPost.get(id) ?? []), { url: row.url, title: row.title }]);
+  }
+  return posts.map(p => ({ ...p, links: byPost.get(String(p.id)) ?? [] }));
+}
+
 export function topicPosts(db, name, { limit = 12, includeHidden = false } = {}) {
   const { label, hiddenOnly, best } = resolveCategory(db, name, includeHidden);
   const posts = new Map(db.prepare(

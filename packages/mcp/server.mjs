@@ -12,6 +12,7 @@ import {
   staleNote,
   topicPosts,
   topicResources,
+  withLinks,
 } from '@magpie/skill/corpus.mjs';
 import { McpServer, createMcpHandler } from '@modelcontextprotocol/server';
 import { loadSkills } from '@modelcontextprotocol/server/ext/skills/node';
@@ -81,7 +82,7 @@ function registerTools(mcp, locate) {
     const result = topicPosts(db, args.name, { limit: args.limit ?? 12, includeHidden: args.include_hidden ?? false });
     if (result.hiddenOnly) return [text(hiddenNotice(result.label))];
     const { label, total, confident, posts } = result;
-    return [text({ category: label, total, confident, unsure: total - confident, posts })];
+    return [text({ category: label, total, confident, unsure: total - confident, posts: withLinks(db, posts) })];
   }));
 
   mcp.registerTool('topic_resources', {
@@ -117,7 +118,7 @@ function registerTools(mcp, locate) {
       since: args.since ?? null,
       includeHidden: args.include_hidden ?? false,
     });
-    return [text({ total, posts })];
+    return [text({ total, posts: withLinks(db, posts) })];
   }));
 }
 
