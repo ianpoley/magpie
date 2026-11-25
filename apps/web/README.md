@@ -49,6 +49,7 @@ The page reads the store on every request and again whenever you return to the w
   - Remove from corpus, in the post dialog, takes a post out of this corpus only; nothing changes on X. The toast offers Undo, and the Removed list in the sidebar restores it later.
 - **Deep links:** the collection, the category selection, the author, and the search are in the address, so they can be bookmarked and Back works: `?collection=likes`, `?topics=1,3&areas=2`, `?unfiled=1`, `?author=shuding`, `?q=scroll%20animation`. Typing a search updates the current entry instead of adding one per letter.
 - **Loopback only:** the server answers only requests whose `Host` is `localhost`, `127.0.0.1`, or `[::1]`, on any port. Any other name gets a 403 (`src/proxy.ts`).
+- **MCP endpoint:** `/mcp` serves the corpus to MCP clients over Streamable HTTP: four read-only tools and the magpie skill, built in `packages/mcp`. It sits behind the same loopback guard and refuses any request with an `Origin` header. Reaching it from another machine takes a reverse proxy on a private network that forwards only `/mcp`; one that forwards the whole app gives everyone who can reach it the settings, the edits and Ask (`docs/usage.md`, ADR 0018).
 
 ## Layout of the code
 

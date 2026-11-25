@@ -13,3 +13,4 @@ export const engineClaude = () => import(/* turbopackIgnore: true */ "@magpie/en
 export const engineSkillLink = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/setup/skill-link.ts");
 export const engineUpdate = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/release/update.ts");
 export const engineAnswerModel = () => import(/* turbopackIgnore: true */ "@magpie/engine/src/claude/answer-model.ts");
+export const engineMcp = () => import(/* turbopackIgnore: true */ "@magpie/mcp/server.mjs");

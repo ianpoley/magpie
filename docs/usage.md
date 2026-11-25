@@ -68,6 +68,39 @@ node ~/.claude/skills/magpie/query.mjs "state machine" --source bookmarks --json
 
 The skill finds your clone from the real path of the link, so the clone can be anywhere on disk. Read [packages/skill/SKILL.md](../packages/skill/SKILL.md) for every command and flag.
 
+## MCP server: use your corpus from another machine
+
+The skill needs the corpus on the same machine. If Magpie runs on another computer, such as a Mac Mini, connect to it over MCP instead. The web app serves an MCP endpoint at `/mcp` with four read-only tools (`list_categories`, `topic_posts`, `topic_resources`, `search_posts`) and the magpie skill itself, so Claude gets the same guidance it gets from the local skill.
+
+The endpoint answers loopback requests only, like the rest of the app. To reach it from another machine, run a reverse proxy on a private network, for example Caddy on a Tailscale address, and forward only `/mcp`. The proxy must send a loopback `Host` header, or the app answers 403. In Caddy:
+
+```
+magpie.example.ts.net {
+	handle /mcp* {
+		reverse_proxy 127.0.0.1:3030 {
+			header_up Host localhost
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+```
+
+Keep it private: the endpoint has no sign-in, so anyone who can reach the address can read your corpus.
+
+Forward the whole app only if you mean to. The app has no sign-in either, and a proxy that sends a loopback `Host` turns off its one guard. Everyone who can reach the address can then do all that you can do in the browser: run Ask on your Jev and Claude usage, replace the X connection and the Jev key, hide or delete areas, and purge removed posts.
+
+Then, on the machine you code on:
+
+```bash
+claude mcp add --transport http --scope user magpie https://<your-magpie-host>/mcp
+```
+
+Start a new session and run `/mcp` to check that `magpie` is connected. In an interactive session on Claude Code 2.1.331 or newer, the served skill shows up as `/magpie:magpie` (served skills are in beta). Hosts that don't load served skills, such as `claude -p`, still get the tools and the server's instructions.
+
+On that machine, remove the local skill link if there is one (`rm ~/.claude/skills/magpie`), so Claude doesn't see two magpie skills.
+
 ## Raw files
 
 Every sync writes plain files that any tool can read:
