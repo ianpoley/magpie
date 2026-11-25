@@ -85,6 +85,11 @@ test('with a store, results lead with the corpus age and leave out hidden and re
   const found = ids(await tool('search_posts')({ terms: 'animation', limit: 50 }));
   assert.ok(found.includes('101'));
   assert.ok(!found.includes('104') && !found.includes('105'));
+  const hits = payload(await tool('search_posts')({ terms: 'animation', limit: 50 })).posts;
+  assert.deepEqual(hits.find(p => p.id === '101').topics, ['Animation']);
+  assert.ok(hits.every(p => !p.topics.includes('Elections')));
+  const hiddenHit = payload(await tool('search_posts')({ terms: 'animation', limit: 50, include_hidden: true })).posts.find(p => p.id === '104');
+  assert.deepEqual(hiddenHit.topics, ['Elections']);
   const withHidden = ids(await tool('search_posts')({ terms: 'animation', limit: 50, include_hidden: true }));
   assert.ok(withHidden.includes('104') && !withHidden.includes('105'));
 });

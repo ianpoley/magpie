@@ -25,7 +25,7 @@ The magpie MCP server provides four read-only tools:
 - `list_categories` — every area and its topics, each with a one-line definition, the number of posts confidently in it, and how many more are unsure matches. Call it first to get exact names.
 - `topic_posts` — `name` is an area or topic from `list_categories`. Confident matches come first, then unsure ones (`band: "unsure"`). Default `limit` 12, at most 50.
 - `topic_resources` — the repos, packages, videos, and pages a topic's posts link to, most-posted first.
-- `search_posts` — keyword search. `terms` takes 2–4 focused keywords; `source` (`all`, `bookmarks`, `likes`), `author` (an X handle), and `since` (`YYYY-MM-DD`) narrow it. Posts hitting more distinct terms rank first, then by frequency, then recency.
+- `search_posts` — keyword search. `terms` takes 2–4 focused keywords; `source` (`all`, `bookmarks`, `likes`), `author` (an X handle), and `since` (`YYYY-MM-DD`) narrow it. Posts hitting more distinct terms rank first, then by frequency, then recency. Each hit lists the `topics` it is confidently in, so a good hit leads straight to `topic_posts` for more like it.
 
 Names are matched whole, ignoring case. A name that isn't found returns the closest ones.
 
