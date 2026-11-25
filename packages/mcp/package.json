@@ -1,0 +1,18 @@
+{
+  "name": "@magpie/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server over the Magpie corpus: read-only query tools and the magpie skill, served over Streamable HTTP by the web app",
+  "exports": {
+    "./server.mjs": "./server.mjs"
+  },
+  "dependencies": {
+    "@magpie/skill": "workspace:*",
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0"
+  }
+}
