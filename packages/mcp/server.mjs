@@ -108,7 +108,7 @@ function registerTools(mcp, locate) {
       terms: z.string().max(500).describe('Space-separated keywords.'),
       source: z.enum(['all', 'bookmarks', 'likes']).optional().describe('Default all.'),
       author: z.string().optional().describe('Only posts by this X handle, with or without @.'),
-      since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Only posts on or after this date, YYYY-MM-DD.'),
+      since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(day => !Number.isNaN(Date.parse(day)), 'Not a real date.').optional().describe('Only posts on or after this date, YYYY-MM-DD.'),
       limit,
       full,
       include_hidden: includeHidden,

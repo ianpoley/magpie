@@ -59,6 +59,7 @@ test('search_posts takes an author with or without @ and filters by date', async
   assert.ok(recent.every(p => Date.parse(p.created) >= Date.parse('2026-03-15')));
 
   assert.ok((await search({ terms: 'animation', since: 'yesterday' })).isError);
+  assert.ok((await search({ terms: 'animation', since: '2026-13-40' })).isError);
 });
 
 test('with a store, results lead with the corpus age and leave out hidden and removed posts', async t => {
