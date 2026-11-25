@@ -312,13 +312,14 @@ function scorer(terms) {
   };
 }
 
-export function searchPosts(paths, db, terms, { source = 'all', limit = 12, author = null, since = null, includeHidden = false } = {}) {
+export function searchPosts(paths, db, terms, { source = 'all', limit = 12, author = null, since = null, id = null, includeHidden = false } = {}) {
   let records = exportedPosts(paths.dir, source);
   if (db) {
     const dropped = removedPostIds(db);
     if (!includeHidden) for (const id of hiddenPostIds(db)) dropped.add(id);
     records = records.filter(r => !dropped.has(String(r.id)));
   }
+  if (id) records = records.filter(r => String(r.id) === id);
   if (author) records = records.filter(r => String(r.handle || '').toLowerCase() === author);
   if (since) {
     const t = Date.parse(since);

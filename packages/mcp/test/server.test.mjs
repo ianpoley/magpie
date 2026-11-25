@@ -59,6 +59,8 @@ test('search_posts takes an author with or without @ and filters by date', async
   assert.ok(recent.every(p => Date.parse(p.created) >= Date.parse('2026-03-15')));
 
   assert.ok((await search({ terms: 'animation', since: 'yesterday' })).isError);
+  assert.deepEqual(payload(await search({ terms: '', id: '101' })).posts.map(p => p.id), ['101']);
+  assert.deepEqual(payload(await search({ terms: '', id: '104' })).posts, []);
   assert.ok((await search({ terms: 'animation', since: '2026-13-40' })).isError);
 });
 
