@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
-import { seedArea, seedPost, seedScore, seedTopic, tempStore } from '../../engine/test/fixtures/corpus.ts';
+import { seedArea, seedLink, seedPost, seedScore, seedTopic, tempStore } from '../../engine/test/fixtures/corpus.ts';
 import { magpieMcpHandler } from '../server.mjs';
 
 const CORPUS = fileURLToPath(new URL('../../skill/test/fixtures/corpus', import.meta.url));
@@ -19,6 +19,8 @@ function seedStore(t) {
   seedScore(db, '101', animation, 0.9);
   seedScore(db, '105', animation, 0.8);
   seedScore(db, '104', elections, 0.9);
+  seedLink(db, '101', 'https://t.co/repo', { status: 'resolved', title: 'A repo' });
+  seedLink(db, '101', 'https://t.co/video', { status: 'not_resource' });
   db.prepare(`UPDATE posts SET removed_at = '2026-02-01T00:00:00.000Z' WHERE id = '105'`).run();
   const runId = Number(db.prepare(`INSERT INTO runs (started_at, status) VALUES (?, 'complete')`).run(THREE_DAYS_AGO).lastInsertRowid);
   db.prepare(`INSERT INTO run_stages (run_id, stage, outcome, finished_at) VALUES (?, 'x_bookmarks', 'ok', ?)`).run(runId, THREE_DAYS_AGO);
@@ -75,6 +77,9 @@ test('with a store, results lead with the corpus age and leave out hidden and re
   assert.match(hidden.content.at(-1).text, /hidden by default/);
   assert.deepEqual(ids(await tool('topic_posts')({ name: 'Elections', include_hidden: true })), ['104']);
   assert.deepEqual(ids(await tool('topic_posts')({ name: 'Animation', include_hidden: true })), ['101']);
+
+  const [first] = payload(await tool('topic_posts')({ name: 'Animation' })).posts;
+  assert.deepEqual(first.links, [{ url: 'https://t.co/repo', title: 'A repo' }]);
 
   const found = ids(await tool('search_posts')({ terms: 'animation', limit: 50 }));
   assert.ok(found.includes('101'));

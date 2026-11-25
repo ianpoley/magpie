@@ -37,7 +37,7 @@ A post the user removed in the web app is never returned, and no option brings i
 
 ## Workflow
 1. Call `list_categories` and pick the topic that fits, then `topic_posts`; or call `search_posts` with 2–4 keywords. `topic_resources` gives the tools and references a topic keeps pointing at.
-2. Skim the top hits. For a promising one, open the post URL to get the full thread, quoted post, or media. The results hold only the root post's text.
+2. Skim the top hits. Each post's `links` lists the pages it shares, already resolved from t.co, with their titles; go to those for the repo or article itself. For the full thread, quoted post, or media, open the post URL. The results hold only the root post's text.
 3. Extract the concrete idea, tool, or technique and fold it into the work. **Cite the `@handle` and URL** so the user can trace where it came from.
 
 ## Freshness
