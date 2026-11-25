@@ -37,7 +37,8 @@ const categoryName = z.string().trim().min(1).describe('An area or topic name fr
 
 const text = value => ({ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) });
 const clip = post => (post.text.length > CLIP_AT ? { ...post, text: `${post.text.slice(0, CLIP_AT)}…`, truncated: true } : post);
-const shapePosts = (db, posts, wantFull) => withLinks(db, wantFull ? posts : posts.map(clip));
+const withoutScore = ({ score: _rank, ...post }) => post;
+const shapePosts = (db, posts, wantFull) => withLinks(db, posts.map(withoutScore).map(post => (wantFull ? post : clip(post))));
 const failure = message => ({ isError: true, content: [text(message)] });
 const hiddenNotice = label => `"${label}" is hidden by default. Call again with include_hidden only if the user asked for it.`;
 
