@@ -231,13 +231,16 @@ export function topicResources(db, name, { limit = 12, includeHidden = false } =
   return { label, hiddenOnly, total: ranked.length, resources: ranked.slice(0, limit) };
 }
 
+const decodeEntities = text => String(text ?? '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+
 function loadExport(dir, file) {
   const p = join(dir, file);
   if (!existsSync(p)) return [];
   return readFileSync(p, 'utf8')
     .split('\n').filter(Boolean)
     .map(l => { try { return JSON.parse(l); } catch { return null; } })
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(r => ({ ...r, text: decodeEntities(r.text), name: decodeEntities(r.name) }));
 }
 
 function exportedPosts(dir, source) {
