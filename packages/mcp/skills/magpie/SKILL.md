@@ -29,6 +29,8 @@ The magpie MCP server provides four read-only tools:
 
 Names are matched whole, ignoring case. A name that isn't found returns the closest ones.
 
+`topic_posts` and `search_posts` cut post text at 400 characters and mark the post `truncated: true`. To read a long post whole, call again with `full: true` and a small `limit`, for example `search_posts` with its `author` and a phrase from it.
+
 ### Hidden areas and removed posts
 
 The user has hidden some areas and topics. Their posts are left out of every tool, keyword search included. Set `include_hidden: true` only when the user explicitly asks for that material.

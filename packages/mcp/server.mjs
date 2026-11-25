@@ -20,6 +20,7 @@ import * as z from 'zod';
 
 const SKILLS_DIR = fileURLToPath(new URL('./skills', import.meta.url));
 const MAX_LIMIT = 50;
+const CLIP_AT = 400;
 
 const INSTRUCTIONS = `Magpie holds the user's own saved X (Twitter) bookmarks and likes, sorted into areas and topics. Use it to ground work in posts the user has already vouched for, not for general research.
 
@@ -31,9 +32,12 @@ const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: 
 
 const limit = z.number().int().min(1).max(MAX_LIMIT).optional().describe(`How many to return, 1–${MAX_LIMIT}. Default 12.`);
 const includeHidden = z.boolean().optional().describe('Also include areas and topics the user has hidden. Only when the user explicitly asks for that material.');
+const full = z.boolean().optional().describe(`Return each post's whole text. By default text over ${CLIP_AT} characters is cut and marked truncated.`);
 const categoryName = z.string().trim().min(1).describe('An area or topic name from list_categories, matched whole and ignoring case.');
 
 const text = value => ({ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) });
+const clip = post => (post.text.length > CLIP_AT ? { ...post, text: `${post.text.slice(0, CLIP_AT)}…`, truncated: true } : post);
+const shapePosts = (db, posts, wantFull) => withLinks(db, wantFull ? posts : posts.map(clip));
 const failure = message => ({ isError: true, content: [text(message)] });
 const hiddenNotice = label => `"${label}" is hidden by default. Call again with include_hidden only if the user asked for it.`;
 
@@ -76,13 +80,13 @@ function registerTools(mcp, locate) {
   mcp.registerTool('topic_posts', {
     title: 'Posts in a topic',
     description: 'The posts in one topic, or in every topic of an area. Confident matches come first, then unsure ones (band "unsure").',
-    inputSchema: z.object({ name: categoryName, limit, include_hidden: includeHidden }),
+    inputSchema: z.object({ name: categoryName, limit, full, include_hidden: includeHidden }),
     annotations: READ_ONLY,
   }, async args => withStore(locate, (_, db) => {
     const result = topicPosts(db, args.name, { limit: args.limit ?? 12, includeHidden: args.include_hidden ?? false });
     if (result.hiddenOnly) return [text(hiddenNotice(result.label))];
     const { label, total, confident, posts } = result;
-    return [text({ category: label, total, confident, unsure: total - confident, posts: withLinks(db, posts) })];
+    return [text({ category: label, total, confident, unsure: total - confident, posts: shapePosts(db, posts, args.full) })];
   }));
 
   mcp.registerTool('topic_resources', {
@@ -105,6 +109,7 @@ function registerTools(mcp, locate) {
       author: z.string().optional().describe('Only posts by this X handle, with or without @.'),
       since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Only posts on or after this date, YYYY-MM-DD.'),
       limit,
+      full,
       include_hidden: includeHidden,
     }),
     annotations: READ_ONLY,
@@ -118,7 +123,7 @@ function registerTools(mcp, locate) {
       since: args.since ?? null,
       includeHidden: args.include_hidden ?? false,
     });
-    return [text({ total, posts: withLinks(db, posts) })];
+    return [text({ total, posts: shapePosts(db, posts, args.full) })];
   }));
 }
 
