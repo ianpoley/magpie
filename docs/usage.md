@@ -91,7 +91,13 @@ Keep it private: the endpoint has no sign-in, so anyone who can reach the addres
 
 Forward the whole app only if you mean to. The app has no sign-in either, and a proxy that sends a loopback `Host` turns off its one guard. Everyone who can reach the address can then do all that you can do in the browser: run Ask on your Jev and Claude usage, replace the X connection and the Jev key, hide or delete areas, and purge removed posts.
 
-Then, on the machine you code on:
+Then, on the machine you code on, check that the proxy reaches the endpoint:
+
+```bash
+curl -i https://<your-magpie-host>/mcp
+```
+
+`405 Method Not Allowed` means it does: the endpoint takes MCP requests, not a plain GET. A `403` says which guard refused it, usually a proxy that doesn't send a loopback `Host` header. Then add it to Claude Code:
 
 ```bash
 claude mcp add --transport http --scope user magpie https://<your-magpie-host>/mcp
