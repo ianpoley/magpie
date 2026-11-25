@@ -65,4 +65,11 @@ building, and pull the most relevant posts and resources. Suggest 3 concrete ide
 for this feature, and cite each one with the @handle and post URL.
 ```
 
-If Magpie runs on another machine and you connected its MCP server instead, say "Use the magpie MCP tools" and "call `list_categories`" in place of the first two phrases.
+If Magpie runs on another machine and you connected its MCP server instead, use this:
+
+```text
+Use the magpie MCP tools. Call `list_categories`, find the topics that fit what we
+are building, and pull the most relevant posts and resources. Follow each post's
+links to what it shares. Suggest 3 concrete ideas for this feature, and cite each
+one with the @handle and post URL.
+```
