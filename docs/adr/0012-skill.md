@@ -58,6 +58,8 @@ Usage:
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L2-L33)
 
+### `packages/skill/corpus.mjs`
+
 #### 0012.5 `loadSqlite`
 
 node:sqlite announces itself as experimental on older node versions; that line would land in the output the calling agent reads.
@@ -75,12 +77,6 @@ Posts the user removed from the corpus. The category views already leave them ou
 The active areas and topics, and which posts are in which topic. Posts the user hides by default are dropped here unless they were asked for, so every command counts and lists the same set.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L164-L166)
-
-#### 0012.8 `category command exit`
-
-Exiting with output still queued on a pipe would cut it short.
-
-[Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L341)
 
 ### `packages/skill/test/query.test.mjs`
 

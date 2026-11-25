@@ -25,6 +25,7 @@ import { seedArea, seedLink, seedPost, seedScore, seedTopic, tempStore } from '.
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = join(HERE, '..');
 const QUERY = join(SKILL_DIR, 'query.mjs');
+const CORPUS_MODULE = join(SKILL_DIR, 'corpus.mjs');
 const INSTALL = join(SKILL_DIR, 'install.sh');
 const CORPUS = join(HERE, 'fixtures', 'corpus');
 const GOLDEN = join(HERE, 'fixtures', 'golden');
@@ -430,6 +431,7 @@ test('with no env overrides the skill reads the clone its symlink points back to
   mkdirSync(join(clone, 'state'));
   mkdirSync(join(clone, 'packages', 'skill'));
   copyFileSync(QUERY, join(clone, 'packages', 'skill', 'query.mjs'));
+  copyFileSync(CORPUS_MODULE, join(clone, 'packages', 'skill', 'corpus.mjs'));
   writeFileSync(
     join(clone, 'data', 'bookmarks.normalized.jsonl'),
     JSON.stringify({
