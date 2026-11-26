@@ -141,7 +141,7 @@ The Resources view is kept in the address as `view=resources`, first, so a reloa
 
 #### 0013.17 `ORDER.added`
 
-A sync sees many posts at once (the first one saw them all), so posts added together fall back to newest.
+The default order, since when a post was saved is more use than when it was written. X gives no saved date, so the date is when a sync first saw the post. A sync sees many posts at once, so posts added together fall back to newest. Posts from the first sync have no saved date (0013.32): they come after every later post, newest first, and the list heads them by the month they were written. A store that has synced once therefore reads exactly as Newest does. The address leaves out `sort` when it is `added`, so a link made while Newest was the default now opens in this order.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/filter.ts#L29)
 
@@ -259,7 +259,7 @@ Whether a Jev key is stored, for the page's setup check only: unlike everything 
 
 #### 0013.32 `Post.addedAtMs`
 
-When a sync first saw the post, as epoch milliseconds: the closest the store has to when it was saved.
+When a sync first saw the post, as epoch milliseconds: the closest the store has to when it was saved. Null for a post the first sync brought in. That sync saw every post saved until then at once, so its stamp says nothing about when any of them was saved. Checked on 2026-11-26: bird and birdclaw keep no bookmark or like time (`tweet_collections.collected_at` is null on every synced row), and the export is ordered by written date.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/types.ts#L27)
 

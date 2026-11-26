@@ -15,7 +15,7 @@ const likeTier = (likes: number): string => {
 export function monthRuns(posts: Post[], shown: number, unsureStart: number | null, filter: FilterState, ranked: boolean, first = 0): Run[] {
   const dated = !ranked && filter.sort !== "most_liked";
   const keyOf = (post: Post, index: number) => {
-    const ms = filter.sort === "added" ? post.addedAtMs : post.createdAtMs;
+    const ms = filter.sort === "added" ? (post.addedAtMs ?? post.createdAtMs) : post.createdAtMs;
     const label = ranked ? null : !dated ? likeTier(post.likeCount) : ms === null ? "Undated" : MONTH.format(ms);
     const possible = unsureStart !== null && index >= unsureStart;
     const year = !dated || ms === null ? null : new Date(ms).getUTCFullYear();

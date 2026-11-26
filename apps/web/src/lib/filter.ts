@@ -9,7 +9,7 @@ export const DEFAULT_FILTER: FilterState = {
   author: null,
   keyword: "",
   timeRange: "all",
-  sort: "newest",
+  sort: "added",
   mediaOnly: false,
   revealHidden: false,
 };
