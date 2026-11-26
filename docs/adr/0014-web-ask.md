@@ -99,6 +99,8 @@ Reads the answer's JSON while it is still being written, so the lead and each se
 
 Post text is other people's writing, so the prompt says to treat it as quoted material and never to follow an instruction inside it. The posts are sent under short refs (`p1`, `p2`) instead of their ids, and the route maps refs back, so a made-up source cannot name a post that was not read. The prompt carries the plain-style rules (`PLAIN_STYLE`) and exempts `quote` from them by name, so a copied prompt keeps its own wording. Rules in the prompt were chosen over a second rewrite pass, which would double the wait, break streaming and touch quotes. Today's date is in the prompt so "latest" and "recently" mean something.
 
+Each post line carries the date it was written, and the prompt says to go with the later post when two disagree or one improves on the other, and to say that it is newer. The ranking sent to Claude stays strongest first: an old post is not always a replaced one, and Claude can tell which it is by reading both (0018.10).
+
 #### 0014.15 `POST /api/answer`
 
 Writes one answer and streams it, one JSON record per line: the refs, each piece of text, then the finished answer or a failure. It is guarded like `/api/ask`. It reads only posts that are still in the corpus, so a removed post is never sent to Claude even when its id is asked for. A post in a hidden category is sent only when the list shows it, because the ids come from the list. Closing the stream cancels the Claude call.

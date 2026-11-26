@@ -17,7 +17,7 @@ import {
 const SUBCOMMANDS = ['categories', 'topic', 'resources'];
 const args = process.argv.slice(2);
 const command = SUBCOMMANDS.includes(args[0]) ? args.shift() : null;
-const opts = { source: 'all', limit: 12, json: false, full: false, author: null, since: null, includeHidden: false };
+const opts = { source: 'all', limit: 12, json: false, full: false, author: null, since: null, sort: 'strength', includeHidden: false };
 const terms = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -25,6 +25,7 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--limit') opts.limit = Math.max(1, parseInt(args[++i], 10) || 12);
   else if (a === '--author') opts.author = String(args[++i] || '').replace(/^@/, '').toLowerCase();
   else if (a === '--since') opts.since = args[++i];
+  else if (a === '--sort') opts.sort = args[++i] === 'newest' ? 'newest' : 'strength';
   else if (a === '--full') opts.full = true;
   else if (a === '--json') opts.json = true;
   else if (a === '--include-hidden') opts.includeHidden = true;
@@ -40,8 +41,10 @@ Usage:
                  [--author handle] [--since YYYY-MM-DD] [--full] [--json]
                  [--include-hidden]
   node query.mjs categories [--include-hidden] [--json]
-  node query.mjs topic <name> [--limit N] [--full] [--json] [--include-hidden]
-  node query.mjs resources <name> [--limit N] [--json] [--include-hidden]
+  node query.mjs topic <name> [--limit N] [--since YYYY-MM-DD] [--sort newest]
+                 [--full] [--json] [--include-hidden]
+  node query.mjs resources <name> [--limit N] [--since YYYY-MM-DD] [--json]
+                 [--include-hidden]
 
 categories lists the areas and topics the posts are sorted into, with counts.
 topic and resources take an area or topic name from that list.
@@ -116,7 +119,8 @@ function runResources(db, name) {
   if (hiddenOnly) return console.log(hiddenNotice(label));
   console.log(`${plural(total, 'resource')} linked from posts in "${label}"; showing top ${resources.length}:\n`);
   for (const [i, r] of resources.entries()) {
-    console.log(`${i + 1}. ${r.title ?? r.url} · ${r.kind} · ${plural(r.posts, 'post')}`);
+    const lastShared = r.last_shared ? ` · last shared ${String(r.last_shared).slice(0, 10)}` : '';
+    console.log(`${i + 1}. ${r.title ?? r.url} · ${r.kind} · ${plural(r.posts, 'post')}${lastShared}`);
     console.log(`   ${r.url}`);
     if (r.description) console.log(`   ${r.description}`);
     console.log('');

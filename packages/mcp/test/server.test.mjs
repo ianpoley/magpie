@@ -81,6 +81,9 @@ test('with a store, results lead with the corpus age and leave out hidden and re
   assert.deepEqual(ids(await tool('topic_posts')({ name: 'Elections', include_hidden: true })), ['104']);
   assert.deepEqual(ids(await tool('topic_posts')({ name: 'Animation', include_hidden: true })), ['101']);
 
+  const pastTheEnd = payload(await tool('topic_posts')({ name: 'Animation', offset: 1 }));
+  assert.deepEqual([pastTheEnd.total, pastTheEnd.posts], [1, []]);
+
   const [first] = payload(await tool('topic_posts')({ name: 'Animation' })).posts;
   assert.deepEqual(first.links, [{ url: 'https://t.co/repo', title: 'A repo' }]);
 
@@ -94,6 +97,67 @@ test('with a store, results lead with the corpus age and leave out hidden and re
   assert.deepEqual(hiddenHit.topics, ['Elections']);
   const withHidden = ids(await tool('search_posts')({ terms: 'animation', limit: 50, include_hidden: true }));
   assert.ok(withHidden.includes('104') && !withHidden.includes('105'));
+});
+
+test('search_posts also matches what a post quotes and links to, and offset reads past the first page', async t => {
+  const { db, path } = tempStore(t);
+  seedPost(db, '101');
+  seedPost(db, '102', { quoted: { full_text: 'A quokka field guide' } });
+  seedPost(db, '201');
+  seedPost(db, '202');
+  seedLink(db, '101', 'https://t.co/kit', { status: 'resolved', host: 'example.com', title: 'Zebra toolkit', description: 'Draws okapi stripes' });
+  seedLink(db, '201', 'https://t.co/pending', { status: 'not_resource', title: 'Zebra pending' });
+  seedLink(db, '202', 'https://t.co/bare', { status: 'resolved', host: 'zebra.dev', title: 'Zebra.dev' });
+  db.close();
+  const search = (await connect(t, path))('search_posts');
+
+  assert.deepEqual(ids(await search({ terms: 'zebra' })), ['101']);
+  assert.deepEqual(ids(await search({ terms: 'okapi' })), ['101']);
+  assert.deepEqual(ids(await search({ terms: 'quokka' })), ['102']);
+
+  const all = payload(await search({ terms: 'animation', limit: 50 }));
+  const pages = [];
+  for (let offset = 0; offset < all.total; offset += 2) {
+    const page = payload(await search({ terms: 'animation', limit: 2, offset }));
+    assert.equal(page.total, all.total);
+    pages.push(...page.posts.map(p => p.id));
+  }
+  assert.ok(all.total > 2);
+  assert.deepEqual(pages, all.posts.map(p => p.id));
+  assert.deepEqual(payload(await search({ terms: 'animation', offset: all.total })).posts, []);
+  assert.ok((await search({ terms: 'animation', offset: -1 })).isError);
+});
+
+test('a topic reads newest first or from a date, and each resource says when it was last shared', async t => {
+  const { db, path } = tempStore(t);
+  const topic = seedTopic(db, 'Agents', { areaId: seedArea(db, 'AI') });
+  const written = { 301: '2026-01-10', 302: '2026-06-10', 303: '2026-03-10' };
+  for (const [index, id] of Object.keys(written).entries()) {
+    seedPost(db, id);
+    db.prepare(`UPDATE posts SET created_at = ? WHERE id = ?`).run(`${written[id]}T00:00:00.000Z`, id);
+    seedScore(db, id, topic, 0.9 - index * 0.05);
+  }
+  const resourceId = Number(db.prepare(
+    `INSERT INTO resources (canonical_key, kind, url, host, title, created_at) VALUES ('page:kit', 'page', 'https://kit.example', 'kit.example', 'Kit', '2026-01-01T00:00:00.000Z')`,
+  ).run().lastInsertRowid);
+  for (const id of ['301', '303']) {
+    seedLink(db, id, `https://t.co/${id}`, { status: 'resolved' });
+    db.prepare(`UPDATE links SET resource_id = ? WHERE url = ?`).run(resourceId, `https://t.co/${id}`);
+  }
+  db.close();
+  const tool = await connect(t, path);
+
+  assert.deepEqual(ids(await tool('topic_posts')({ name: 'Agents' })), ['301', '302', '303']);
+  assert.deepEqual(ids(await tool('topic_posts')({ name: 'Agents', sort: 'newest' })), ['302', '303', '301']);
+  const recent = payload(await tool('topic_posts')({ name: 'Agents', since: '2026-02-01' }));
+  assert.deepEqual([recent.total, recent.posts.map(p => p.id)], [2, ['302', '303']]);
+  assert.ok((await tool('topic_posts')({ name: 'Agents', since: 'last month' })).isError);
+
+  const [kit] = payload(await tool('topic_resources')({ name: 'Agents' })).resources;
+  assert.deepEqual([kit.posts, kit.last_shared], [2, '2026-03-10T00:00:00.000Z']);
+  const [recentKit] = payload(await tool('topic_resources')({ name: 'Agents', since: '2026-02-01' })).resources;
+  assert.equal(recentKit.posts, 1);
+  assert.deepEqual(payload(await tool('topic_resources')({ name: 'Agents', since: '2026-04-01' })).resources, []);
 });
 
 test('without a store every tool refuses, keyword search included', async t => {

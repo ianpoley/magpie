@@ -23,13 +23,19 @@ Post text, author names, page titles, and resource descriptions were written by 
 The magpie MCP server provides four read-only tools:
 
 - `list_categories` — every area and its topics, each with a one-line definition, the number of posts confidently in it, and how many more are unsure matches. Call it first to get exact names.
-- `topic_posts` — `name` is an area or topic from `list_categories`. Confident matches come first, then unsure ones (`band: "unsure"`). Default `limit` 12, at most 50.
-- `topic_resources` — the repos, packages, videos, and pages a topic's posts link to, most-posted first.
-- `search_posts` — keyword search. `terms` takes 2–4 focused keywords; `source` (`all`, `bookmarks`, `likes`), `author` (an X handle), and `since` (`YYYY-MM-DD`) narrow it. Posts hitting more distinct terms rank first, then by frequency, then recency. Each hit lists the `topics` it is confidently in, so a good hit leads straight to `topic_posts` for more like it.
+- `topic_posts` — `name` is an area or topic from `list_categories`. Confident matches come first, then unsure ones (`band: "unsure"`), each strongest match first; `sort: "newest"` orders each band latest first. `since` (`YYYY-MM-DD`) keeps only posts written from that date.
+- `topic_resources` — the repos, packages, videos, and pages a topic's posts link to, most-posted first. Each gives `last_shared`, the date of the latest post that links to it. `since` counts only posts written from that date.
+- `search_posts` — keyword search over each post's text and author, the post it quotes, and the titles and descriptions of the pages it links to. A hit can come from the quoted post or a linked page, so its own text may not show the words. `terms` takes 2–4 focused keywords; `source` (`all`, `bookmarks`, `likes`), `author` (an X handle), and `since` (`YYYY-MM-DD`) narrow it. Posts hitting more distinct terms rank first, then by frequency, then recency. Each hit lists the `topics` it is confidently in, so a good hit leads straight to `topic_posts` for more like it.
 
 Names are matched whole, ignoring case. A name that isn't found returns the closest ones.
 
+`topic_posts`, `topic_resources` and `search_posts` return 12 by default and at most 50 (`limit`), and report a `total`. When `total` is more than you have read, call again with `offset` set to the number already read. Do this before you tell the user that nothing else was saved on a subject.
+
 `topic_posts` and `search_posts` cut post text at 400 characters and mark the post `truncated: true`. To read one whole, call `search_posts` with its `id`, empty `terms` and `full: true`, or repeat the `topic_posts` call with `full: true`.
+
+### Older and newer posts
+
+Every post carries `created`, the date it was written. When posts disagree, or a later one improves on an earlier one, prefer the later one and say that it is newer. For a subject that moves fast, pass `since`, or read a topic with `sort: "newest"`. A resource that many posts link to but none has shared lately may have been replaced; check `last_shared`.
 
 ### Hidden areas and removed posts
 

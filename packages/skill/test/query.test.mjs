@@ -245,8 +245,9 @@ test('resources lists what a category links to, most-posted first', (t) => {
       url: 'https://github.com/example/motion-lib',
       description: 'A synthetic animation library',
       posts: 3,
+      last_shared: '2026-05-20T07:00:00.000Z',
     },
-    { title: 'Spring docs', kind: 'page', url: 'https://spring.example/docs', description: null, posts: 1 },
+    { title: 'Spring docs', kind: 'page', url: 'https://spring.example/docs', description: null, posts: 1, last_shared: '2026-03-01T10:00:00.000Z' },
   ]);
 
   const text = run(store, ['resources', 'animation']).stdout;
