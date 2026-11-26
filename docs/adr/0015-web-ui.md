@@ -707,7 +707,7 @@ Things the app did that the brand art reacts to: the sidebar mark flaps, the flo
 
 #### 0015.89 `monthRuns`
 
-The shown posts as runs of one month each, for the Rows layout. A new run also starts where the unsure matches begin. Under Most liked, and while an Ask ranks the list, months mean nothing, so there is one run with no label.
+The shown posts as runs of one month each, for the Rows layout. A new run also starts where the unsure matches begin. Under Recently added the month is the one the post was saved in, or the one it was written in when it has no saved date (0013.32). Under Most liked, and while an Ask ranks the list, months mean nothing, so there is one run with no label.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/apps/web/src/lib/month-runs.ts#L7-L11)
 

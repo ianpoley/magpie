@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { DEFAULT_FILTER, applyFilter } from "../src/lib/filter.ts";
 import { linkedQuery, parseLinked, parseSelection, selectionQuery } from "../src/lib/filter-url.ts";
 
-const plain = { timeRange: "all", sort: "newest", mediaOnly: false } as const;
+const plain = { timeRange: "all", sort: "added", mediaOnly: false } as const;
 import { AGENTS, AI, AREAS, EVALS, FRONTEND, NOW, TOPICS, snapshot } from "./fixtures/snapshot.ts";
 
 const fromQuery = (query: string) => parseSelection(Object.fromEntries(new URLSearchParams(query)));
@@ -139,8 +139,8 @@ test("time, sort and Media round-trip before the search words, and anything else
   assert.equal(query, "collection=bookmarks&time=month&sort=most_liked&media=1&q=evals");
   const read = parseLinked(Object.fromEntries(new URLSearchParams(query)));
   assert.deepEqual([read.timeRange, read.sort, read.mediaOnly], ["month", "most_liked", true]);
-  for (const value of [undefined, "", "all", "newest", "Week", "toString"]) {
+  for (const value of [undefined, "", "all", "added", "Week", "toString"]) {
     const ignored = parseLinked({ time: value, sort: value, media: value });
-    assert.deepEqual([ignored.timeRange, ignored.sort, ignored.mediaOnly], ["all", "newest", false], String(value));
+    assert.deepEqual([ignored.timeRange, ignored.sort, ignored.mediaOnly], ["all", "added", false], String(value));
   }
 });

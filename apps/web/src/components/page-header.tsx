@@ -8,6 +8,7 @@ import { ArrowDownUp, AtSign, CalendarDays, Check, ChevronDown, Folder, Image as
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { MAX_QUERY_CHARS, type AskState } from "@/lib/ask";
+import { DEFAULT_FILTER } from "@/lib/filter";
 import type { Area, FilterState, Post, Sort, TimeRange, Topic } from "@/lib/types";
 
 import { formatCount, plural } from "./format";
@@ -30,8 +31,8 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 ];
 
 const SORTS: { value: Sort; label: string }[] = [
-  { value: "newest", label: "Newest" },
   { value: "added", label: "Recently added" },
+  { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
   { value: "most_liked", label: "Most liked" },
 ];
@@ -400,7 +401,7 @@ export function PageHeader(h: PageHeaderProps) {
           </div>
           <div className="flex flex-wrap items-center">
             <Choice label="Time range" icon={CalendarDays} options={TIME_RANGES} value={h.timeRange} fallback="all" onChange={h.onTimeRange} />
-            {askActive ? null : <Choice label="Sort" icon={ArrowDownUp} options={SORTS} value={h.sort} fallback="newest" onChange={h.onSort} />}
+            {askActive ? null : <Choice label="Sort" icon={ArrowDownUp} options={SORTS} value={h.sort} fallback={DEFAULT_FILTER.sort} onChange={h.onSort} />}
             <Toggle pressed={h.mediaOnly} onPressedChange={h.onMediaOnly} aria-label="Only posts with media" className={`${TOOL} w-auto`}>
               {h.mediaOnly ? <Check aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
               Media
