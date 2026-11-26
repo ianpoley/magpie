@@ -52,8 +52,10 @@ Usage:
                  [--author handle] [--since YYYY-MM-DD] [--full] [--json]
                  [--include-hidden]
   node query.mjs categories [--include-hidden] [--json]
-  node query.mjs topic <name> [--limit N] [--full] [--json] [--include-hidden]
-  node query.mjs resources <name> [--limit N] [--json] [--include-hidden]
+  node query.mjs topic <name> [--limit N] [--since YYYY-MM-DD] [--sort newest]
+                 [--full] [--json] [--include-hidden]
+  node query.mjs resources <name> [--limit N] [--since YYYY-MM-DD] [--json]
+                 [--include-hidden]
 ```
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L2-L33)
@@ -77,6 +79,22 @@ Posts the user removed from the corpus. The category views already leave them ou
 The active areas and topics, and which posts are in which topic. Posts the user hides by default are dropped here unless they were asked for, so every command counts and lists the same set.
 
 [Original comment](https://github.com/ianpoley/magpie/blob/7ec16b34a3a0cf685ba340649b08c1b5a07292d1/packages/skill/query.mjs#L164-L166)
+
+#### 0012.11 `sharedText`
+
+Keyword search matches more than a post's own text: the post it quotes, and the title and description of each page it links to. A post that says only "this is great" above a link is found by what the link is about. This is the content Jev judges for topics and Find topic, so the two kinds of search can reach the same posts.
+
+The rules are copied from `postContent` and `quotedText` in `packages/engine/src/jev/questions.ts`, because this file imports only node built-ins (0018.3): resolved links only, the same quoted-text keys, and a title that only repeats the host is left out. Change both together.
+
+The extra text comes from the store, so a search with no store matches post text and author alone. It changes which posts match and how often a term is counted. The score formula is unchanged.
+
+#### 0012.12 `readCategories, topicResources`
+
+The membership and resource rows are read in a fixed order. Posts that tie on band, strength and date then keep one order between calls, so reading a topic page by page with `offset` neither repeats nor skips a post.
+
+#### 0012.13 `topicPosts, topicResources`
+
+`since` keeps only posts written from a date, and `sort: 'newest'` orders each band latest first. Both are off unless asked for, so the default order is unchanged. Each resource carries `last_shared`, the date of the latest post in the category that links to it. `--since` was read only by keyword search before and is now read by `topic` and `resources` too. 0018.10 says why age is shown and not ranked on.
 
 ### `packages/skill/test/query.test.mjs`
 

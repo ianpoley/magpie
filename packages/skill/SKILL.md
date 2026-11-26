@@ -26,13 +26,13 @@ There are two ways in: **categories** (the posts are sorted into areas and topic
 
 ```bash
 node ~/.claude/skills/magpie/query.mjs categories
-node ~/.claude/skills/magpie/query.mjs topic <area or topic name> [--limit N] [--full] [--json]
-node ~/.claude/skills/magpie/query.mjs resources <area or topic name> [--limit N] [--json]
+node ~/.claude/skills/magpie/query.mjs topic <area or topic name> [--limit N] [--since YYYY-MM-DD] [--sort newest] [--full] [--json]
+node ~/.claude/skills/magpie/query.mjs resources <area or topic name> [--limit N] [--since YYYY-MM-DD] [--json]
 ```
 
 - `categories` — every area and its topics, each with a one-line definition, the number of posts confidently in it, and how many more are unsure matches.
-- `topic <name>` — the posts in one topic, or in every topic of an area. Confident matches come first, then unsure ones (marked `unsure match`; `band` in `--json`). Default `--limit` is 12.
-- `resources <name>` — the repos, packages, videos, and pages those posts link to, most-posted first. One resource can be linked from several posts.
+- `topic <name>` — the posts in one topic, or in every topic of an area. Confident matches come first, then unsure ones (marked `unsure match`; `band` in `--json`). Each band is ordered strongest match first; `--sort newest` orders it latest first. Default `--limit` is 12.
+- `resources <name>` — the repos, packages, videos, and pages those posts link to, most-posted first. One resource can be linked from several posts. Each shows when a post last shared it (`last_shared` in `--json`).
 
 Names are matched whole, ignoring case; a name that is not found prints the closest ones. Run `categories` first to get the exact names. These commands only read; categories are edited in the web app, not here.
 
@@ -68,7 +68,11 @@ Flags:
 - `--json` — structured output `[{type,id,handle,name,created,url,text,score}]` for programmatic use
 - `--include-hidden` — also return posts from hidden areas and topics
 
-`--source`, `--author`, and `--since` apply to keyword search only.
+`--source` and `--author` apply to keyword search only. `--since` also narrows `topic` and `resources` to posts written from that date.
+
+### Older and newer posts
+
+Every result shows the date the post was written. When posts disagree, or a later one improves on an earlier one, prefer the later one and say that it is newer. For a subject that moves fast, add `--since`, or read a topic with `--sort newest`. A resource that many posts link to but none has shared lately may have been replaced; check its last-shared date.
 
 Examples:
 ```bash
@@ -77,7 +81,7 @@ node ~/.claude/skills/magpie/query.mjs "state machine" --source bookmarks --json
 node ~/.claude/skills/magpie/query.mjs terminal ui --author steipete --full
 ```
 
-Ranking: posts hitting more of your **distinct** query terms rank first, then by term frequency, then recency. Give 2–4 focused topic keywords; broaden or swap terms if results are thin. Each result shows `@handle`, date, the post URL, and the text.
+Ranking: posts hitting more of your **distinct** query terms rank first, then by term frequency, then recency. Give 2–4 focused topic keywords; broaden or swap terms if results are thin. Each result shows `@handle`, date, the post URL, and the text. Once the store exists, a search also matches the post each one quotes and the titles and descriptions of the pages it links to, so a hit's own text may not show the words.
 
 ## Workflow for drawing on the corpus
 1. Run `categories` and pick the topic that fits the task, then `topic <name>`; or query with 2–4 keywords. `resources <name>` gives the tools and references a topic keeps pointing at.
@@ -88,7 +92,7 @@ Ranking: posts hitting more of your **distinct** query terms rank first, then by
 - `<clone>` is the magpie checkout this skill is installed from. The skill finds it from its own real path, following the `~/.claude/skills/magpie` symlink, so the clone can be anywhere on disk.
 - **Search-ready:** `<clone>/data/{bookmarks,likes}.normalized.jsonl` — one `{type,id,handle,name,created,url,text}` record per line. This is what `query.mjs` reads.
 - **Browsable:** `<clone>/markdown/{bookmarks,likes}/` — one `.md` per post (YAML frontmatter + quoted text) plus `index.md`.
-- **Categories:** `<clone>/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts.
+- **Categories:** `<clone>/state/corpus.sqlite` — the store the sync job keeps; `query.mjs` opens it read-only. Until it exists, the category commands say so and keyword search works as before. Once it exists, keyword search reads it too, to leave out hidden and removed posts and to match quoted posts and linked pages.
 - Set `MAGPIE_DIR` to override the base data dir. The store is then looked for at `<MAGPIE_DIR>/../state/corpus.sqlite`; set `MAGPIE_STORE` to point at it directly.
 - Once the store exists, every command reads it, keyword search included, so every command needs node 22.13 or newer. If the script reports a store schema version it does not know, the skill is older than the store and no command runs, keyword search included: tell the user to update it.
 - This skill's source is `packages/skill/` in the magpie repo, installed as a symlink by `packages/skill/install.sh`.

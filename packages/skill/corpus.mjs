@@ -118,7 +118,7 @@ function readCategories(db, includeHidden) {
   });
   const hiddenPosts = includeHidden ? new Set() : hiddenPostIds(db);
   const members = new Map(topics.map(t => [t.id, []]));
-  for (const m of db.prepare('SELECT post_id, topic_id, band, strength FROM topic_membership').all()) {
+  for (const m of db.prepare('SELECT post_id, topic_id, band, strength FROM topic_membership ORDER BY post_id, topic_id').all()) {
     if (hiddenPosts.has(String(m.post_id))) continue;
     const list = members.get(m.topic_id);
     if (list) list.push(m);
@@ -216,18 +216,25 @@ export function withLinks(db, posts) {
   return posts.map(p => ({ ...p, links: byPost.get(String(p.id)) ?? [] }));
 }
 
-export function topicPosts(db, name, { limit = 12, includeHidden = false } = {}) {
+const startOf = since => {
+  const at = Date.parse(since ?? '');
+  return Number.isNaN(at) ? null : at;
+};
+const writtenAt = created => Date.parse(created) || 0;
+
+export function topicPosts(db, name, { limit = 12, offset = 0, since = null, sort = 'strength', includeHidden = false } = {}) {
+  const from = startOf(since);
   const { label, hiddenOnly, best } = resolveCategory(db, name, includeHidden);
   const posts = new Map(db.prepare(
     `SELECT id, text, created_at, url, author_handle, author_name, bookmarked, liked FROM posts`,
   ).all().map(p => [p.id, p]));
   const ranked = [...best.values()]
     .map(m => ({ m, p: posts.get(m.post_id) }))
-    .filter(x => x.p)
+    .filter(x => x.p && (from === null || Date.parse(x.p.created_at) >= from))
     .sort((a, b) => (b.m.band === 'confident') - (a.m.band === 'confident')
-      || b.m.strength - a.m.strength
-      || (Date.parse(b.p.created_at) || 0) - (Date.parse(a.p.created_at) || 0));
-  const top = ranked.slice(0, limit).map(({ m, p }) => ({
+      || (sort === 'newest' ? 0 : b.m.strength - a.m.strength)
+      || writtenAt(b.p.created_at) - writtenAt(a.p.created_at));
+  const top = ranked.slice(offset, offset + limit).map(({ m, p }) => ({
     type: [p.bookmarked ? 'bookmark' : null, p.liked ? 'like' : null].filter(Boolean).join('+'),
     id: p.id,
     handle: p.author_handle,
@@ -241,25 +248,30 @@ export function topicPosts(db, name, { limit = 12, includeHidden = false } = {})
   return { label, hiddenOnly, total: ranked.length, confident, posts: top };
 }
 
-export function topicResources(db, name, { limit = 12, includeHidden = false } = {}) {
+export function topicResources(db, name, { limit = 12, offset = 0, since = null, includeHidden = false } = {}) {
+  const from = startOf(since);
   const { label, hiddenOnly, best } = resolveCategory(db, name, includeHidden);
   const byResource = new Map();
   const rows = db.prepare(
-    `SELECT pl.post_id, r.id, r.title, r.kind, r.url, r.description
+    `SELECT pl.post_id, p.created_at, r.id, r.title, r.kind, r.url, r.description
      FROM post_links pl
+     JOIN posts p ON p.id = pl.post_id
      JOIN links l ON l.url = pl.link_url
-     JOIN resources r ON r.id = l.resource_id`,
+     JOIN resources r ON r.id = l.resource_id
+     ORDER BY r.id, pl.post_id`,
   ).all();
   for (const row of rows) {
     if (!best.has(row.post_id)) continue;
-    const entry = byResource.get(row.id) || { resource: row, posts: new Set() };
+    if (from !== null && !(Date.parse(row.created_at) >= from)) continue;
+    const entry = byResource.get(row.id) || { resource: row, posts: new Set(), lastShared: null };
     entry.posts.add(row.post_id);
+    if (row.created_at && (entry.lastShared === null || writtenAt(row.created_at) > writtenAt(entry.lastShared))) entry.lastShared = row.created_at;
     byResource.set(row.id, entry);
   }
   const ranked = [...byResource.values()]
-    .map(({ resource: r, posts }) => ({ title: r.title, kind: r.kind, url: r.url, description: r.description, posts: posts.size }))
+    .map(({ resource: r, posts, lastShared }) => ({ title: r.title, kind: r.kind, url: r.url, description: r.description, posts: posts.size, last_shared: lastShared }))
     .sort((a, b) => b.posts - a.posts || String(a.title ?? a.url).localeCompare(String(b.title ?? b.url)));
-  return { label, hiddenOnly, total: ranked.length, resources: ranked.slice(0, limit) };
+  return { label, hiddenOnly, total: ranked.length, resources: ranked.slice(offset, offset + limit) };
 }
 
 const decodeEntities = text => String(text ?? '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
@@ -299,8 +311,8 @@ function scorer(terms) {
   const usable = scoreTerms.length ? scoreTerms : qterms;
   if (!usable.length) return null;
   const phrase = usable.join(' ');
-  return r => {
-    const hay = `${r.text}\n${r.handle}\n${r.name}`.toLowerCase();
+  return (r, shared = '') => {
+    const hay = `${r.text}\n${r.handle}\n${r.name}\n${shared}`.toLowerCase();
     let distinct = 0, total = 0;
     for (const t of usable) {
       const m = hay.match(new RegExp(esc(t), 'g'));
@@ -312,7 +324,44 @@ function scorer(terms) {
   };
 }
 
-export function searchPosts(paths, db, terms, { source = 'all', limit = 12, author = null, since = null, id = null, includeHidden = false } = {}) {
+const QUOTED_TEXT_KEYS = ['full_text', 'text', 'content'];
+
+function quotedText(quotedJson) {
+  try {
+    const quoted = JSON.parse(quotedJson);
+    const key = QUOTED_TEXT_KEYS.find(k => typeof quoted?.[k] === 'string' && quoted[k]);
+    return key ? quoted[key] : null;
+  } catch {
+    return null;
+  }
+}
+
+const isUntitled = link => !link.title || link.title.trim().toLowerCase() === String(link.host ?? '').toLowerCase();
+
+function sharedText(db) {
+  const parts = new Map();
+  const add = (postId, value) => {
+    if (!value) return;
+    const id = String(postId);
+    parts.set(id, [...(parts.get(id) ?? []), value]);
+  };
+  for (const row of db.prepare(`SELECT id, quoted_json FROM posts WHERE quoted_json IS NOT NULL`).all()) {
+    add(row.id, quotedText(row.quoted_json));
+  }
+  const links = db.prepare(
+    `SELECT pl.post_id, l.host, l.title, l.description
+     FROM post_links pl JOIN links l ON l.url = pl.link_url
+     WHERE l.status = 'resolved'
+     ORDER BY pl.post_id, pl.position, pl.link_url`,
+  ).all();
+  for (const link of links) {
+    if (!isUntitled(link)) add(link.post_id, link.title);
+    add(link.post_id, link.description);
+  }
+  return new Map([...parts].map(([id, values]) => [id, values.join('\n')]));
+}
+
+export function searchPosts(paths, db, terms, { source = 'all', limit = 12, offset = 0, author = null, since = null, id = null, includeHidden = false } = {}) {
   let records = exportedPosts(paths.dir, source);
   if (db) {
     const dropped = removedPostIds(db);
@@ -321,14 +370,13 @@ export function searchPosts(paths, db, terms, { source = 'all', limit = 12, auth
   }
   if (id) records = records.filter(r => String(r.id) === id);
   if (author) records = records.filter(r => String(r.handle || '').toLowerCase() === author);
-  if (since) {
-    const t = Date.parse(since);
-    if (!isNaN(t)) records = records.filter(r => Date.parse(r.created) >= t);
-  }
+  const from = startOf(since);
+  if (from !== null) records = records.filter(r => Date.parse(r.created) >= from);
   const score = scorer(terms);
+  const shared = score && db ? sharedText(db) : new Map();
   const scored = score
-    ? records.map(r => ({ r, s: score(r) })).filter(x => x.s > 0)
+    ? records.map(r => ({ r, s: score(r, shared.get(String(r.id))) })).filter(x => x.s > 0)
     : records.map(r => ({ r, s: 0 }));
-  scored.sort((a, b) => b.s - a.s || (Date.parse(b.r.created) || 0) - (Date.parse(a.r.created) || 0));
-  return { total: scored.length, posts: scored.slice(0, limit).map(x => ({ ...x.r, score: x.s })) };
+  scored.sort((a, b) => b.s - a.s || writtenAt(b.r.created) - writtenAt(a.r.created));
+  return { total: scored.length, posts: scored.slice(offset, offset + limit).map(x => ({ ...x.r, score: x.s })) };
 }
